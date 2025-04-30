@@ -1,7 +1,7 @@
 import algosdk from "algosdk";
 import { PeraWalletConnect } from "@perawallet/connect";
 import { DeflyWalletConnect } from "@blockshake/defly-connect";
-import eventBus from "./event-bus";
+import eventBus from "./event-bus.js";
 import "./algomintx.css";
 
 class AlgoMintX {
@@ -173,6 +173,65 @@ class AlgoMintX {
         }
       });
     } catch (error) {}
+  }
+
+  resetToLoginUI() {
+    this.walletConnected = false;
+    this.account = null;
+    this.connectionInfo = null;
+    this.selectedWalletType = null;
+
+    this.clearMessage();
+    this.updateWalletAddressBar();
+
+    document.getElementById("algomintx-sdk-container").style.display = "flex";
+    document.getElementById("sdk-header").style.display = "flex";
+    document.getElementById("logoutBtn").style.display = "none";
+    document.getElementById("walletChoiceScreen").style.display = "flex";
+    document.getElementById("sdkUI").style.display = "none";
+
+    if (this.isMinimized) {
+      this.minimizeSDK(true);
+    } else {
+      this.maximizeSDK(true);
+    }
+  }
+  updateWalletAddressBar() {
+    const bar = document.getElementById("walletAddressBar");
+    if (!bar) return;
+
+    if (this.walletConnected && this.account) {
+      bar.innerText = `Wallet: ${this.account}`;
+      bar.style.display = "block";
+    } else {
+      bar.innerText = "";
+      bar.style.display = "none";
+    }
+  }
+  clearMessage() {
+    if (this.messageElement) this.messageElement.innerText = "";
+  }
+
+  minimizeSDK(initialLoad) {
+    if (!initialLoad && this.isMinimized) return;
+
+    document.getElementById("algomintx-sdk-container").style.display = "none";
+    document.getElementById("sdkMinimizedBtn").style.display = "block";
+
+    this.isMinimized = true;
+    localStorage.setItem("amx", this.isMinimized);
+    eventBus.emit("window:size:minimized", { minimized: this.isMinimized });
+  }
+
+  maximizeSDK(initialLoad) {
+    if (!initialLoad && !this.isMinimized) return;
+
+    document.getElementById("algomintx-sdk-container").style.display = "flex";
+    document.getElementById("sdkMinimizedBtn").style.display = "none";
+
+    this.isMinimized = false;
+    localStorage.setItem("amx", this.isMinimized);
+    eventBus.emit("window:size:minimized", { minimized: this.isMinimized });
   }
 }
 
