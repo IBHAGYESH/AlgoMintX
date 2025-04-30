@@ -1,0 +1,141 @@
+#algomintx-sdk-container {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 9999999;
+  width: 360px;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  font-family: Arial, sans-serif;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  max-height: 80vh;
+  overflow: hidden;
+}
+
+#sdkMinimizedBtn {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: none;
+  background-color: white;
+  color: black;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  z-index: 99999999;
+  display: none; /* hidden initially */
+}
+
+#walletAddressBar {
+  white-space: normal; /* allow wrapping */
+  word-wrap: break-word; /* break long words if needed */
+  word-break: break-all; /* break very long strings */
+  overflow-wrap: break-word; /* modern equivalent */
+  max-width: 100%; /* keep it within container */
+  user-select: text;
+  cursor: pointer;
+  display: none; /* hidden initially */
+  color: black;
+  padding: 15px;
+  font-size: small;
+}
+
+#sdk-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 15px;
+  border-bottom: 1px solid #ddd;
+}
+
+#sdk-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: black;
+}
+
+#sdkMinimizeBtn {
+  background: none;
+  border-radius: 25%;
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+#walletChoiceScreen {
+  flex-flow: column;
+}
+
+.walletBtn {
+  padding: 10px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+#logoutBtn {
+  padding: 8px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  margin-top: auto;
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  cursor: pointer;
+  display: none;
+}
+
+#wallet-choice-screen {
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#sdkUI {
+  display: none; /* default hidden */
+  padding: 15px;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  flex-grow: 1;
+  border-bottom: 1px solid #ddd;
+}
+
+#sdkUI input[type="text"],
+#sdkUI textarea,
+#sdkUI input[type="file"] {
+  padding: 8px;
+  font-size: 1rem;
+  color: black;
+}
+
+#sdkUI textarea {
+  resize: vertical;
+  min-height: 10vh;
+}
+
+#sdkUI #resetNFTBtn {
+  display: none;
+}
+
+#sdkUI button {
+  padding: 10px;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+#sdkMessages {
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: black;
+  word-break: break-word;
+  user-select: text;
+  cursor: pointer;
+}
