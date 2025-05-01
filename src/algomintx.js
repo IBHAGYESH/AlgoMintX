@@ -233,6 +233,98 @@ class AlgoMintX {
     localStorage.setItem("amx", this.isMinimized);
     eventBus.emit("window:size:minimized", { minimized: this.isMinimized });
   }
+
+  async loadConnectionFromStorage() {
+    try {
+      const saved = localStorage.getItem("walletconnect");
+      if (saved) {
+        this.connectionInfo = JSON.parse(saved);
+
+        this.walletConnected = true;
+        this.account = this.connectionInfo.accounts[0];
+
+        this.selectedWalletType = this.connectionInfo.peerMeta.name
+          .split(" ")[0]
+          .toLowerCase();
+
+        const walletConnector = this.walletConnectors[this.selectedWalletType];
+
+        const accounts = await walletConnector.reconnectSession();
+
+        if (!accounts || accounts.length === 0) {
+          throw new Error("Reconnection failed");
+        }
+
+        this.showToast(
+          `Restored connection to ${this.connectionInfo.peerMeta.name}: ${this.account}`,
+          "success"
+        );
+
+        this.showSDKUI();
+        eventBus.emit("wallet:connection:connected", { address: this.account });
+      } else {
+        this.resetToLoginUI();
+      }
+    } catch (error) {
+      console.error("Failed to restore connection", error);
+      this.showToast("Failed to restore connection!", "error");
+      eventBus.emit("wallet:connection:failed", { error: error });
+      this.resetToLoginUI();
+    }
+  }
+
+  showToast(message, type = "info") {
+    // Remove existing toast if any
+    const existingToast = document.getElementById("algomintx-toast");
+    if (existingToast) existingToast.remove();
+
+    const toast = document.createElement("div");
+    toast.id = "algomintx-toast";
+    toast.innerText = message;
+
+    // Assign toast type class dynamically (e.g. 'error', 'success', 'info')
+    if (type === "error") {
+      toast.classList.add("error");
+    } else if (type === "success") {
+      toast.classList.add("success");
+    } else {
+      toast.classList.add("info");
+    }
+
+    document.body.appendChild(toast);
+
+    // Show fade-in
+    requestAnimationFrame(() => {
+      toast.style.opacity = "1";
+    });
+
+    // Auto fade out after 3.5 seconds
+    setTimeout(() => {
+      toast.style.opacity = "0";
+      toast.addEventListener(
+        "transitionend",
+        () => {
+          if (toast.parentElement) toast.parentElement.removeChild(toast);
+        },
+        { once: true }
+      );
+    }, 3500);
+  }
+
+  showSDKUI() {
+    document.getElementById("algomintx-sdk-container").style.display = "flex";
+    document.getElementById("sdk-header").style.display = "flex";
+    document.getElementById("logoutBtn").style.display = "contents";
+    document.getElementById("walletChoiceScreen").style.display = "none";
+    document.getElementById("sdkUI").style.display = "flex";
+    this.updateWalletAddressBar();
+
+    if (this.isMinimized) {
+      this.minimizeSDK(true);
+    } else {
+      this.maximizeSDK(true);
+    }
+  }
 }
 
 export default AlgoMintX;
