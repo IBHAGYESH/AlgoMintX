@@ -325,6 +325,104 @@ class AlgoMintX {
       this.maximizeSDK(true);
     }
   }
+
+  async startWalletConnection(walletType) {
+    if (this.connectionInProgress) {
+      this.showToast("A wallet connection is already in progress.", "warning");
+      return;
+    }
+
+    if (!this.supportedWallets.includes(walletType)) {
+      this.showToast("Unsupported wallet selected.", "error");
+      return;
+    }
+
+    this.clearMessage();
+    this.selectedWalletType = walletType;
+
+    document.getElementById("algomintx-sdk-container").style.display = "none";
+
+    const walletConnector = this.walletConnectors[walletType];
+
+    this.connectionInProgress = true;
+
+    try {
+      const connectPromise = walletConnector.connect();
+
+      // Set a timeout fallback (e.g., 60s) to detect "hanging" connections
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("Wallet connection timed out.")),
+          30 * 1000
+        )
+      );
+
+      const accounts = await Promise.race([connectPromise, timeoutPromise]);
+
+      if (!accounts || accounts.length === 0) {
+        throw new Error("Wallet connection declined or no account returned.");
+      }
+
+      this.walletConnected = true;
+      this.account = accounts[0];
+      this.connectionInfo = { address: this.account, walletType };
+
+      this.showSDKUI();
+      this.showToast(
+        `Connected to ${walletType} wallet: ${this.account}`,
+        "success"
+      );
+      this.updateWalletAddressBar();
+      eventBus.emit("wallet:connection:connected", { address: this.account });
+      this.connectionInProgress = false;
+    } catch (error) {
+      if (error.message === "Wallet connection timed out.") {
+        await walletConnector.disconnect();
+        if (walletConnector.killSession) {
+          await walletConnector.killSession(); // Extra hard-kill if supported
+        }
+        window.location.reload();
+      } else {
+        console.error("Failed to connect wallet!", error);
+        this.connectionInProgress = false;
+        this.showToast("Failed to connect wallet!", "error");
+        eventBus.emit("wallet:connection:failed", { error: error });
+        this.resetToLoginUI();
+      }
+    }
+  }
+
+  async handleLogout() {
+    if (this.processing) {
+      return;
+    }
+    if (confirm("Are you sure you want to logout?")) {
+      try {
+        if (
+          this.selectedWalletType &&
+          this.walletConnectors[this.selectedWalletType]
+        ) {
+          const connector = this.walletConnectors[this.selectedWalletType];
+          await connector.disconnect();
+          if (connector.killSession) {
+            await connector.killSession(); // Extra hard-kill if supported
+          }
+        }
+
+        localStorage.removeItem("walletconnect");
+        localStorage.removeItem("DeflyWallet.Wallet");
+        localStorage.removeItem("PeraWallet.Wallet");
+      } catch (error) {
+        console.error("Failed to disconnect wallet session:", error);
+      }
+
+      eventBus.emit("wallet:connection:disconnected", {
+        address: this.account,
+      });
+      this.showToast("Logged out successfully.", "success");
+      this.resetToLoginUI();
+    }
+  }
 }
 
 export default AlgoMintX;
