@@ -150,6 +150,40 @@ class AlgoMintX {
 
       document.body.appendChild(minimizedBtn);
 
+      // Choose wallet button
+      document
+        .getElementById("walletChoiceScreen")
+        .addEventListener("click", async (event) => {
+          if (event.target.classList.contains("walletBtn")) {
+            const walletType = event.target.getAttribute("data-wallet");
+            await this.startWalletConnection(walletType);
+          }
+        });
+
+      // Mint NFT button
+      document
+        .getElementById("mintNFTBtn")
+        .addEventListener("click", async () => {
+          await this.validateNFTDetails();
+        });
+
+      // Reset NFT button
+      document
+        .getElementById("resetNFTBtn")
+        .addEventListener("click", () => this.resetNFTDetails());
+
+      // Minimize button
+      document
+        .getElementById("sdkMinimizeBtn")
+        .addEventListener("click", () => this.minimizeSDK());
+
+      // Logout button
+      document
+        .getElementById("logoutBtn")
+        .addEventListener("click", () => this.handleLogout());
+
+      minimizedBtn.addEventListener("click", () => this.maximizeSDK());
+
       // Copy to clipboard for sdkMessages (tx id)
       this.messageElement = document.getElementById("sdkMessages");
       this.messageElement.addEventListener("click", () => {
@@ -163,6 +197,7 @@ class AlgoMintX {
               ""
             )
           );
+          this.showToast("Transaction ID copied to clipboard", "success");
         }
       });
 
@@ -170,9 +205,15 @@ class AlgoMintX {
       walletAddressBar.addEventListener("click", () => {
         if (this.account) {
           navigator.clipboard.writeText(this.account.replace("Wallet: ", ""));
+          this.showToast("Wallet address copied to clipboard", "success");
         }
       });
-    } catch (error) {}
+
+      // Check if already connected (from localStorage)
+      await this.loadConnectionFromStorage();
+    } catch (error) {
+      this.showToast(error.message, "error");
+    }
   }
 
   resetToLoginUI() {
