@@ -237,43 +237,6 @@ class AlgoMintX {
       this.maximizeSDK(true);
     }
   }
-  updateWalletAddressBar() {
-    const bar = document.getElementById("walletAddressBar");
-    if (!bar) return;
-
-    if (this.walletConnected && this.account) {
-      bar.innerText = `Wallet: ${this.account}`;
-      bar.style.display = "block";
-    } else {
-      bar.innerText = "";
-      bar.style.display = "none";
-    }
-  }
-  clearMessage() {
-    if (this.messageElement) this.messageElement.innerText = "";
-  }
-
-  minimizeSDK(initialLoad) {
-    if (!initialLoad && this.isMinimized) return;
-
-    document.getElementById("algomintx-sdk-container").style.display = "none";
-    document.getElementById("sdkMinimizedBtn").style.display = "block";
-
-    this.isMinimized = true;
-    localStorage.setItem("amx", this.isMinimized);
-    eventBus.emit("window:size:minimized", { minimized: this.isMinimized });
-  }
-
-  maximizeSDK(initialLoad) {
-    if (!initialLoad && !this.isMinimized) return;
-
-    document.getElementById("algomintx-sdk-container").style.display = "flex";
-    document.getElementById("sdkMinimizedBtn").style.display = "none";
-
-    this.isMinimized = false;
-    localStorage.setItem("amx", this.isMinimized);
-    eventBus.emit("window:size:minimized", { minimized: this.isMinimized });
-  }
 
   async loadConnectionFromStorage() {
     try {
@@ -314,57 +277,26 @@ class AlgoMintX {
     }
   }
 
-  showToast(message, type = "info") {
-    // Remove existing toast if any
-    const existingToast = document.getElementById("algomintx-toast");
-    if (existingToast) existingToast.remove();
+  minimizeSDK(initialLoad) {
+    if (!initialLoad && this.isMinimized) return;
 
-    const toast = document.createElement("div");
-    toast.id = "algomintx-toast";
-    toast.innerText = message;
+    document.getElementById("algomintx-sdk-container").style.display = "none";
+    document.getElementById("sdkMinimizedBtn").style.display = "block";
 
-    // Assign toast type class dynamically (e.g. 'error', 'success', 'info')
-    if (type === "error") {
-      toast.classList.add("error");
-    } else if (type === "success") {
-      toast.classList.add("success");
-    } else {
-      toast.classList.add("info");
-    }
-
-    document.body.appendChild(toast);
-
-    // Show fade-in
-    requestAnimationFrame(() => {
-      toast.style.opacity = "1";
-    });
-
-    // Auto fade out after 3.5 seconds
-    setTimeout(() => {
-      toast.style.opacity = "0";
-      toast.addEventListener(
-        "transitionend",
-        () => {
-          if (toast.parentElement) toast.parentElement.removeChild(toast);
-        },
-        { once: true }
-      );
-    }, 3500);
+    this.isMinimized = true;
+    localStorage.setItem("amx", this.isMinimized);
+    eventBus.emit("window:size:minimized", { minimized: this.isMinimized });
   }
 
-  showSDKUI() {
-    document.getElementById("algomintx-sdk-container").style.display = "flex";
-    document.getElementById("sdk-header").style.display = "flex";
-    document.getElementById("logoutBtn").style.display = "contents";
-    document.getElementById("walletChoiceScreen").style.display = "none";
-    document.getElementById("sdkUI").style.display = "flex";
-    this.updateWalletAddressBar();
+  maximizeSDK(initialLoad) {
+    if (!initialLoad && !this.isMinimized) return;
 
-    if (this.isMinimized) {
-      this.minimizeSDK(true);
-    } else {
-      this.maximizeSDK(true);
-    }
+    document.getElementById("algomintx-sdk-container").style.display = "flex";
+    document.getElementById("sdkMinimizedBtn").style.display = "none";
+
+    this.isMinimized = false;
+    localStorage.setItem("amx", this.isMinimized);
+    eventBus.emit("window:size:minimized", { minimized: this.isMinimized });
   }
 
   async startWalletConnection(walletType) {
@@ -433,6 +365,34 @@ class AlgoMintX {
     }
   }
 
+  showSDKUI() {
+    document.getElementById("algomintx-sdk-container").style.display = "flex";
+    document.getElementById("sdk-header").style.display = "flex";
+    document.getElementById("logoutBtn").style.display = "contents";
+    document.getElementById("walletChoiceScreen").style.display = "none";
+    document.getElementById("sdkUI").style.display = "flex";
+    this.updateWalletAddressBar();
+
+    if (this.isMinimized) {
+      this.minimizeSDK(true);
+    } else {
+      this.maximizeSDK(true);
+    }
+  }
+
+  updateWalletAddressBar() {
+    const bar = document.getElementById("walletAddressBar");
+    if (!bar) return;
+
+    if (this.walletConnected && this.account) {
+      bar.innerText = `Wallet: ${this.account}`;
+      bar.style.display = "block";
+    } else {
+      bar.innerText = "";
+      bar.style.display = "none";
+    }
+  }
+
   async handleLogout() {
     if (this.processing) {
       return;
@@ -463,6 +423,48 @@ class AlgoMintX {
       this.showToast("Logged out successfully.", "success");
       this.resetToLoginUI();
     }
+  }
+
+  showToast(message, type = "info") {
+    // Remove existing toast if any
+    const existingToast = document.getElementById("algomintx-toast");
+    if (existingToast) existingToast.remove();
+
+    const toast = document.createElement("div");
+    toast.id = "algomintx-toast";
+    toast.innerText = message;
+
+    // Assign toast type class dynamically (e.g. 'error', 'success', 'info')
+    if (type === "error") {
+      toast.classList.add("error");
+    } else if (type === "success") {
+      toast.classList.add("success");
+    } else {
+      toast.classList.add("info");
+    }
+
+    document.body.appendChild(toast);
+
+    // Show fade-in
+    requestAnimationFrame(() => {
+      toast.style.opacity = "1";
+    });
+
+    // Auto fade out after 3.5 seconds
+    setTimeout(() => {
+      toast.style.opacity = "0";
+      toast.addEventListener(
+        "transitionend",
+        () => {
+          if (toast.parentElement) toast.parentElement.removeChild(toast);
+        },
+        { once: true }
+      );
+    }, 3500);
+  }
+
+  clearMessage() {
+    if (this.messageElement) this.messageElement.innerText = "";
   }
 
   resetNFTDetails() {
