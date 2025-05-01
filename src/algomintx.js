@@ -464,6 +464,435 @@ class AlgoMintX {
       this.resetToLoginUI();
     }
   }
+
+  resetNFTDetails() {
+    if (this.processing) {
+      return;
+    }
+    document.getElementById("nftName").value = "";
+    document.getElementById("nftDescription").value = "";
+    document.getElementById("nftFile").value = "";
+    document.getElementById("mintNFTBtn").style.display = "block";
+    document.getElementById("resetNFTBtn").style.display = "none";
+    this.messageElement.innerText = "";
+  }
+
+  async validateNFTDetails() {
+    if (this.processing) {
+      return;
+    }
+
+    const name = document.getElementById("nftName").value.trim();
+    const description = document.getElementById("nftDescription").value.trim();
+    const fileInput = document.getElementById("nftFile");
+
+    if (!name) {
+      this.showToast("Please enter NFT name.", "error");
+      return;
+    }
+
+    if (!description) {
+      this.showToast("Please enter NFT description.", "error");
+      return;
+    }
+
+    if (!fileInput.files.length) {
+      this.showToast("Please upload a file.", "error");
+      return;
+    }
+
+    this.processing = true;
+
+    this.messageElement.style.cursor = "default";
+    this.messageElement.innerText = "Minting NFT... Please wait.";
+    document.getElementById("mintNFTBtn").disabled = true;
+    document.getElementById("logoutBtn").disabled = true;
+
+    try {
+      const { transactionId, assetId } = await this.mintNFT({
+        name,
+        description,
+        file: fileInput.files[0],
+      });
+
+      this.messageElement.style.cursor = "pointer";
+      this.messageElement.innerText = `NFT Minted! Transaction ID: ${transactionId}`;
+
+      this.processing = false;
+
+      this.showToast(
+        `NFT Minted Successfully! TxID: ${transactionId}`,
+        "success"
+      );
+
+      document.getElementById("mintNFTBtn").style.display = "none";
+      document.getElementById("resetNFTBtn").style.display = "block";
+
+      document.getElementById("mintNFTBtn").disabled = false;
+      document.getElementById("logoutBtn").disabled = false;
+
+      eventBus.emit("nft:mint:success", {
+        transactionId,
+        assetId,
+        address: this.account,
+      });
+    } catch (error) {
+      console.error(error);
+
+      this.processing = false;
+
+      document.getElementById("nftName").value = "";
+      document.getElementById("nftDescription").value = "";
+      document.getElementById("nftFile").value = "";
+
+      document.getElementById("mintNFTBtn").disabled = false;
+      document.getElementById("logoutBtn").disabled = false;
+
+      this.messageElement.style.cursor = "pointer";
+      this.messageElement.innerText = "";
+
+      this.showToast("Failed to mint NFT!", "error");
+
+      eventBus.emit("nft:mint:failed", { error: error.message });
+    }
+  }
+
+  async sha256Hash(data) {
+    const encoder = new TextEncoder();
+    const dataBuffer = encoder.encode(data);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", dataBuffer);
+    return new Uint8Array(hashBuffer);
+  }
+
+  async getImageIntegrityBase64(file) {
+    const buffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const base64Hash = btoa(String.fromCharCode(...hashArray));
+    return `sha256-${base64Hash}`;
+  }
+
+  async mintNFT({ name, description, file }) {
+    if (!this.walletConnected || !this.account) {
+      throw new Error("Wallet is not connected.");
+    }
+
+    // 1. Upload file to IPFS (Pinata) using your API key
+    const ipfsHash = await this.uploadFileToIPFS(file);
+
+    // 2. Create metadata JSON with IPFS link, name, description
+    const integrity = await this.getImageIntegrityBase64(file);
+
+    const metadata = {
+      name,
+      description,
+      image: `ipfs://${ipfsHash}`,
+      image_integrity: integrity,
+      image_mimetype: file.type,
+      decimals: 0, // must be 0 for NFTs ARC-3 compliant
+      standard: "arc3",
+      minted_by: this.metadataMark,
+    };
+
+    // 3. Hash metadata JSON to get 32 byte assetMetadataHash
+    const metadataStr = JSON.stringify(metadata);
+    const metadataHash = await this.sha256Hash(metadataStr);
+
+    // 4. Upload metadata JSON to IPFS to get the CID for assetURL
+    const metadataIpfsHash = await this.uploadJSONToIPFS(metadata);
+
+    // 4. Create Algorand asset (NFT) pointing to metadata URL
+    const { txid, assetId } = await this.createAlgorandAsset(
+      metadataIpfsHash,
+      name,
+      metadataHash
+    );
+
+    return { transactionId: txid, assetId };
+  }
+
+  async uploadFileToIPFS(file) {
+    const url = "https://api.pinata.cloud/pinning/pinFileToIPFS";
+
+    const data = new FormData();
+    data.append("file", file);
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.pinata_api_key}`,
+      },
+      body: data,
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to upload file to IPFS: ${response.status} ${response.statusText}`
+      );
+    }
+
+    const json = await response.json();
+    if (!json.IpfsHash) {
+      throw new Error("Pinata did not return an IPFS hash.");
+    }
+
+    return json.IpfsHash;
+  }
+
+  async uploadJSONToIPFS(jsonData) {
+    const url = "https://api.pinata.cloud/pinning/pinJSONToIPFS";
+
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${this.pinata_api_key}`,
+      },
+      body: JSON.stringify(jsonData),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to upload JSON to IPFS: ${response.status} ${response.statusText}`
+      );
+    }
+
+    const json = await response.json();
+    if (!json.IpfsHash) {
+      throw new Error("Pinata did not return an IPFS hash for metadata.");
+    }
+
+    return json.IpfsHash;
+  }
+
+  async createAlgorandAsset(metadataIpfsHash, assetName, metadataHashBuffer) {
+    const params = await this.algodClient.getTransactionParams().do();
+
+    /**
+     * To access the ipfs files
+     * https://purple-shrill-worm-294.mypinata.cloud/ipfs/QmY5FMJW43yxJ2hco1jQbD4rzByxviKTYWR5sY18sZ6k5n
+     * https://gateway.pinata.cloud/ipfs/QmY5FMJW43yxJ2hco1jQbD4rzByxviKTYWR5sY18sZ6k5n
+     * https://ipfs.io/ipfs/QmY5FMJW43yxJ2hco1jQbD4rzByxviKTYWR5sY18sZ6k5n
+     */
+    const metadataURL = `ipfs://${metadataIpfsHash}#arc3`;
+
+    const safeAssetName =
+      assetName && typeof assetName === "string" && assetName.length > 0
+        ? assetName.substring(0, 32).replace(/[^a-zA-Z0-9 _-]/g, "") // Allow spaces, hyphens, underscores
+        : "Unnamed Asset";
+
+    const accountAddr = this.account;
+
+    const txn = algosdk.makeAssetCreateTxnWithSuggestedParamsFromObject({
+      sender: accountAddr,
+      total: 1,
+      decimals: 0,
+      defaultFrozen: false,
+      unitName: this.unitName,
+      assetName: safeAssetName,
+      assetURL: metadataURL,
+      assetMetadataHash: metadataHashBuffer,
+      manager: accountAddr,
+      reserve: accountAddr,
+      freeze: accountAddr,
+      clawback: accountAddr,
+      suggestedParams: params,
+    });
+
+    const walletConnector = this.walletConnectors[this.selectedWalletType];
+
+    // Ask user to sign the transaction
+
+    // If you are NOT setting custom signers, you can pass a flat array:
+    // const signedTxn = await walletConnector.signTransaction([{ txn: txnToSign }]);
+
+    // but if you use signers field, you MUST group it like:
+    const signedTxn = await walletConnector.signTransaction([
+      [
+        {
+          txn: txn,
+          signers: [accountAddr],
+        },
+      ],
+    ]);
+
+    // Submit the signed transaction
+    const { txid } = await this.algodClient
+      .sendRawTransaction(signedTxn[0])
+      .do();
+
+    // Wait for confirmation
+    const confirmedTxn = await algosdk.waitForConfirmation(
+      this.algodClient,
+      txid,
+      10
+    );
+
+    // Extract asset ID
+    const assetId = Number(confirmedTxn.assetIndex);
+
+    return { txid, assetId };
+  }
+
+  async getMintedNFTs({ creatorAddress = null, assets = null }) {
+    const nfts = [];
+
+    // If neither or both parameters provided
+    if (!creatorAddress && !assets) return [];
+    if (creatorAddress && assets) return [];
+
+    // Recursive fetch by creator
+    const fetchAssetsByCreator = async (nextToken = null) => {
+      try {
+        let fetchUrl = `${this.indexerUrl}/v2/assets?unit-name=${this.unitName}&limit=1000`;
+
+        if (creatorAddress) {
+          fetchUrl += `&creator=${creatorAddress}`;
+        }
+
+        if (nextToken) {
+          fetchUrl += `&next=${nextToken}`;
+        }
+
+        const res = await fetch(fetchUrl);
+        if (!res.ok) throw new Error(`Indexer fetch error: ${res.status}`);
+
+        const data = await res.json();
+        const assetsList = data.assets || [];
+
+        await this.processAssets(assetsList, nfts);
+
+        if (data["next-token"]) {
+          await fetchAssetsByCreator(data["next-token"]);
+        }
+      } catch (error) {
+        console.error("Error fetching NFTs:", error.message);
+      }
+    };
+
+    // Fetch manually by asset IDs
+    const fetchAssetsByIds = async () => {
+      for (const assetId of assets) {
+        try {
+          const res = await fetch(`${this.indexerUrl}/v2/assets/${assetId}`);
+          if (!res.ok) continue;
+
+          const data = await res.json();
+          const asset = data.asset;
+          await this.processAssets([asset], nfts);
+        } catch (error) {
+          console.error(`Failed to fetch asset ${assetId}:`, error.message);
+        }
+      }
+    };
+
+    // Decide what to run
+    if (creatorAddress) {
+      await fetchAssetsByCreator();
+    } else if (assets) {
+      await fetchAssetsByIds();
+    }
+
+    return nfts;
+  }
+
+  async processAssets(assets, nfts) {
+    for (const asset of assets) {
+      const params = asset.params;
+
+      if (params.total !== 1 || params.decimals !== 0) {
+        continue;
+      }
+
+      const nft = {
+        assetId: asset.index,
+        name: params.name,
+        unitName: params["unit-name"],
+        url: params.url,
+      };
+
+      if (params.url && params.url.startsWith("ipfs://")) {
+        const ipfsHash = params.url.replace("ipfs://", "");
+        try {
+          const metadataRes = await fetch(
+            `https://${this.ipfs_gateway}/ipfs/${ipfsHash}`
+          );
+          if (metadataRes.ok) {
+            const metadata = await metadataRes.json();
+            if (
+              metadata.minted_by &&
+              metadata.minted_by.toLowerCase() === this.metadataMark
+            ) {
+              nft.metadata = metadata;
+              nfts.push(nft);
+            }
+          } else {
+            console.error(
+              `Failed to fetch IPFS metadata for asset ${nft.assetId}`
+            );
+          }
+        } catch (error) {
+          console.error(
+            `Error fetching metadata for asset ${nft.assetId}:`,
+            error.message
+          );
+        }
+      }
+    }
+  }
+
+  async getNFTMetadata(assetId) {
+    const baseUrl =
+      this.network === "mainnet"
+        ? "https://mainnet-idx.algonode.cloud"
+        : "https://testnet-idx.algonode.cloud";
+
+    try {
+      let metadata = {};
+      // Step 1: Get asset config transaction (mint)
+      const txUrl = `${baseUrl}/v2/transactions?asset-id=${assetId}&tx-type=acfg`;
+      const txRes = await fetch(txUrl);
+      const txData = await txRes.json();
+      const transactionId = txData.transactions?.[0]?.id;
+      metadata = {
+        ...metadata,
+        transactionId,
+      };
+
+      // Step 2: Get asset metadata
+      const indexerUrl = `${baseUrl}/v2/assets/${assetId}`;
+      const response = await fetch(indexerUrl);
+      const data = await response.json();
+
+      const params = data.asset.params;
+      metadata = {
+        ...metadata,
+        ...params,
+        assetId: data.asset.index,
+      };
+
+      const metadataUrl = params.url; // e.g., ipfs://CID
+      if (metadataUrl.startsWith("ipfs://")) {
+        const ipfsUrl = this.convertIpfsToHttp(metadataUrl);
+        const metaRes = await fetch(ipfsUrl);
+        const ipfsMetadata = await metaRes.json();
+        metadata = {
+          ...metadata,
+          ...ipfsMetadata,
+        };
+        return metadata;
+      }
+
+      return null;
+    } catch (err) {
+      console.error("Failed to fetch NFT metadata:", err);
+      return null;
+    }
+  }
+
+  convertIpfsToHttp(ipfsUrl, gateway = "https://ipfs.io/ipfs/") {
+    return ipfsUrl.replace("ipfs://", gateway);
+  }
 }
 
 export default AlgoMintX;
