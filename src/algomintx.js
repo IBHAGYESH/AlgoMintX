@@ -813,6 +813,34 @@ class AlgoMintX {
   async getListedNFTs(assets) {
     const nfts = [];
 
+    // Initialize the AlgoMintX client
+    const client = new AlgoMintXClient({
+      appId: this.contractApplicationId,
+      algod: this.algodClient,
+    });
+
+    // Get all listings from the smart contract's box storage
+    const listingsMap = new Map();
+    for (const assetId of assets) {
+      try {
+        const boxKey = `listing_${assetId}`;
+        const listing = await client.appClient.getBoxValue(boxKey);
+        if (listing) {
+          const decodedListing =
+            algosdk.ABIType.from("(string,uint64)").decode(listing);
+          listingsMap.set(Number(assetId), {
+            seller: decodedListing[0],
+            price: Number(decodedListing[1]),
+          });
+        }
+      } catch (error) {
+        console.error(
+          `Failed to fetch listing for asset ${assetId}:`,
+          error.message
+        );
+      }
+    }
+
     // Fetch manually by asset IDs
     const fetchAssetsByIds = async (assets) => {
       for (const assetId of assets) {
@@ -822,7 +850,52 @@ class AlgoMintX {
 
           const data = await res.json();
           const asset = data.asset;
-          await this.processAssets([asset], nfts, true);
+          const listing = listingsMap.get(Number(assetId));
+
+          if (listing) {
+            const nft = {
+              assetId: asset.index,
+              name: asset.params.name,
+              unitName: asset.params["unit-name"],
+              url: asset.params.url,
+              listing: {
+                seller: listing.seller,
+                price: listing.price,
+              },
+            };
+
+            if (asset.params.url && asset.params.url.startsWith("ipfs://")) {
+              const ipfsHash = asset.params.url.replace("ipfs://", "");
+              try {
+                const metadataRes = await fetch(
+                  `https://${this.pinata_ipfs_gateway_url}/ipfs/${ipfsHash}`
+                );
+                if (metadataRes.ok) {
+                  const metadata = await metadataRes.json();
+                  if (
+                    metadata.decimals === 0 &&
+                    metadata.image_integrity &&
+                    metadata.image_mimetype &&
+                    metadata.standard &&
+                    metadata.image &&
+                    metadata.image.startsWith("ipfs://") &&
+                    metadata.minted_by &&
+                    metadata.minted_by === this.metadataMark &&
+                    metadata.marketplace &&
+                    metadata.marketplace === this.revenueWalletAddress
+                  ) {
+                    nft.metadata = metadata;
+                    nfts.push(nft);
+                  }
+                }
+              } catch (error) {
+                console.error(
+                  `Error fetching metadata for asset ${nft.assetId}:`,
+                  error.message
+                );
+              }
+            }
+          }
         } catch (error) {
           console.error(`Failed to fetch asset ${assetId}:`, error.message);
         }
@@ -991,6 +1064,166 @@ class AlgoMintX {
 
   convertIpfsToHttp(ipfsUrl, gateway = "https://ipfs.io/ipfs/") {
     return ipfsUrl.replace("ipfs://", gateway);
+  }
+
+  async listNFT({ assetId, nftPrice }) {
+    if (!this.walletConnected || !this.account) {
+      throw new Error("Wallet is not connected.");
+    }
+
+    if (!assetId) {
+      throw new Error("Asset ID is required.");
+    }
+
+    if (!nftPrice) {
+      throw new Error("NFT price is required.");
+    }
+
+    try {
+      // Get suggested parameters
+      const suggestedParams = await this.algodClient
+        .getTransactionParams()
+        .do();
+
+      // Initialize the AlgoMintX client
+      const client = new AlgoMintXClient({
+        appId: this.contractApplicationId,
+        algod: this.algodClient,
+      });
+
+      // Create the atomic transaction group
+      const txnGroup = await client.createTransaction.listNft({
+        args: {
+          assetId: BigInt(assetId),
+          senderWalletAddress: this.account,
+          revenueWalletAddress: this.revenueWalletAddress,
+          nftPrice: BigInt(nftPrice),
+          listingFee: BigInt(this.listingFee),
+        },
+        suggestedParams,
+      });
+
+      // Get the wallet connector
+      const walletConnector = this.walletConnectors[this.selectedWalletType];
+
+      // Sign the transaction group
+      const signedTxn = await walletConnector.signTransaction([
+        txnGroup.map((txn) => ({
+          txn,
+          signers: [this.account],
+        })),
+      ]);
+
+      // Submit the signed transaction
+      const { txId } = await this.algodClient
+        .sendRawTransaction(signedTxn[0])
+        .do();
+
+      // Wait for confirmation
+      const result = await algosdk.waitForConfirmation(
+        this.algodClient,
+        txId,
+        10
+      );
+
+      // Emit event for successful listing
+      eventBus.emit("nft:list:success", {
+        transactionId: txId,
+        assetId,
+        price: nftPrice,
+        address: this.account,
+      });
+
+      return {
+        transactionId: txId,
+        assetId,
+        price: nftPrice,
+      };
+    } catch (error) {
+      console.error("Failed to list NFT:", error);
+      eventBus.emit("nft:list:failed", { error: error.message });
+      throw error;
+    }
+  }
+
+  async buyNFT({ assetId, receiverWalletAddress }) {
+    if (!this.walletConnected || !this.account) {
+      throw new Error("Wallet is not connected.");
+    }
+
+    if (!assetId) {
+      throw new Error("Asset ID is required.");
+    }
+
+    if (!receiverWalletAddress) {
+      throw new Error("Receiver wallet address is required.");
+    }
+
+    try {
+      // Get suggested parameters
+      const suggestedParams = await this.algodClient
+        .getTransactionParams()
+        .do();
+
+      // Initialize the AlgoMintX client
+      const client = new AlgoMintXClient({
+        appId: this.contractApplicationId,
+        algod: this.algodClient,
+      });
+
+      // Create the atomic transaction group
+      const txnGroup = await client.createTransaction.buyNft({
+        args: {
+          assetId: BigInt(assetId),
+          receiverWalletAddress,
+          revenueWalletAddress: this.revenueWalletAddress,
+          buyingFee: BigInt(this.buyingFee),
+        },
+        suggestedParams,
+      });
+
+      // Get the wallet connector
+      const walletConnector = this.walletConnectors[this.selectedWalletType];
+
+      // Sign the transaction group
+      const signedTxn = await walletConnector.signTransaction([
+        txnGroup.map((txn) => ({
+          txn,
+          signers: [this.account],
+        })),
+      ]);
+
+      // Submit the signed transaction
+      const { txId } = await this.algodClient
+        .sendRawTransaction(signedTxn[0])
+        .do();
+
+      // Wait for confirmation
+      const result = await algosdk.waitForConfirmation(
+        this.algodClient,
+        txId,
+        10
+      );
+
+      // Emit event for successful purchase
+      eventBus.emit("nft:buy:success", {
+        transactionId: txId,
+        assetId,
+        buyer: this.account,
+        receiver: receiverWalletAddress,
+      });
+
+      return {
+        transactionId: txId,
+        assetId,
+        buyer: this.account,
+        receiver: receiverWalletAddress,
+      };
+    } catch (error) {
+      console.error("Failed to buy NFT:", error);
+      eventBus.emit("nft:buy:failed", { error: error.message });
+      throw error;
+    }
   }
 }
 
