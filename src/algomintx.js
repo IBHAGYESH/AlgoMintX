@@ -3,6 +3,7 @@ import { PeraWalletConnect } from "@perawallet/connect";
 import { DeflyWalletConnect } from "@blockshake/defly-connect";
 import eventBus from "./event-bus.js";
 import "./algomintx.css";
+import { AlgoMintXClient } from "./AlgoMintXClient/AlgoMintXClient.ts";
 
 class AlgoMintX {
   constructor({
@@ -10,17 +11,20 @@ class AlgoMintX {
     pinata_ipfs_gateway_url,
     env,
     namespace,
+    revenueWalletAddress,
+    listingFee,
+    buyingFee,
   }) {
     /**
      * sdk validation
      */
 
     // pinata config
-    this.pinata_api_key = pinata_ipfs_server_key;
-    this.ipfs_gateway = pinata_ipfs_gateway_url;
+    this.pinata_ipfs_server_key = pinata_ipfs_server_key;
+    this.pinata_ipfs_gateway_url = pinata_ipfs_gateway_url;
 
-    if (!this.pinata_api_key || !this.ipfs_gateway) {
-      this.sdkValidationFailed("Missing pinata ipfs config!");
+    if (!this.pinata_ipfs_server_key || !this.pinata_ipfs_gateway_url) {
+      this.sdkValidationFailed("Missing pinata IPFS config!");
     }
 
     // networks supported
@@ -41,6 +45,28 @@ class AlgoMintX {
       this.sdkValidationFailed("namespace must be of length 5!");
     } else if (!/^[A-Z]+$/.test(this.namespace)) {
       this.sdkValidationFailed("namespace must only contain alphabets!");
+    }
+
+    // revenue config
+    this.revenueWalletAddress = revenueWalletAddress;
+    if (!this.revenueWalletAddress) {
+      this.sdkValidationFailed("Specify a valid algorand wallet address!");
+    } else if (typeof this.revenueWalletAddress !== "string") {
+      this.sdkValidationFailed(
+        "algorand wallet address must be of type string!"
+      );
+    }
+    this.listingFee = listingFee;
+    if (!this.listingFee) {
+      this.sdkValidationFailed("Specify a NFT listing fee!");
+    } else if (typeof this.listingFee !== "number") {
+      this.sdkValidationFailed("NFT listing fee must be of type number!");
+    }
+    this.buyingFee = buyingFee;
+    if (!this.buyingFee) {
+      this.sdkValidationFailed("Specify a NFT buying fee!");
+    } else if (typeof this.buyingFee !== "number") {
+      this.sdkValidationFailed("NFT buying fee must be of type number!");
     }
 
     /**
@@ -73,6 +99,16 @@ class AlgoMintX {
     );
 
     /**
+     * smart contract
+     */
+    this.contractApplicationId =
+      this.network === "mainnet" ? 738990826 : 738990826;
+    this.contractWalletAddress =
+      this.network === "mainnet"
+        ? "BGPWBGMELEV7OY34ZALDOJEFVHZOZ7OFYE6K45ZVAWJ6FELUJOE3Z42ZXI"
+        : "BGPWBGMELEV7OY34ZALDOJEFVHZOZ7OFYE6K45ZVAWJ6FELUJOE3Z42ZXI";
+
+    /**
      * sdk variables
      */
 
@@ -81,7 +117,7 @@ class AlgoMintX {
         ? "https://mainnet-idx.algonode.network"
         : "https://testnet-idx.algonode.network";
     this.unitName = `AMX${this.namespace}`;
-    this.metadataMark = "algomintx";
+    this.metadataMark = "AlgoMintX";
     this.events = eventBus;
 
     /**
@@ -212,7 +248,7 @@ class AlgoMintX {
       // Check if already connected (from localStorage)
       await this.loadConnectionFromStorage();
     } catch (error) {
-      this.showToast(error.message, "error");
+      console.error(error, "init");
     }
   }
 
@@ -594,6 +630,7 @@ class AlgoMintX {
       decimals: 0, // must be 0 for NFTs ARC-3 compliant
       standard: "arc3",
       minted_by: this.metadataMark,
+      marketplace: this.revenueWalletAddress,
     };
 
     // 3. Hash metadata JSON to get 32 byte assetMetadataHash
@@ -622,7 +659,7 @@ class AlgoMintX {
     const response = await fetch(url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${this.pinata_api_key}`,
+        Authorization: `Bearer ${this.pinata_ipfs_server_key}`,
       },
       body: data,
     });
@@ -648,7 +685,7 @@ class AlgoMintX {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${this.pinata_api_key}`,
+        Authorization: `Bearer ${this.pinata_ipfs_server_key}`,
       },
       body: JSON.stringify(jsonData),
     });
@@ -736,17 +773,74 @@ class AlgoMintX {
     return { txid, assetId };
   }
 
-  async getMintedNFTs({ creatorAddress = null, assets = null }) {
+  async getListedNFTsFromNetwork() {
     const nfts = [];
-
-    // If neither or both parameters provided
-    if (!creatorAddress && !assets) return [];
-    if (creatorAddress && assets) return [];
 
     // Recursive fetch by creator
     const fetchAssetsByCreator = async (nextToken = null) => {
       try {
-        let fetchUrl = `${this.indexerUrl}/v2/assets?unit-name=${this.unitName}&limit=1000`;
+        let fetchUrl = `${this.indexerUrl}/v2/assets?limit=1000`;
+
+        if (creatorAddress) {
+          fetchUrl += `&creator=${this.contractWalletAddress}`;
+        }
+
+        if (nextToken) {
+          fetchUrl += `&next=${nextToken}`;
+        }
+
+        const res = await fetch(fetchUrl);
+        if (!res.ok) throw new Error(`Indexer fetch error: ${res.status}`);
+
+        const data = await res.json();
+        const assetsList = data.assets || [];
+
+        await this.processAssets(assetsList, nfts, true);
+
+        if (data["next-token"]) {
+          await fetchAssetsByCreator(data["next-token"]);
+        }
+      } catch (error) {
+        console.error("Error fetching NFTs:", error.message);
+      }
+    };
+
+    await fetchAssetsByCreator();
+
+    return nfts;
+  }
+
+  async getListedNFTs(assets) {
+    const nfts = [];
+
+    // Fetch manually by asset IDs
+    const fetchAssetsByIds = async (assets) => {
+      for (const assetId of assets) {
+        try {
+          const res = await fetch(`${this.indexerUrl}/v2/assets/${assetId}`);
+          if (!res.ok) continue;
+
+          const data = await res.json();
+          const asset = data.asset;
+          await this.processAssets([asset], nfts, true);
+        } catch (error) {
+          console.error(`Failed to fetch asset ${assetId}:`, error.message);
+        }
+      }
+    };
+
+    await fetchAssetsByIds(assets);
+
+    return nfts;
+  }
+
+  async getWalletNFTs(creatorAddress) {
+    const nfts = [];
+
+    // Recursive fetch by creator
+    const fetchAssetsByCreator = async (nextToken = null) => {
+      try {
+        let fetchUrl = `${this.indexerUrl}/v2/assets?limit=1000`;
 
         if (creatorAddress) {
           fetchUrl += `&creator=${creatorAddress}`;
@@ -772,33 +866,12 @@ class AlgoMintX {
       }
     };
 
-    // Fetch manually by asset IDs
-    const fetchAssetsByIds = async () => {
-      for (const assetId of assets) {
-        try {
-          const res = await fetch(`${this.indexerUrl}/v2/assets/${assetId}`);
-          if (!res.ok) continue;
-
-          const data = await res.json();
-          const asset = data.asset;
-          await this.processAssets([asset], nfts);
-        } catch (error) {
-          console.error(`Failed to fetch asset ${assetId}:`, error.message);
-        }
-      }
-    };
-
-    // Decide what to run
-    if (creatorAddress) {
-      await fetchAssetsByCreator();
-    } else if (assets) {
-      await fetchAssetsByIds();
-    }
+    await fetchAssetsByCreator();
 
     return nfts;
   }
 
-  async processAssets(assets, nfts) {
+  async processAssets(assets, nfts, listed = false) {
     for (const asset of assets) {
       const params = asset.params;
 
@@ -817,16 +890,40 @@ class AlgoMintX {
         const ipfsHash = params.url.replace("ipfs://", "");
         try {
           const metadataRes = await fetch(
-            `https://${this.ipfs_gateway}/ipfs/${ipfsHash}`
+            `https://${this.pinata_ipfs_gateway_url}/ipfs/${ipfsHash}`
           );
           if (metadataRes.ok) {
             const metadata = await metadataRes.json();
-            if (
-              metadata.minted_by &&
-              metadata.minted_by.toLowerCase() === this.metadataMark
-            ) {
-              nft.metadata = metadata;
-              nfts.push(nft);
+            if (!listed) {
+              // get connected wallet nfts
+              if (
+                metadata.decimals === 0 &&
+                metadata.image_integrity &&
+                metadata.image_mimetype &&
+                metadata.standard &&
+                metadata.image &&
+                metadata.image.startsWith("ipfs://")
+              ) {
+                nft.metadata = metadata;
+                nfts.push(nft);
+              }
+            } else {
+              // get marketplace listed nfts
+              if (
+                metadata.decimals === 0 &&
+                metadata.image_integrity &&
+                metadata.image_mimetype &&
+                metadata.standard &&
+                metadata.image &&
+                metadata.image.startsWith("ipfs://") &&
+                metadata.minted_by &&
+                metadata.minted_by === this.metadataMark &&
+                metadata.marketplace &&
+                metadata.marketplace === this.revenueWalletAddress
+              ) {
+                nft.metadata = metadata;
+                nfts.push(nft);
+              }
             }
           } else {
             console.error(
