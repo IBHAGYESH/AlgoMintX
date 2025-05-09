@@ -4,6 +4,13 @@ import { DeflyWalletConnect } from "@blockshake/defly-connect";
 import eventBus from "./event-bus.js";
 import "./algomintx.css";
 import { AlgoMintXClient } from "./AlgoMintXClient/AlgoMintXClient.ts";
+import { AlgorandClient } from "@algorandfoundation/algokit-utils";
+
+const appSpecJson = require("./AlgoMintXClient/AlgoMintX.arc32.json");
+const encoder = new algosdk.ABIContract({
+  name: appSpecJson.contract.name,
+  methods: appSpecJson.contract.methods,
+});
 
 class AlgoMintX {
   constructor({
@@ -91,22 +98,29 @@ class AlgoMintX {
 
     // algosdk config
     this.algodClient = new algosdk.Algodv2(
-      "",
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       this.network === "mainnet"
         ? "https://mainnet-api.algonode.cloud"
         : "https://testnet-api.algonode.cloud",
-      ""
+      443
     );
+    this.algorandClient = AlgorandClient.fromClients({
+      algod: this.algodClient,
+    });
 
     /**
      * smart contract
      */
     this.contractApplicationId =
-      this.network === "mainnet" ? 738990826 : 738990826;
+      this.network === "mainnet" ? 739257157 : 739257157;
     this.contractWalletAddress =
       this.network === "mainnet"
-        ? "BGPWBGMELEV7OY34ZALDOJEFVHZOZ7OFYE6K45ZVAWJ6FELUJOE3Z42ZXI"
-        : "BGPWBGMELEV7OY34ZALDOJEFVHZOZ7OFYE6K45ZVAWJ6FELUJOE3Z42ZXI";
+        ? "XIAYGNPJ7QOG7GZHVLWMOPSCHY2MQQ56IGHYGGWDQFVZD4FLY2R7HJNUVU"
+        : "XIAYGNPJ7QOG7GZHVLWMOPSCHY2MQQ56IGHYGGWDQFVZD4FLY2R7HJNUVU";
+    this.appClient = new AlgoMintXClient({
+      appId: this.contractApplicationId,
+      algorand: this.algorandClient,
+    });
 
     /**
      * sdk variables
@@ -1066,81 +1080,142 @@ class AlgoMintX {
     return ipfsUrl.replace("ipfs://", gateway);
   }
 
+  getListingBoxReference(appIndex, assetId) {
+    const prefix = Buffer.from("listing_"); // Ensure Buffer
+    const assetIdBytes = Buffer.from(algosdk.encodeUint64(BigInt(assetId))); // Convert to Buffer
+    const boxName = new Uint8Array(Buffer.concat([prefix, assetIdBytes])); // Concatenate as Buffer, then Uint8Array
+    return { appIndex, name: boxName };
+  }
+
   async listNFT({ assetId, nftPrice }) {
-    if (!this.walletConnected || !this.account) {
-      throw new Error("Wallet is not connected.");
-    }
-
-    if (!assetId) {
-      throw new Error("Asset ID is required.");
-    }
-
-    if (!nftPrice) {
-      throw new Error("NFT price is required.");
-    }
-
     try {
-      // Get suggested parameters
-      const suggestedParams = await this.algodClient
-        .getTransactionParams()
-        .do();
+      if (!this.walletConnected || !this.account) {
+        throw new Error("Wallet is not connected");
+      }
+      if (!assetId || !nftPrice) {
+        throw new Error("Asset ID and price are required");
+      }
 
-      // Initialize the AlgoMintX client
-      const client = new AlgoMintXClient({
-        appId: this.contractApplicationId,
-        algod: this.algodClient,
-      });
+      const params = await this.algodClient.getTransactionParams().do();
 
-      // Create the atomic transaction group
-      const txnGroup = await client.createTransaction.listNft({
-        args: {
-          assetId: BigInt(assetId),
-          senderWalletAddress: this.account,
-          revenueWalletAddress: this.revenueWalletAddress,
-          nftPrice: BigInt(nftPrice),
-          listingFee: BigInt(this.listingFee),
-        },
-        suggestedParams,
-      });
+      const lowFeeParams = { ...params, flatFee: true, fee: 1000 };
+      const mediumFeeParams = { ...params, flatFee: true, fee: 2000 };
+      const highFeeParams = { ...params, flatFee: true, fee: 4000 };
 
-      // Get the wallet connector
       const walletConnector = this.walletConnectors[this.selectedWalletType];
 
-      // Sign the transaction group
-      const signedTxn = await walletConnector.signTransaction([
-        txnGroup.map((txn) => ({
-          txn,
-          signers: [this.account],
-        })),
-      ]);
+      // ------------------------
+      // PHASE 1: Opt-in group
+      // ------------------------
 
-      // Submit the signed transaction
-      const { txId } = await this.algodClient
-        .sendRawTransaction(signedTxn[0])
+      const fundTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        sender: this.account,
+        receiver: this.contractWalletAddress,
+        amount: 100_000,
+        suggestedParams: lowFeeParams,
+      });
+
+      const boxRefGroup1 = this.getListingBoxReference(
+        this.contractApplicationId,
+        assetId
+      );
+      const optInMethod = encoder.methods.find(
+        (m) => m.name === "contractOptInToNFT"
+      );
+      const optInAppCallTxn = algosdk.makeApplicationCallTxnFromObject({
+        sender: this.account,
+        appIndex: this.contractApplicationId,
+        onComplete: algosdk.OnApplicationComplete.NoOpOC,
+        appArgs: [
+          optInMethod.getSelector(),
+          algosdk.ABIType.from("uint64").encode(BigInt(assetId)),
+        ],
+        boxes: [boxRefGroup1],
+        foreignAssets: [assetId],
+        suggestedParams: mediumFeeParams,
+      });
+
+      const optInGroup = [fundTxn, optInAppCallTxn];
+      algosdk.assignGroupID(optInGroup);
+
+      const optInSigned = await walletConnector.signTransaction([
+        optInGroup.map((txn) => ({ txn, signers: [this.account] })),
+      ]);
+      const { txid: optInTxId } = await this.algodClient
+        .sendRawTransaction(optInSigned)
         .do();
 
-      // Wait for confirmation
-      const result = await algosdk.waitForConfirmation(
-        this.algodClient,
-        txId,
-        10
-      );
+      await algosdk.waitForConfirmation(this.algodClient, optInTxId, 10);
+      console.log("Opt-in transaction confirmed:", optInTxId);
 
-      // Emit event for successful listing
+      // ------------------------
+      // PHASE 2: Transfer + Listing
+      // ------------------------
+
+      const transferTxn =
+        algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+          sender: this.account,
+          receiver: this.contractWalletAddress,
+          amount: 1,
+          assetIndex: assetId,
+          suggestedParams: lowFeeParams,
+        });
+
+      const feeTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        sender: this.account,
+        receiver: this.revenueWalletAddress,
+        amount: Math.round(this.listingFee * 1_000_000),
+        suggestedParams: lowFeeParams,
+      });
+
+      const boxRefGroup2 = this.getListingBoxReference(
+        this.contractApplicationId,
+        assetId
+      );
+      const listingMethod = encoder.methods.find(
+        (m) => m.name === "addNFTListing"
+      );
+      const listingAppCallTxn = algosdk.makeApplicationCallTxnFromObject({
+        sender: this.account,
+        appIndex: this.contractApplicationId,
+        onComplete: algosdk.OnApplicationComplete.NoOpOC,
+        appArgs: [
+          listingMethod.getSelector(),
+          algosdk.ABIType.from("uint64").encode(BigInt(assetId)),
+          algosdk.ABIType.from("string").encode(this.account),
+          algosdk.ABIType.from("uint64").encode(BigInt(nftPrice)),
+        ],
+        boxes: [boxRefGroup2],
+        suggestedParams: highFeeParams,
+      });
+
+      const listingGroup = [transferTxn, feeTxn, listingAppCallTxn];
+      algosdk.assignGroupID(listingGroup);
+
+      const signedListing = await walletConnector.signTransaction([
+        listingGroup.map((txn) => ({ txn, signers: [this.account] })),
+      ]);
+      const { txid: listingTxId } = await this.algodClient
+        .sendRawTransaction(signedListing)
+        .do();
+
+      await algosdk.waitForConfirmation(this.algodClient, listingTxId, 10);
+
       eventBus.emit("nft:list:success", {
-        transactionId: txId,
         assetId,
+        seller: this.account,
         price: nftPrice,
-        address: this.account,
+        timestamp: Date.now(),
+        transactionId: listingTxId,
       });
 
       return {
-        transactionId: txId,
         assetId,
         price: nftPrice,
+        transactionId: listingTxId,
       };
     } catch (error) {
-      console.error("Failed to list NFT:", error);
+      console.error("Error listing NFT:", error);
       eventBus.emit("nft:list:failed", { error: error.message });
       throw error;
     }
@@ -1194,27 +1269,27 @@ class AlgoMintX {
       ]);
 
       // Submit the signed transaction
-      const { txId } = await this.algodClient
+      const { txid } = await this.algodClient
         .sendRawTransaction(signedTxn[0])
         .do();
 
       // Wait for confirmation
       const result = await algosdk.waitForConfirmation(
         this.algodClient,
-        txId,
+        txid,
         10
       );
 
       // Emit event for successful purchase
       eventBus.emit("nft:buy:success", {
-        transactionId: txId,
+        transactionId: txid,
         assetId,
         buyer: this.account,
         receiver: receiverWalletAddress,
       });
 
       return {
-        transactionId: txId,
+        transactionId: txid,
         assetId,
         buyer: this.account,
         receiver: receiverWalletAddress,
