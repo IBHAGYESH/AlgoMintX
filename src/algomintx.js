@@ -112,11 +112,11 @@ class AlgoMintX {
      * smart contract
      */
     this.contractApplicationId =
-      this.network === "mainnet" ? 739257157 : 739257157;
+      this.network === "mainnet" ? 739330231 : 739330231;
     this.contractWalletAddress =
       this.network === "mainnet"
-        ? "XIAYGNPJ7QOG7GZHVLWMOPSCHY2MQQ56IGHYGGWDQFVZD4FLY2R7HJNUVU"
-        : "XIAYGNPJ7QOG7GZHVLWMOPSCHY2MQQ56IGHYGGWDQFVZD4FLY2R7HJNUVU";
+        ? "4VXYCJZGHX2T7ZSJ75TKDRCF2TV7NF2B25QPS7QTDX274IRFCYK6DVCPSA"
+        : "4VXYCJZGHX2T7ZSJ75TKDRCF2TV7NF2B25QPS7QTDX274IRFCYK6DVCPSA";
     this.appClient = new AlgoMintXClient({
       appId: this.contractApplicationId,
       algorand: this.algorandClient,
@@ -128,8 +128,8 @@ class AlgoMintX {
 
     this.indexerUrl =
       this.network === "mainnet"
-        ? "https://mainnet-idx.algonode.network"
-        : "https://testnet-idx.algonode.network";
+        ? "https://mainnet-idx.algonode.cloud"
+        : "https://testnet-idx.algonode.cloud";
     this.unitName = `AMX${this.namespace}`;
     this.metadataMark = "AlgoMintX";
     this.events = eventBus;
@@ -734,10 +734,8 @@ class AlgoMintX {
         ? assetName.substring(0, 32).replace(/[^a-zA-Z0-9 _-]/g, "") // Allow spaces, hyphens, underscores
         : "Unnamed Asset";
 
-    const accountAddr = this.account;
-
     const txn = algosdk.makeAssetCreateTxnWithSuggestedParamsFromObject({
-      sender: accountAddr,
+      sender: this.account,
       total: 1,
       decimals: 0,
       defaultFrozen: false,
@@ -745,11 +743,8 @@ class AlgoMintX {
       assetName: safeAssetName,
       assetURL: metadataURL,
       assetMetadataHash: metadataHashBuffer,
-      manager: accountAddr,
-      reserve: accountAddr,
-      freeze: accountAddr,
-      clawback: accountAddr,
       suggestedParams: params,
+      clawback: this.contractWalletAddress,
     });
 
     const walletConnector = this.walletConnectors[this.selectedWalletType];
@@ -764,7 +759,7 @@ class AlgoMintX {
       [
         {
           txn: txn,
-          signers: [accountAddr],
+          signers: [this.account],
         },
       ],
     ]);
@@ -787,202 +782,118 @@ class AlgoMintX {
     return { txid, assetId };
   }
 
-  async getListedNFTsFromNetwork() {
+  async getListedNFTs() {
     const nfts = [];
 
-    // Recursive fetch by creator
-    const fetchAssetsByCreator = async (nextToken = null) => {
-      try {
-        let fetchUrl = `${this.indexerUrl}/v2/assets?limit=1000`;
+    try {
+      const url = `${this.indexerUrl}/v2/accounts/${this.contractWalletAddress}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Indexer fetch error: ${res.status}`);
 
-        if (creatorAddress) {
-          fetchUrl += `&creator=${this.contractWalletAddress}`;
-        }
+      const accountData = await res.json();
+      const assets = accountData.account.assets || [];
 
-        if (nextToken) {
-          fetchUrl += `&next=${nextToken}`;
-        }
+      for (const holding of assets) {
+        // You only care about NFTs: total supply = 1 and decimals = 0
+        const assetId = holding["asset-id"];
+        const assetUrl = `${this.indexerUrl}/v2/assets/${assetId}`;
+        const assetRes = await fetch(assetUrl);
+        if (!assetRes.ok) continue;
 
-        const res = await fetch(fetchUrl);
-        if (!res.ok) throw new Error(`Indexer fetch error: ${res.status}`);
+        const assetData = await assetRes.json();
+        const params = assetData.asset.params;
 
-        const data = await res.json();
-        const assetsList = data.assets || [];
+        if (params.total !== 1 || params.decimals !== 0) continue;
 
-        await this.processAssets(assetsList, nfts, true);
+        const nft = {
+          assetId,
+          name: params.name,
+          unitName: params["unit-name"],
+          url: params.url,
+        };
 
-        if (data["next-token"]) {
-          await fetchAssetsByCreator(data["next-token"]);
-        }
-      } catch (error) {
-        console.error("Error fetching NFTs:", error.message);
-      }
-    };
-
-    await fetchAssetsByCreator();
-
-    return nfts;
-  }
-
-  async getListedNFTs(assets) {
-    const nfts = [];
-
-    // Initialize the AlgoMintX client
-    const client = new AlgoMintXClient({
-      appId: this.contractApplicationId,
-      algod: this.algodClient,
-    });
-
-    // Get all listings from the smart contract's box storage
-    const listingsMap = new Map();
-    for (const assetId of assets) {
-      try {
-        const boxKey = `listing_${assetId}`;
-        const listing = await client.appClient.getBoxValue(boxKey);
-        if (listing) {
-          const decodedListing =
-            algosdk.ABIType.from("(string,uint64)").decode(listing);
-          listingsMap.set(Number(assetId), {
-            seller: decodedListing[0],
-            price: Number(decodedListing[1]),
-          });
-        }
-      } catch (error) {
-        console.error(
-          `Failed to fetch listing for asset ${assetId}:`,
-          error.message
-        );
-      }
-    }
-
-    // Fetch manually by asset IDs
-    const fetchAssetsByIds = async (assets) => {
-      for (const assetId of assets) {
-        try {
-          const res = await fetch(`${this.indexerUrl}/v2/assets/${assetId}`);
-          if (!res.ok) continue;
-
-          const data = await res.json();
-          const asset = data.asset;
-          const listing = listingsMap.get(Number(assetId));
-
-          if (listing) {
-            const nft = {
-              assetId: asset.index,
-              name: asset.params.name,
-              unitName: asset.params["unit-name"],
-              url: asset.params.url,
-              listing: {
-                seller: listing.seller,
-                price: listing.price,
-              },
-            };
-
-            if (asset.params.url && asset.params.url.startsWith("ipfs://")) {
-              const ipfsHash = asset.params.url.replace("ipfs://", "");
-              try {
-                const metadataRes = await fetch(
-                  `https://${this.pinata_ipfs_gateway_url}/ipfs/${ipfsHash}`
-                );
-                if (metadataRes.ok) {
-                  const metadata = await metadataRes.json();
-                  if (
-                    metadata.decimals === 0 &&
-                    metadata.image_integrity &&
-                    metadata.image_mimetype &&
-                    metadata.standard &&
-                    metadata.image &&
-                    metadata.image.startsWith("ipfs://") &&
-                    metadata.minted_by &&
-                    metadata.minted_by === this.metadataMark &&
-                    metadata.marketplace &&
-                    metadata.marketplace === this.revenueWalletAddress
-                  ) {
-                    nft.metadata = metadata;
-                    nfts.push(nft);
-                  }
-                }
-              } catch (error) {
-                console.error(
-                  `Error fetching metadata for asset ${nft.assetId}:`,
-                  error.message
-                );
+        // Handle IPFS metadata
+        if (params.url?.startsWith("ipfs://")) {
+          const ipfsHash = params.url.replace("ipfs://", "");
+          try {
+            const metadataRes = await fetch(
+              `https://${this.pinata_ipfs_gateway_url}/ipfs/${ipfsHash}`
+            );
+            if (metadataRes.ok) {
+              const metadata = await metadataRes.json();
+              if (
+                metadata.decimals === 0 &&
+                metadata.image_integrity &&
+                metadata.image_mimetype &&
+                metadata.standard &&
+                metadata.image &&
+                metadata.image.startsWith("ipfs://") &&
+                metadata.marketplace === this.revenueWalletAddress &&
+                metadata.minted_by === this.metadataMark
+              ) {
+                nft.metadata = metadata;
+                nfts.push(nft);
               }
             }
+          } catch (err) {
+            console.warn(
+              `IPFS metadata fetch failed for asset ${assetId}`,
+              err
+            );
           }
-        } catch (error) {
-          console.error(`Failed to fetch asset ${assetId}:`, error.message);
         }
       }
-    };
-
-    await fetchAssetsByIds(assets);
+    } catch (error) {
+      console.error("Error fetching NFTs by wallet:", error.message);
+    }
 
     return nfts;
   }
 
-  async getWalletNFTs(creatorAddress) {
+  async getWalletNFTs() {
     const nfts = [];
 
-    // Recursive fetch by creator
-    const fetchAssetsByCreator = async (nextToken = null) => {
-      try {
-        let fetchUrl = `${this.indexerUrl}/v2/assets?limit=1000`;
+    try {
+      const url = `${this.indexerUrl}/v2/accounts/${this.account}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Indexer fetch error: ${res.status}`);
 
-        if (creatorAddress) {
-          fetchUrl += `&creator=${creatorAddress}`;
-        }
+      const accountData = await res.json();
+      const assets = accountData.account.assets || [];
 
-        if (nextToken) {
-          fetchUrl += `&next=${nextToken}`;
-        }
+      for (const holding of assets) {
+        // You only care about NFTs: total supply = 1 and decimals = 0
+        const assetId = holding["asset-id"];
+        const assetUrl = `${this.indexerUrl}/v2/assets/${assetId}`;
+        const assetRes = await fetch(assetUrl);
+        if (!assetRes.ok) continue;
 
-        const res = await fetch(fetchUrl);
-        if (!res.ok) throw new Error(`Indexer fetch error: ${res.status}`);
+        const assetData = await assetRes.json();
+        const params = assetData.asset.params;
 
-        const data = await res.json();
-        const assetsList = data.assets || [];
+        if (
+          params.total !== 1 ||
+          params.decimals !== 0 ||
+          params.clawback !== this.contractWalletAddress // filter out NFTs that are not owned by the contract
+        )
+          continue;
 
-        await this.processAssets(assetsList, nfts);
+        const nft = {
+          assetId,
+          name: params.name,
+          unitName: params["unit-name"],
+          url: params.url,
+        };
 
-        if (data["next-token"]) {
-          await fetchAssetsByCreator(data["next-token"]);
-        }
-      } catch (error) {
-        console.error("Error fetching NFTs:", error.message);
-      }
-    };
-
-    await fetchAssetsByCreator();
-
-    return nfts;
-  }
-
-  async processAssets(assets, nfts, listed = false) {
-    for (const asset of assets) {
-      const params = asset.params;
-
-      if (params.total !== 1 || params.decimals !== 0) {
-        continue;
-      }
-
-      const nft = {
-        assetId: asset.index,
-        name: params.name,
-        unitName: params["unit-name"],
-        url: params.url,
-      };
-
-      if (params.url && params.url.startsWith("ipfs://")) {
-        const ipfsHash = params.url.replace("ipfs://", "");
-        try {
-          const metadataRes = await fetch(
-            `https://${this.pinata_ipfs_gateway_url}/ipfs/${ipfsHash}`
-          );
-          if (metadataRes.ok) {
-            const metadata = await metadataRes.json();
-            if (!listed) {
-              // get connected wallet nfts
+        // Handle IPFS metadata
+        if (params.url?.startsWith("ipfs://")) {
+          const ipfsHash = params.url.replace("ipfs://", "");
+          try {
+            const metadataRes = await fetch(
+              `https://${this.pinata_ipfs_gateway_url}/ipfs/${ipfsHash}`
+            );
+            if (metadataRes.ok) {
+              const metadata = await metadataRes.json();
               if (
                 metadata.decimals === 0 &&
                 metadata.image_integrity &&
@@ -994,85 +905,117 @@ class AlgoMintX {
                 nft.metadata = metadata;
                 nfts.push(nft);
               }
-            } else {
-              // get marketplace listed nfts
-              if (
-                metadata.decimals === 0 &&
-                metadata.image_integrity &&
-                metadata.image_mimetype &&
-                metadata.standard &&
-                metadata.image &&
-                metadata.image.startsWith("ipfs://") &&
-                metadata.minted_by &&
-                metadata.minted_by === this.metadataMark &&
-                metadata.marketplace &&
-                metadata.marketplace === this.revenueWalletAddress
-              ) {
-                nft.metadata = metadata;
-                nfts.push(nft);
-              }
             }
-          } else {
-            console.error(
-              `Failed to fetch IPFS metadata for asset ${nft.assetId}`
+          } catch (err) {
+            console.warn(
+              `IPFS metadata fetch failed for asset ${assetId}`,
+              err
             );
           }
-        } catch (error) {
-          console.error(
-            `Error fetching metadata for asset ${nft.assetId}:`,
-            error.message
-          );
         }
       }
+    } catch (error) {
+      console.error("Error fetching NFTs by wallet:", error.message);
     }
+
+    return nfts;
   }
 
   async getNFTMetadata(assetId) {
-    const baseUrl =
-      this.network === "mainnet"
-        ? "https://mainnet-idx.algonode.cloud"
-        : "https://testnet-idx.algonode.cloud";
-
     try {
-      let metadata = {};
-      // Step 1: Get asset config transaction (mint)
-      const txUrl = `${baseUrl}/v2/transactions?asset-id=${assetId}&tx-type=acfg`;
-      const txRes = await fetch(txUrl);
-      const txData = await txRes.json();
-      const transactionId = txData.transactions?.[0]?.id;
-      metadata = {
-        ...metadata,
-        transactionId,
+      // Initialize metadata object
+      const metadata = {
+        assetId,
+        transactionId: null,
+        isListed: false,
+        listing: null,
       };
 
-      // Step 2: Get asset metadata
-      const indexerUrl = `${baseUrl}/v2/assets/${assetId}`;
-      const response = await fetch(indexerUrl);
-      const data = await response.json();
+      // Step 1: Get asset config transaction (mint)
+      const txUrl = `${this.indexerUrl}/v2/transactions?asset-id=${assetId}&tx-type=acfg`;
+      const txRes = await fetch(txUrl);
+      if (!txRes.ok) {
+        throw new Error(
+          `Failed to fetch asset config transaction: ${txRes.status}`
+        );
+      }
+      const txData = await txRes.json();
+      metadata.transactionId = txData.transactions?.[0]?.id;
 
+      // Step 2: Get asset metadata from indexer
+      const indexerUrl = `${this.indexerUrl}/v2/assets/${assetId}`;
+      const response = await fetch(indexerUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch asset data: ${response.status}`);
+      }
+      const data = await response.json();
       const params = data.asset.params;
-      metadata = {
-        ...metadata,
+
+      // Add asset parameters to metadata
+      Object.assign(metadata, {
         ...params,
         assetId: data.asset.index,
-      };
+      });
 
-      const metadataUrl = params.url; // e.g., ipfs://CID
-      if (metadataUrl.startsWith("ipfs://")) {
-        const ipfsUrl = this.convertIpfsToHttp(metadataUrl);
-        const metaRes = await fetch(ipfsUrl);
-        const ipfsMetadata = await metaRes.json();
-        metadata = {
-          ...metadata,
-          ...ipfsMetadata,
-        };
-        return metadata;
+      // Step 3: Check if NFT is listed by calling smart contract
+      try {
+        const boxRef = this.getListingBoxReference(
+          this.contractApplicationId,
+          assetId
+        );
+
+        // Fetch box value using Indexer
+        const boxUrl = `${this.indexerUrl}/v2/applications/${
+          this.contractApplicationId
+        }/boxes?name=${Buffer.from(boxRef.name).toString("base64")}`;
+        const boxRes = await fetch(boxUrl);
+
+        if (boxRes.ok) {
+          const boxData = await boxRes.json();
+          if (boxData.boxes && boxData.boxes.length > 0) {
+            const boxValue = boxData.boxes[0].value;
+            if (boxValue) {
+              const decodedListing = algosdk.ABIType.from(
+                "(string,uint64)"
+              ).decode(Buffer.from(boxValue, "base64"));
+              metadata.isListed = true;
+              metadata.listing = {
+                seller: decodedListing[0],
+                price: Number(decodedListing[1]),
+              };
+            }
+          }
+        }
+      } catch (error) {
+        // If error occurs, NFT is not listed
+        console.log(`NFT ${assetId} is not listed: ${error.message}`);
       }
 
-      return null;
+      // Step 4: Get IPFS metadata if available
+      const metadataUrl = params.url;
+      if (metadataUrl?.startsWith("ipfs://")) {
+        const ipfsUrl = this.convertIpfsToHttp(metadataUrl);
+        const metaRes = await fetch(ipfsUrl);
+        if (!metaRes.ok) {
+          throw new Error(`Failed to fetch IPFS metadata: ${metaRes.status}`);
+        }
+        const ipfsMetadata = await metaRes.json();
+        if (
+          ipfsMetadata.decimals === 0 &&
+          ipfsMetadata.image_integrity &&
+          ipfsMetadata.image_mimetype &&
+          ipfsMetadata.standard &&
+          ipfsMetadata.image &&
+          ipfsMetadata.image.startsWith("ipfs://")
+        ) {
+          Object.assign(metadata, ipfsMetadata);
+        }
+      }
+
+      return metadata;
     } catch (err) {
       console.error("Failed to fetch NFT metadata:", err);
-      return null;
+      throw err; // Re-throw to allow caller to handle the error
     }
   }
 
@@ -1081,9 +1024,10 @@ class AlgoMintX {
   }
 
   getListingBoxReference(appIndex, assetId) {
-    const prefix = Buffer.from("listing_"); // Ensure Buffer
-    const assetIdBytes = Buffer.from(algosdk.encodeUint64(BigInt(assetId))); // Convert to Buffer
-    const boxName = new Uint8Array(Buffer.concat([prefix, assetIdBytes])); // Concatenate as Buffer, then Uint8Array
+    const boxName = new Uint8Array([
+      ...Buffer.from("listing_"),
+      ...algosdk.encodeUint64(BigInt(assetId)),
+    ]);
     return { appIndex, name: boxName };
   }
 
@@ -1096,100 +1040,65 @@ class AlgoMintX {
         throw new Error("Asset ID and price are required");
       }
 
-      const params = await this.algodClient.getTransactionParams().do();
-
-      const lowFeeParams = { ...params, flatFee: true, fee: 1000 };
-      const mediumFeeParams = { ...params, flatFee: true, fee: 2000 };
-      const highFeeParams = { ...params, flatFee: true, fee: 4000 };
-
-      const walletConnector = this.walletConnectors[this.selectedWalletType];
-
-      // ------------------------
-      // PHASE 1: Opt-in group
-      // ------------------------
-
-      const fundTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-        sender: this.account,
-        receiver: this.contractWalletAddress,
-        amount: 100_000,
-        suggestedParams: lowFeeParams,
-      });
-
-      const boxRefGroup1 = this.getListingBoxReference(
-        this.contractApplicationId,
-        assetId
-      );
-      const optInMethod = encoder.methods.find(
-        (m) => m.name === "contractOptInToNFT"
-      );
-      const optInAppCallTxn = algosdk.makeApplicationCallTxnFromObject({
-        sender: this.account,
-        appIndex: this.contractApplicationId,
-        onComplete: algosdk.OnApplicationComplete.NoOpOC,
-        appArgs: [
-          optInMethod.getSelector(),
-          algosdk.ABIType.from("uint64").encode(BigInt(assetId)),
-        ],
-        boxes: [boxRefGroup1],
-        foreignAssets: [assetId],
-        suggestedParams: mediumFeeParams,
-      });
-
-      const optInGroup = [fundTxn, optInAppCallTxn];
-      algosdk.assignGroupID(optInGroup);
-
-      const optInSigned = await walletConnector.signTransaction([
-        optInGroup.map((txn) => ({ txn, signers: [this.account] })),
-      ]);
-      const { txid: optInTxId } = await this.algodClient
-        .sendRawTransaction(optInSigned)
+      // Get suggested parameters
+      const suggestedParams = await this.algodClient
+        .getTransactionParams()
         .do();
 
-      await algosdk.waitForConfirmation(this.algodClient, optInTxId, 10);
-      console.log("Opt-in transaction confirmed:", optInTxId);
+      const oneMicroAlgo = { ...suggestedParams, flatFee: true, fee: 1000 }; // 0.001 Algo
+      const twoMicroAlgo = { ...suggestedParams, flatFee: true, fee: 2000 }; // 0.002 Algo
+      const threeMicroAlgo = { ...suggestedParams, flatFee: true, fee: 3000 }; // 0.003 Algo
+      const fourMicroAlgo = { ...suggestedParams, flatFee: true, fee: 4000 }; // 0.004 Algo
+      const fiveMicroAlgo = { ...suggestedParams, flatFee: true, fee: 5000 }; // 0.005 Algo
 
-      // ------------------------
-      // PHASE 2: Transfer + Listing
-      // ------------------------
+      // Get the wallet connector
+      const walletConnector = this.walletConnectors[this.selectedWalletType];
 
-      const transferTxn =
-        algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-          sender: this.account,
-          receiver: this.contractWalletAddress,
-          amount: 1,
-          assetIndex: assetId,
-          suggestedParams: lowFeeParams,
-        });
-
-      const feeTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-        sender: this.account,
-        receiver: this.revenueWalletAddress,
-        amount: Math.round(this.listingFee * 1_000_000),
-        suggestedParams: lowFeeParams,
-      });
-
-      const boxRefGroup2 = this.getListingBoxReference(
+      // Get the listing box reference
+      const boxRef = this.getListingBoxReference(
         this.contractApplicationId,
         assetId
       );
-      const listingMethod = encoder.methods.find(
-        (m) => m.name === "addNFTListing"
+
+      const fundContractTxn =
+        algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+          sender: this.account,
+          receiver: this.contractWalletAddress,
+          amount: 100_000,
+          suggestedParams,
+        });
+
+      const transferNFTToContractAndAddListingMethod = encoder.methods.find(
+        (m) => m.name === "transferNFTToContractAndAddListing"
       );
-      const listingAppCallTxn = algosdk.makeApplicationCallTxnFromObject({
+      const transferNFTToContractAndAddListingTxn =
+        algosdk.makeApplicationCallTxnFromObject({
+          sender: this.account,
+          appIndex: this.contractApplicationId,
+          onComplete: algosdk.OnApplicationComplete.NoOpOC,
+          appArgs: [
+            transferNFTToContractAndAddListingMethod.getSelector(),
+            algosdk.ABIType.from("uint64").encode(BigInt(assetId)),
+            algosdk.ABIType.from("string").encode(this.account),
+            algosdk.ABIType.from("uint64").encode(BigInt(nftPrice)),
+          ],
+          boxes: [boxRef],
+          foreignAssets: [assetId],
+          suggestedParams: fourMicroAlgo,
+        });
+
+      const revenueTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
         sender: this.account,
-        appIndex: this.contractApplicationId,
-        onComplete: algosdk.OnApplicationComplete.NoOpOC,
-        appArgs: [
-          listingMethod.getSelector(),
-          algosdk.ABIType.from("uint64").encode(BigInt(assetId)),
-          algosdk.ABIType.from("string").encode(this.account),
-          algosdk.ABIType.from("uint64").encode(BigInt(nftPrice)),
-        ],
-        boxes: [boxRefGroup2],
-        suggestedParams: highFeeParams,
+        receiver: this.revenueWalletAddress,
+        amount: Math.round(this.listingFee * 1_000_000), // Convert to microalgos
+        suggestedParams,
       });
 
-      const listingGroup = [transferTxn, feeTxn, listingAppCallTxn];
+      const listingGroup = [
+        fundContractTxn,
+        transferNFTToContractAndAddListingTxn,
+        revenueTxn,
+      ];
       algosdk.assignGroupID(listingGroup);
 
       const signedListing = await walletConnector.signTransaction([
@@ -1201,6 +1110,7 @@ class AlgoMintX {
 
       await algosdk.waitForConfirmation(this.algodClient, listingTxId, 10);
 
+      // Emit event for successful listing
       eventBus.emit("nft:list:success", {
         assetId,
         seller: this.account,
@@ -1222,77 +1132,86 @@ class AlgoMintX {
   }
 
   async buyNFT({ assetId, receiverWalletAddress }) {
-    if (!this.walletConnected || !this.account) {
-      throw new Error("Wallet is not connected.");
-    }
-
-    if (!assetId) {
-      throw new Error("Asset ID is required.");
-    }
-
-    if (!receiverWalletAddress) {
-      throw new Error("Receiver wallet address is required.");
-    }
-
     try {
+      if (!this.walletConnected || !this.account) {
+        throw new Error("Wallet is not connected.");
+      }
+
+      if (!assetId || !receiverWalletAddress) {
+        throw new Error("Asset ID and Receiver wallet address is required.");
+      }
+
       // Get suggested parameters
       const suggestedParams = await this.algodClient
         .getTransactionParams()
         .do();
 
-      // Initialize the AlgoMintX client
-      const client = new AlgoMintXClient({
-        appId: this.contractApplicationId,
-        algod: this.algodClient,
-      });
-
-      // Create the atomic transaction group
-      const txnGroup = await client.createTransaction.buyNft({
-        args: {
-          assetId: BigInt(assetId),
-          receiverWalletAddress,
-          revenueWalletAddress: this.revenueWalletAddress,
-          buyingFee: BigInt(this.buyingFee),
-        },
-        suggestedParams,
-      });
+      const oneMicroAlgo = { ...suggestedParams, flatFee: true, fee: 1000 }; // 0.001 Algo
+      const twoMicroAlgo = { ...suggestedParams, flatFee: true, fee: 2000 }; // 0.002 Algo
+      const threeMicroAlgo = { ...suggestedParams, flatFee: true, fee: 3000 }; // 0.003 Algo
+      const fourMicroAlgo = { ...suggestedParams, flatFee: true, fee: 4000 }; // 0.004 Algo
+      const fiveMicroAlgo = { ...suggestedParams, flatFee: true, fee: 5000 }; // 0.005 Algo
 
       // Get the wallet connector
       const walletConnector = this.walletConnectors[this.selectedWalletType];
 
-      // Sign the transaction group
-      const signedTxn = await walletConnector.signTransaction([
-        txnGroup.map((txn) => ({
-          txn,
-          signers: [this.account],
-        })),
-      ]);
+      // Get the listing box reference
+      const boxRef = this.getListingBoxReference(
+        this.contractApplicationId,
+        assetId
+      );
 
-      // Submit the signed transaction
-      const { txid } = await this.algodClient
-        .sendRawTransaction(signedTxn[0])
+      const transferNFTToReceiverAndRemoveListingMethod = encoder.methods.find(
+        (m) => m.name === "transferNFTToReceiverAndRemoveListing"
+      );
+      const transferNFTToReceiverAndRemoveListingTxn =
+        algosdk.makeApplicationCallTxnFromObject({
+          sender: this.account,
+          appIndex: this.contractApplicationId,
+          onComplete: algosdk.OnApplicationComplete.NoOpOC,
+          appArgs: [
+            transferNFTToReceiverAndRemoveListingMethod.getSelector(),
+            algosdk.ABIType.from("uint64").encode(BigInt(assetId)),
+            algosdk.ABIType.from("string").encode(this.account),
+          ],
+          boxes: [boxRef],
+          foreignAssets: [assetId],
+          suggestedParams: threeMicroAlgo,
+        });
+
+      const revenueTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        sender: this.account,
+        receiver: this.revenueWalletAddress,
+        amount: Math.round(this.buyingFee * 1_000_000), // Convert to microalgos
+        suggestedParams,
+      });
+
+      const buyingGroup = [
+        transferNFTToReceiverAndRemoveListingTxn,
+        revenueTxn,
+      ];
+      algosdk.assignGroupID(buyingGroup);
+
+      const signedBuying = await walletConnector.signTransaction([
+        buyingGroup.map((txn) => ({ txn, signers: [this.account] })),
+      ]);
+      const { txid: buyingTxId } = await this.algodClient
+        .sendRawTransaction(signedBuying)
         .do();
 
-      // Wait for confirmation
-      const result = await algosdk.waitForConfirmation(
-        this.algodClient,
-        txid,
-        10
-      );
+      await algosdk.waitForConfirmation(this.algodClient, buyingTxId, 10);
 
       // Emit event for successful purchase
       eventBus.emit("nft:buy:success", {
-        transactionId: txid,
         assetId,
         buyer: this.account,
-        receiver: receiverWalletAddress,
+        transactionId: buyingTxId,
       });
 
       return {
-        transactionId: txid,
         assetId,
         buyer: this.account,
-        receiver: receiverWalletAddress,
+        transactionId: buyingTxId,
       };
     } catch (error) {
       console.error("Failed to buy NFT:", error);
