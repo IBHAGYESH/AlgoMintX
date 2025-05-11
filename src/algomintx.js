@@ -112,11 +112,11 @@ class AlgoMintX {
      * smart contract
      */
     this.contractApplicationId =
-      this.network === "mainnet" ? 739330231 : 739330231;
+      this.network === "mainnet" ? 739334702 : 739334702;
     this.contractWalletAddress =
       this.network === "mainnet"
-        ? "4VXYCJZGHX2T7ZSJ75TKDRCF2TV7NF2B25QPS7QTDX274IRFCYK6DVCPSA"
-        : "4VXYCJZGHX2T7ZSJ75TKDRCF2TV7NF2B25QPS7QTDX274IRFCYK6DVCPSA";
+        ? "PPDA6RHCANRK6TDK4TCEHTCUV32BCXND6UYZFXJ3YJGF6DROIXLYSOGRJQ"
+        : "PPDA6RHCANRK6TDK4TCEHTCUV32BCXND6UYZFXJ3YJGF6DROIXLYSOGRJQ";
     this.appClient = new AlgoMintXClient({
       appId: this.contractApplicationId,
       algorand: this.algorandClient,
@@ -782,6 +782,64 @@ class AlgoMintX {
     return { txid, assetId };
   }
 
+  async decodeListingBoxFromAlgod(boxNameB64) {
+    const boxNameBytes = Uint8Array.from(atob(boxNameB64), (c) =>
+      c.charCodeAt(0)
+    );
+    const assetIdBytes = boxNameBytes.slice(8); // skip 'listing_' prefix
+    const assetId = algosdk.decodeUint64(assetIdBytes, "safe");
+
+    const boxValueResponse = await this.algodClient
+      .getApplicationBoxByName(this.contractApplicationId, boxNameBytes)
+      .do();
+
+    // The value is already a Uint8Array in the browser environment
+    const raw = boxValueResponse.value;
+
+    // Use DataView to decode the values
+    const view = new DataView(raw.buffer);
+
+    // Read struct type ID (uint16 BE)
+    const structTypeId = view.getUint16(0, false);
+
+    // Read seller length (uint16 BE)
+    const sellerLen = view.getUint16(4, false); // Changed back to offset 4
+
+    // Read seller string
+    const sellerStart = 6; // Changed offset to 6
+    const sellerEnd = sellerStart + sellerLen;
+    const sellerBytes = raw.slice(sellerStart, sellerEnd);
+
+    const seller = new TextDecoder().decode(sellerBytes);
+
+    // --- Read price length (uint16 BE)
+    const priceLen = view.getUint16(sellerEnd, false);
+
+    // --- Read price bytes
+    const priceStart = sellerEnd + 2;
+    const priceEnd = priceStart + priceLen;
+
+    if (raw.length < priceEnd) {
+      throw new Error("Box value too short for price string");
+    }
+
+    const priceBytes = raw.slice(priceStart, priceEnd);
+
+    // ✅ Decode price as a UTF-8 string (not number)
+    const nftPrice = this.microAlgosToAlgos(
+      Number(new TextDecoder().decode(priceBytes))
+    );
+
+    // Return result
+    return {
+      key: `listing_${assetId}`,
+      value: {
+        seller,
+        nftPrice, // Keep the price as a string
+      },
+    };
+  }
+
   async getListedNFTs() {
     const nfts = [];
 
@@ -832,6 +890,49 @@ class AlgoMintX {
                 metadata.minted_by === this.metadataMark
               ) {
                 nft.metadata = metadata;
+
+                // Fetch box data for this NFT
+                try {
+                  const boxRef = this.getListingBoxReference(
+                    this.contractApplicationId,
+                    assetId
+                  );
+                  const boxUrl = `${this.indexerUrl}/v2/applications/${
+                    this.contractApplicationId
+                  }/boxes?name=${Buffer.from(boxRef.name).toString("base64")}`;
+                  const boxRes = await fetch(boxUrl);
+
+                  if (boxRes.ok) {
+                    const boxData = await boxRes.json();
+                    if (boxData.boxes && boxData.boxes.length > 0) {
+                      // Find the box that matches our asset ID
+                      for (const box of boxData.boxes) {
+                        try {
+                          const decodedBox =
+                            await this.decodeListingBoxFromAlgod(box.name);
+                          if (decodedBox.key === `listing_${assetId}`) {
+                            nft.listing = {
+                              seller: decodedBox.value.seller,
+                              price: decodedBox.value.nftPrice,
+                            };
+                            break; // Found and processed the matching box
+                          }
+                        } catch (decodeError) {
+                          console.warn(
+                            `Failed to decode box for NFT ${assetId}:`,
+                            decodeError
+                          );
+                        }
+                      }
+                    }
+                  }
+                } catch (boxError) {
+                  console.warn(
+                    `Failed to fetch box data for NFT ${assetId}:`,
+                    boxError
+                  );
+                }
+
                 nfts.push(nft);
               }
             }
@@ -862,6 +963,9 @@ class AlgoMintX {
       const assets = accountData.account.assets || [];
 
       for (const holding of assets) {
+        // Check if the wallet actually holds this NFT (amount > 0)
+        if (holding.amount === 0) continue;
+
         // You only care about NFTs: total supply = 1 and decimals = 0
         const assetId = holding["asset-id"];
         const assetUrl = `${this.indexerUrl}/v2/assets/${assetId}`;
@@ -874,7 +978,8 @@ class AlgoMintX {
         if (
           params.total !== 1 ||
           params.decimals !== 0 ||
-          params.clawback !== this.contractWalletAddress // filter out NFTs that are not owned by the contract
+          !params.clawback ||
+          params.clawback !== this.contractWalletAddress // filter out NFTs that are not owned by the contract or not set to clawback
         )
           continue;
 
@@ -957,14 +1062,12 @@ class AlgoMintX {
         assetId: data.asset.index,
       });
 
-      // Step 3: Check if NFT is listed by calling smart contract
+      // Step 3: Check if NFT is listed by fetching box data
       try {
         const boxRef = this.getListingBoxReference(
           this.contractApplicationId,
           assetId
         );
-
-        // Fetch box value using Indexer
         const boxUrl = `${this.indexerUrl}/v2/applications/${
           this.contractApplicationId
         }/boxes?name=${Buffer.from(boxRef.name).toString("base64")}`;
@@ -973,22 +1076,31 @@ class AlgoMintX {
         if (boxRes.ok) {
           const boxData = await boxRes.json();
           if (boxData.boxes && boxData.boxes.length > 0) {
-            const boxValue = boxData.boxes[0].value;
-            if (boxValue) {
-              const decodedListing = algosdk.ABIType.from(
-                "(string,uint64)"
-              ).decode(Buffer.from(boxValue, "base64"));
-              metadata.isListed = true;
-              metadata.listing = {
-                seller: decodedListing[0],
-                price: Number(decodedListing[1]),
-              };
+            // Find the box that matches our asset ID
+            for (const box of boxData.boxes) {
+              try {
+                const decodedBox = await this.decodeListingBoxFromAlgod(
+                  box.name
+                );
+                if (decodedBox.key === `listing_${assetId}`) {
+                  metadata.listing = {
+                    seller: decodedBox.value.seller,
+                    price: decodedBox.value.nftPrice,
+                  };
+                  break;
+                }
+              } catch (decodeError) {
+                console.warn(
+                  `Failed to decode box for NFT ${assetId}:`,
+                  decodeError
+                );
+              }
             }
           }
         }
       } catch (error) {
         // If error occurs, NFT is not listed
-        console.log(`NFT ${assetId} is not listed: ${error.message}`);
+        console.error(`NFT ${assetId} is not listed: ${error.message}`);
       }
 
       // Step 4: Get IPFS metadata if available
@@ -1023,12 +1135,33 @@ class AlgoMintX {
     return ipfsUrl.replace("ipfs://", gateway);
   }
 
+  microAlgosToAlgos(microAlgos) {
+    return Number(microAlgos / 1_000_000);
+  }
+
+  algosToMicroAlgos(algos) {
+    return Math.round(algos * 1_000_000);
+  }
+
   getListingBoxReference(appIndex, assetId) {
+    const prefix = "listing_";
+    const encodedAssetId = algosdk.encodeUint64(BigInt(assetId)); // Uint64 to 8-byte Buffer
     const boxName = new Uint8Array([
-      ...Buffer.from("listing_"),
-      ...algosdk.encodeUint64(BigInt(assetId)),
+      ...Buffer.from(prefix), // "listing_" as bytes
+      ...encodedAssetId, // 8-byte encoded assetId
     ]);
+
     return { appIndex, name: boxName };
+  }
+
+  getBoxNameB64(assetId) {
+    const prefix = "listing_";
+    const encodedAssetId = algosdk.encodeUint64(BigInt(assetId)); // Uint64 to 8-byte Buffer
+    const boxName = new Uint8Array([
+      ...Buffer.from(prefix), // "listing_" as bytes
+      ...encodedAssetId, // 8-byte encoded assetId
+    ]);
+    return Buffer.from(boxName).toString("base64");
   }
 
   async listNFT({ assetId, nftPrice }) {
@@ -1080,7 +1213,9 @@ class AlgoMintX {
             transferNFTToContractAndAddListingMethod.getSelector(),
             algosdk.ABIType.from("uint64").encode(BigInt(assetId)),
             algosdk.ABIType.from("string").encode(this.account),
-            algosdk.ABIType.from("uint64").encode(BigInt(nftPrice)),
+            algosdk.ABIType.from("string").encode(
+              this.algosToMicroAlgos(nftPrice).toString()
+            ),
           ],
           boxes: [boxRef],
           foreignAssets: [assetId],
@@ -1131,14 +1266,14 @@ class AlgoMintX {
     }
   }
 
-  async buyNFT({ assetId, receiverWalletAddress }) {
+  async buyNFT({ assetId }) {
     try {
       if (!this.walletConnected || !this.account) {
         throw new Error("Wallet is not connected.");
       }
 
-      if (!assetId || !receiverWalletAddress) {
-        throw new Error("Asset ID and Receiver wallet address is required.");
+      if (!assetId) {
+        throw new Error("Asset ID is required.");
       }
 
       // Get suggested parameters
@@ -1179,6 +1314,17 @@ class AlgoMintX {
           suggestedParams: threeMicroAlgo,
         });
 
+      // Get the listing box reference
+      const nftData = await this.getNFTMetadata(assetId);
+
+      const transferNFTFeeToReceiverTxn =
+        algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+          sender: this.account,
+          receiver: nftData.listing.seller,
+          amount: this.algosToMicroAlgos(nftData.listing.price),
+          suggestedParams,
+        });
+
       const revenueTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
         sender: this.account,
         receiver: this.revenueWalletAddress,
@@ -1188,6 +1334,7 @@ class AlgoMintX {
 
       const buyingGroup = [
         transferNFTToReceiverAndRemoveListingTxn,
+        transferNFTFeeToReceiverTxn,
         revenueTxn,
       ];
       algosdk.assignGroupID(buyingGroup);
