@@ -1,7 +1,7 @@
 const path = require("path");
 
 module.exports = {
-  mode: "development", // Change to 'development' for debugging and 'production' for deployment
+  mode: "production", // Change to 'development' for debugging and 'production' for deployment
   entry: "./src/algomintx.js", // Entry point
   output: {
     path: path.resolve(__dirname, "dist"),
