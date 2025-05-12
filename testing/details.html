@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AlgoMintX NFT Marketplace Demo</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="../dist/algomintx.js"></script>
+    <script defer src="./index.js"></script>
+  </head>
+  <body>
+    <header>
+      <div class="container header-content">
+        <div class="logo">
+          <img
+            src="https://img.icons8.com/ios-filled/50/ffffff/diamond.png"
+            alt="NFT Logo"
+          />
+          <h1>AlgoMintX NFT Marketplace</h1>
+        </div>
+      </div>
+    </header>
+
+    <nav>
+      <div class="container">
+        <div class="nav-links">
+          <a href="index.html">Home</a>
+          <a href="profile.html">Profile</a>
+          <a href="about.html">About</a>
+        </div>
+      </div>
+    </nav>
+
+    <main>
+      <div class="container">
+        <h2 class="page-title">NFT Details</h2>
+        <div id="loading" class="loading-container">
+          <div class="loading-spinner"></div>
+          <p class="loading-text">Loading NFT details...</p>
+        </div>
+        <div id="nft-details" class="nft-details"></div>
+      </div>
+    </main>
+
+    <footer>
+      <div class="container footer-content">
+        <p>&copy; 2024 AlgoMintX NFT Marketplace. All rights reserved.</p>
+      </div>
+    </footer>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", async () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const assetId = urlParams.get("id");
+
+        if (!assetId) {
+          alert("No NFT ID provided");
+          return;
+        }
+
+        try {
+          const loadingContainer = document.getElementById("loading");
+          const nftDetails = document.getElementById("nft-details");
+
+          // Show loading state
+          loadingContainer.style.display = "block";
+          nftDetails.style.display = "none";
+
+          await window.renderNFTDetailsPage(assetId);
+        } catch (error) {
+          console.error("Error loading NFT details:", error);
+          alert("Failed to load NFT details: " + error.message);
+        } finally {
+          // Hide loading state
+          const loadingContainer = document.getElementById("loading");
+          const nftDetails = document.getElementById("nft-details");
+          loadingContainer.style.display = "none";
+          nftDetails.style.display = "block";
+        }
+      });
+    </script>
+  </body>
+</html>

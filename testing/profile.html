@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AlgoMintX NFT Marketplace Demo</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script defer src="../dist/algomintx.js"></script>
+    <script defer src="./index.js"></script>
+  </head>
+  <body>
+    <header>
+      <div class="container header-content">
+        <div class="logo">
+          <img
+            src="https://img.icons8.com/ios-filled/50/ffffff/diamond.png"
+            alt="NFT Logo"
+          />
+          <h1>AlgoMintX NFT Marketplace</h1>
+        </div>
+      </div>
+    </header>
+
+    <nav>
+      <div class="container">
+        <div class="nav-links">
+          <a href="index.html">Home</a>
+          <a href="profile.html">Profile</a>
+          <a href="about.html">About</a>
+        </div>
+      </div>
+    </nav>
+
+    <main>
+      <div class="container">
+        <h2 class="page-title">Your NFTs</h2>
+        <div id="login-message" class="login-message" style="display: none">
+          <h3>Connect Your Wallet</h3>
+          <p>Please connect your wallet to view your NFTs</p>
+          <button id="connect-wallet" class="btn btn-primary">
+            Connect Wallet
+          </button>
+        </div>
+        <div id="loading" class="loading-container" style="display: none">
+          <div class="loading-spinner"></div>
+          <p class="loading-text">Loading your NFTs...</p>
+        </div>
+        <div id="nft-grid" class="nft-grid" style="display: none"></div>
+      </div>
+    </main>
+
+    <footer>
+      <div class="container footer-content">
+        <p>&copy; 2024 AlgoMintX NFT Marketplace. All rights reserved.</p>
+      </div>
+    </footer>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", async () => {
+        const connectWalletBtn = document.getElementById("connect-wallet");
+        const loginMessage = document.getElementById("login-message");
+        const loadingContainer = document.getElementById("loading");
+        const nftGrid = document.getElementById("nft-grid");
+
+        // Check wallet connection status immediately
+        if (window.algoMintXClient.account) {
+          loadingContainer.style.display = "block";
+          await loadUserNFTs();
+        } else {
+          loginMessage.style.display = "block";
+        }
+
+        connectWalletBtn.addEventListener("click", async () => {
+          try {
+            loginMessage.style.display = "none";
+            loadingContainer.style.display = "block";
+            await window.algoMintXClient.maximizeSDK();
+            await loadUserNFTs();
+          } catch (error) {
+            console.error("Error connecting wallet:", error);
+            alert("Failed to connect wallet: " + error.message);
+            loginMessage.style.display = "block";
+            loadingContainer.style.display = "none";
+          }
+        });
+
+        async function loadUserNFTs() {
+          try {
+            const nfts = await window.algoMintXClient.getWalletNFTs();
+            window.renderNFTCards(nfts);
+            loadingContainer.style.display = "none";
+            nftGrid.style.display = "grid";
+          } catch (error) {
+            console.error("Error loading user NFTs:", error);
+            alert("Failed to load user NFTs: " + error.message);
+            loginMessage.style.display = "block";
+            loadingContainer.style.display = "none";
+          }
+        }
+      });
+    </script>
+  </body>
+</html>
