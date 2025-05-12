@@ -191,7 +191,7 @@ class AlgoMintX {
       <div id="sdk-header">
         <h3>AlgoMintX</h3>
           <div>
-            <button id="logoutBtn">Logout</button>
+            <button id="logoutBtn" title="Logout">Logout</button>
             <button id="sdkMinimizeBtn" title="Minimize SDK">&#x2013;</button>
           </div>
       </div>

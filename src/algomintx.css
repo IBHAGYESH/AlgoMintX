@@ -67,6 +67,7 @@
   border-radius: 25%;
   font-size: 1.25rem;
   cursor: pointer;
+  width: 30px;
 }
 
 #walletChoiceScreen {
