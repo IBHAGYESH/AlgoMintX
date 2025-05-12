@@ -1015,8 +1015,7 @@ class AlgoMintX {
         if (
           params.total !== 1 ||
           params.decimals !== 0 ||
-          !params.clawback ||
-          params.clawback !== this.#contractWalletAddress // filter out NFTs that are not owned by the contract or not set to clawback
+          (params.clawback && params.clawback !== this.#contractWalletAddress) // filter out NFTs that are not owned by the contract or not set to clawback
         )
           continue;
 
@@ -1274,7 +1273,7 @@ class AlgoMintX {
       const revenueTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
         sender: this.account,
         receiver: this.#revenueWalletAddress,
-        amount: Math.round(this.#listingFee * 1_000_000), // Convert to microalgos
+        amount: this.#algosToMicroAlgos(this.#listingFee),
         suggestedParams,
       });
 
@@ -1300,9 +1299,7 @@ class AlgoMintX {
       // Emit event for successful listing
       eventBus.emit("nft:list:success", {
         assetId,
-        seller: this.account,
         price: nftPrice,
-        timestamp: Date.now(),
         transactionId: listingTxId,
       });
 
@@ -1338,6 +1335,9 @@ class AlgoMintX {
       this.processing = true;
       eventBus.emit("sdk:processing:started", { processing: this.processing });
 
+      // Get the listing box reference
+      const nftData = await this.getNFTMetadata(assetId);
+
       // Get suggested parameters
       const suggestedParams = await this.#algodClient
         .getTransactionParams()
@@ -1358,6 +1358,15 @@ class AlgoMintX {
         assetId
       );
 
+      const receiverOptInToNFTTxn =
+        algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+          sender: this.account,
+          receiver: this.account,
+          amount: 0,
+          assetIndex: assetId,
+          suggestedParams,
+        });
+
       const transferNFTToReceiverAndRemoveListingMethod = encoder.methods.find(
         (m) => m.name === "transferNFTToReceiverAndRemoveListing"
       );
@@ -1369,17 +1378,14 @@ class AlgoMintX {
           appArgs: [
             transferNFTToReceiverAndRemoveListingMethod.getSelector(),
             algosdk.ABIType.from("uint64").encode(BigInt(assetId)),
-            algosdk.ABIType.from("string").encode(this.account),
+            algosdk.ABIType.from("string").encode(nftData.listing.seller),
           ],
           boxes: [boxRef],
           foreignAssets: [assetId],
           suggestedParams: threeMicroAlgo,
         });
 
-      // Get the listing box reference
-      const nftData = await this.getNFTMetadata(assetId);
-
-      const transferNFTFeeToReceiverTxn =
+      const transferNFTPriceToSellerTxn =
         algosdk.makePaymentTxnWithSuggestedParamsFromObject({
           sender: this.account,
           receiver: nftData.listing.seller,
@@ -1390,13 +1396,14 @@ class AlgoMintX {
       const revenueTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
         sender: this.account,
         receiver: this.#revenueWalletAddress,
-        amount: Math.round(this.#buyingFee * 1_000_000), // Convert to microalgos
+        amount: this.#algosToMicroAlgos(this.#buyingFee),
         suggestedParams,
       });
 
       const buyingGroup = [
+        receiverOptInToNFTTxn,
         transferNFTToReceiverAndRemoveListingTxn,
-        transferNFTFeeToReceiverTxn,
+        transferNFTPriceToSellerTxn,
         revenueTxn,
       ];
       algosdk.assignGroupID(buyingGroup);
@@ -1416,13 +1423,11 @@ class AlgoMintX {
       // Emit event for successful purchase
       eventBus.emit("nft:buy:success", {
         assetId,
-        buyer: this.account,
         transactionId: buyingTxId,
       });
 
       return {
         assetId,
-        buyer: this.account,
         transactionId: buyingTxId,
       };
     } catch (error) {
