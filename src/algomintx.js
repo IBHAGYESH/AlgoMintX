@@ -13,6 +13,29 @@ const encoder = new algosdk.ABIContract({
 });
 
 class AlgoMintX {
+  #supportedNetworks;
+  #walletConnectors;
+  #walletConnected;
+  #connectionInfo;
+  #connectionInProgress;
+  #supportedWallets;
+  #selectedWalletType;
+  #algodClient;
+  #algorandClient;
+  #contractApplicationId;
+  #contractWalletAddress;
+  #appClient;
+  #indexerUrl;
+  #unitName;
+  #metadataMark;
+  #messageElement;
+  #pinata_ipfs_server_key;
+  #pinata_ipfs_gateway_url;
+  #namespace;
+  #revenueWalletAddress;
+  #listingFee;
+  #buyingFee;
+
   constructor({
     pinata_ipfs_server_key,
     pinata_ipfs_gateway_url,
@@ -27,53 +50,53 @@ class AlgoMintX {
      */
 
     // pinata config
-    this.pinata_ipfs_server_key = pinata_ipfs_server_key;
-    this.pinata_ipfs_gateway_url = pinata_ipfs_gateway_url;
+    this.#pinata_ipfs_server_key = pinata_ipfs_server_key;
+    this.#pinata_ipfs_gateway_url = pinata_ipfs_gateway_url;
 
-    if (!this.pinata_ipfs_server_key || !this.pinata_ipfs_gateway_url) {
-      this.sdkValidationFailed("Missing pinata IPFS config!");
+    if (!this.#pinata_ipfs_server_key || !this.#pinata_ipfs_gateway_url) {
+      this.#sdkValidationFailed("Missing pinata IPFS config!");
     }
 
     // networks supported
-    const supportedNetworks = ["mainnet", "testnet"];
-    const networkSupported = supportedNetworks.includes(env);
+    this.#supportedNetworks = ["mainnet", "testnet"];
+    const networkSupported = this.#supportedNetworks.includes(env);
     if (!networkSupported) {
-      this.sdkValidationFailed("Specify a valid blockchain network!");
+      this.#sdkValidationFailed("Specify a valid blockchain network!");
     }
     this.network = env;
 
     // namespace
-    this.namespace = namespace.toUpperCase();
-    if (!this.namespace) {
-      this.sdkValidationFailed("Specify a namespace!");
-    } else if (typeof this.namespace !== "string") {
-      this.sdkValidationFailed("namespace must be of type string!");
-    } else if (this.namespace.length > 5 || this.namespace.length < 5) {
-      this.sdkValidationFailed("namespace must be of length 5!");
-    } else if (!/^[A-Z]+$/.test(this.namespace)) {
-      this.sdkValidationFailed("namespace must only contain alphabets!");
+    this.#namespace = namespace.toUpperCase();
+    if (!this.#namespace) {
+      this.#sdkValidationFailed("Specify a namespace!");
+    } else if (typeof this.#namespace !== "string") {
+      this.#sdkValidationFailed("namespace must be of type string!");
+    } else if (this.#namespace.length > 5 || this.#namespace.length < 5) {
+      this.#sdkValidationFailed("namespace must be of length 5!");
+    } else if (!/^[A-Z]+$/.test(this.#namespace)) {
+      this.#sdkValidationFailed("namespace must only contain alphabets!");
     }
 
     // revenue config
-    this.revenueWalletAddress = revenueWalletAddress;
-    if (!this.revenueWalletAddress) {
-      this.sdkValidationFailed("Specify a valid algorand wallet address!");
-    } else if (typeof this.revenueWalletAddress !== "string") {
-      this.sdkValidationFailed(
+    this.#revenueWalletAddress = revenueWalletAddress;
+    if (!this.#revenueWalletAddress) {
+      this.#sdkValidationFailed("Specify a valid algorand wallet address!");
+    } else if (typeof this.#revenueWalletAddress !== "string") {
+      this.#sdkValidationFailed(
         "algorand wallet address must be of type string!"
       );
     }
-    this.listingFee = listingFee;
-    if (!this.listingFee) {
-      this.sdkValidationFailed("Specify a NFT listing fee!");
-    } else if (typeof this.listingFee !== "number") {
-      this.sdkValidationFailed("NFT listing fee must be of type number!");
+    this.#listingFee = listingFee;
+    if (!this.#listingFee) {
+      this.#sdkValidationFailed("Specify a NFT listing fee!");
+    } else if (typeof this.#listingFee !== "number") {
+      this.#sdkValidationFailed("NFT listing fee must be of type number!");
     }
-    this.buyingFee = buyingFee;
-    if (!this.buyingFee) {
-      this.sdkValidationFailed("Specify a NFT buying fee!");
-    } else if (typeof this.buyingFee !== "number") {
-      this.sdkValidationFailed("NFT buying fee must be of type number!");
+    this.#buyingFee = buyingFee;
+    if (!this.#buyingFee) {
+      this.#sdkValidationFailed("Specify a NFT buying fee!");
+    } else if (typeof this.#buyingFee !== "number") {
+      this.#sdkValidationFailed("NFT buying fee must be of type number!");
     }
 
     /**
@@ -81,72 +104,72 @@ class AlgoMintX {
      */
 
     // wallet connectors for different wallets
-    this.walletConnectors = {
+    this.#walletConnectors = {
       pera: new PeraWalletConnect(),
       defly: new DeflyWalletConnect(),
     };
 
     // Wallet connection state
-    this.walletConnected = false;
+    this.#walletConnected = false;
     this.account = null;
-    this.connectionInfo = null;
-    this.connectionInProgress = false;
+    this.#connectionInfo = null;
+    this.#connectionInProgress = false;
 
     // Wallet types supported
-    this.supportedWallets = ["pera", "defly"];
-    this.selectedWalletType = null;
+    this.#supportedWallets = ["pera", "defly"];
+    this.#selectedWalletType = null;
 
     // algosdk config
-    this.algodClient = new algosdk.Algodv2(
+    this.#algodClient = new algosdk.Algodv2(
       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       this.network === "mainnet"
         ? "https://mainnet-api.algonode.cloud"
         : "https://testnet-api.algonode.cloud",
       443
     );
-    this.algorandClient = AlgorandClient.fromClients({
-      algod: this.algodClient,
+    this.#algorandClient = AlgorandClient.fromClients({
+      algod: this.#algodClient,
     });
 
     /**
      * smart contract
      */
-    this.contractApplicationId =
+    this.#contractApplicationId =
       this.network === "mainnet" ? 739334702 : 739334702;
-    this.contractWalletAddress =
+    this.#contractWalletAddress =
       this.network === "mainnet"
         ? "PPDA6RHCANRK6TDK4TCEHTCUV32BCXND6UYZFXJ3YJGF6DROIXLYSOGRJQ"
         : "PPDA6RHCANRK6TDK4TCEHTCUV32BCXND6UYZFXJ3YJGF6DROIXLYSOGRJQ";
-    this.appClient = new AlgoMintXClient({
-      appId: this.contractApplicationId,
-      algorand: this.algorandClient,
+    this.#appClient = new AlgoMintXClient({
+      appId: this.#contractApplicationId,
+      algorand: this.#algorandClient,
     });
 
     /**
      * sdk variables
      */
 
-    this.indexerUrl =
+    this.#indexerUrl =
       this.network === "mainnet"
         ? "https://mainnet-idx.algonode.cloud"
         : "https://testnet-idx.algonode.cloud";
-    this.unitName = `AMX${this.namespace}`;
-    this.metadataMark = "AlgoMintX";
+    this.#unitName = `AMX${this.#namespace}`;
+    this.#metadataMark = "AlgoMintX";
     this.events = eventBus;
 
     /**
      * ui config
      */
 
-    this.messageElement = null;
+    this.#messageElement = null;
     this.processing = false;
     this.isMinimized = JSON.parse(localStorage.getItem("amx")) || false;
     localStorage.setItem("amx", this.isMinimized);
 
-    this.initUI();
+    this.#initUI();
   }
 
-  sdkValidationFailed(message) {
+  #sdkValidationFailed(message) {
     localStorage.removeItem("walletconnect");
     localStorage.removeItem("DeflyWallet.Wallet");
     localStorage.removeItem("PeraWallet.Wallet");
@@ -155,7 +178,7 @@ class AlgoMintX {
     window.location.reload();
   }
 
-  async initUI() {
+  async #initUI() {
     try {
       // Inject the entire SDK container directly into document.body with highest z-index
       const existingSdk = document.getElementById("algomintx-sdk-container");
@@ -182,7 +205,7 @@ class AlgoMintX {
         <input type="text" id="nftName" placeholder="NFT Name" />
         <textarea id="nftDescription" placeholder="NFT Description"></textarea>
         <input type="file" id="nftFile" />
-        <button id="mintNFTBtn">Mint NFT</button>
+        <button id="#mintNFTBtn">Mint NFT</button>
         <button id="resetNFTBtn">Mint another NFT</button>
         <br />
         <div id="sdkMessages" title="Click to copy"></div>
@@ -206,21 +229,21 @@ class AlgoMintX {
         .addEventListener("click", async (event) => {
           if (event.target.classList.contains("walletBtn")) {
             const walletType = event.target.getAttribute("data-wallet");
-            await this.startWalletConnection(walletType);
+            await this.#startWalletConnection(walletType);
           }
         });
 
       // Mint NFT button
       document
-        .getElementById("mintNFTBtn")
+        .getElementById("#mintNFTBtn")
         .addEventListener("click", async () => {
-          await this.validateNFTDetails();
+          await this.#validateNFTDetails();
         });
 
       // Reset NFT button
       document
         .getElementById("resetNFTBtn")
-        .addEventListener("click", () => this.resetNFTDetails());
+        .addEventListener("click", () => this.#resetNFTDetails());
 
       // Minimize button
       document
@@ -230,24 +253,24 @@ class AlgoMintX {
       // Logout button
       document
         .getElementById("logoutBtn")
-        .addEventListener("click", () => this.handleLogout());
+        .addEventListener("click", () => this.#handleLogout());
 
       minimizedBtn.addEventListener("click", () => this.maximizeSDK());
 
       // Copy to clipboard for sdkMessages (tx id)
-      this.messageElement = document.getElementById("sdkMessages");
-      this.messageElement.addEventListener("click", () => {
+      this.#messageElement = document.getElementById("sdkMessages");
+      this.#messageElement.addEventListener("click", () => {
         if (
-          this.messageElement.innerText &&
-          this.messageElement.innerText !== "Minting NFT... Please wait."
+          this.#messageElement.innerText &&
+          this.#messageElement.innerText !== "Minting NFT... Please wait."
         ) {
           navigator.clipboard.writeText(
-            this.messageElement.innerText.replace(
+            this.#messageElement.innerText.replace(
               "NFT Minted! Transaction ID: ",
               ""
             )
           );
-          this.showToast("Transaction ID copied to clipboard", "success");
+          this.#showToast("Transaction ID copied to clipboard", "success");
         }
       });
 
@@ -255,25 +278,25 @@ class AlgoMintX {
       walletAddressBar.addEventListener("click", () => {
         if (this.account) {
           navigator.clipboard.writeText(this.account.replace("Wallet: ", ""));
-          this.showToast("Wallet address copied to clipboard", "success");
+          this.#showToast("Wallet address copied to clipboard", "success");
         }
       });
 
       // Check if already connected (from localStorage)
-      await this.loadConnectionFromStorage();
+      await this.#loadConnectionFromStorage();
     } catch (error) {
       console.error(error, "init");
     }
   }
 
-  resetToLoginUI() {
-    this.walletConnected = false;
+  #resetToLoginUI() {
+    this.#walletConnected = false;
     this.account = null;
-    this.connectionInfo = null;
-    this.selectedWalletType = null;
+    this.#connectionInfo = null;
+    this.#selectedWalletType = null;
 
-    this.clearMessage();
-    this.updateWalletAddressBar();
+    this.#clearMessage();
+    this.#updateWalletAddressBar();
 
     document.getElementById("algomintx-sdk-container").style.display = "flex";
     document.getElementById("sdk-header").style.display = "flex";
@@ -288,20 +311,21 @@ class AlgoMintX {
     }
   }
 
-  async loadConnectionFromStorage() {
+  async #loadConnectionFromStorage() {
     try {
       const saved = localStorage.getItem("walletconnect");
       if (saved) {
-        this.connectionInfo = JSON.parse(saved);
+        this.#connectionInfo = JSON.parse(saved);
 
-        this.walletConnected = true;
-        this.account = this.connectionInfo.accounts[0];
+        this.#walletConnected = true;
+        this.account = this.#connectionInfo.accounts[0];
 
-        this.selectedWalletType = this.connectionInfo.peerMeta.name
+        this.#selectedWalletType = this.#connectionInfo.peerMeta.name
           .split(" ")[0]
           .toLowerCase();
 
-        const walletConnector = this.walletConnectors[this.selectedWalletType];
+        const walletConnector =
+          this.#walletConnectors[this.#selectedWalletType];
 
         const accounts = await walletConnector.reconnectSession();
 
@@ -309,21 +333,25 @@ class AlgoMintX {
           throw new Error("Reconnection failed");
         }
 
-        this.showToast(
-          `Restored connection to ${this.connectionInfo.peerMeta.name}: ${this.account}`,
+        this.#showToast(
+          `Restored connection to ${this.#connectionInfo.peerMeta.name}: ${
+            this.account
+          }`,
           "success"
         );
 
-        this.showSDKUI();
+        this.#showSDKUI();
         eventBus.emit("wallet:connection:connected", { address: this.account });
       } else {
-        this.resetToLoginUI();
+        this.#resetToLoginUI();
       }
     } catch (error) {
-      console.error("Failed to restore connection", error);
-      this.showToast("Failed to restore connection!", "error");
-      eventBus.emit("wallet:connection:failed", { error: error });
-      this.resetToLoginUI();
+      // console.error("Failed to restore connection", error);
+      this.#showToast("Failed to restore connection!", "error");
+      eventBus.emit("wallet:connection:failed", {
+        error: "Failed to restore connection",
+      });
+      this.#resetToLoginUI();
     }
   }
 
@@ -349,25 +377,25 @@ class AlgoMintX {
     eventBus.emit("window:size:minimized", { minimized: this.isMinimized });
   }
 
-  async startWalletConnection(walletType) {
-    if (this.connectionInProgress) {
-      this.showToast("A wallet connection is already in progress.", "warning");
+  async #startWalletConnection(walletType) {
+    if (this.#connectionInProgress) {
+      this.#showToast("A wallet connection is already in progress.", "warning");
       return;
     }
 
-    if (!this.supportedWallets.includes(walletType)) {
-      this.showToast("Unsupported wallet selected.", "error");
+    if (!this.#supportedWallets.includes(walletType)) {
+      this.#showToast("Unsupported wallet selected.", "error");
       return;
     }
 
-    this.clearMessage();
-    this.selectedWalletType = walletType;
+    this.#clearMessage();
+    this.#selectedWalletType = walletType;
 
     document.getElementById("algomintx-sdk-container").style.display = "none";
 
-    const walletConnector = this.walletConnectors[walletType];
+    const walletConnector = this.#walletConnectors[walletType];
 
-    this.connectionInProgress = true;
+    this.#connectionInProgress = true;
 
     try {
       const connectPromise = walletConnector.connect();
@@ -386,18 +414,18 @@ class AlgoMintX {
         throw new Error("Wallet connection declined or no account returned.");
       }
 
-      this.walletConnected = true;
+      this.#walletConnected = true;
       this.account = accounts[0];
-      this.connectionInfo = { address: this.account, walletType };
+      this.#connectionInfo = { address: this.account, walletType };
 
-      this.showSDKUI();
-      this.showToast(
+      this.#showSDKUI();
+      this.#showToast(
         `Connected to ${walletType} wallet: ${this.account}`,
         "success"
       );
-      this.updateWalletAddressBar();
+      this.#updateWalletAddressBar();
       eventBus.emit("wallet:connection:connected", { address: this.account });
-      this.connectionInProgress = false;
+      this.#connectionInProgress = false;
     } catch (error) {
       if (error.message === "Wallet connection timed out.") {
         await walletConnector.disconnect();
@@ -406,22 +434,24 @@ class AlgoMintX {
         }
         window.location.reload();
       } else {
-        console.error("Failed to connect wallet!", error);
-        this.connectionInProgress = false;
-        this.showToast("Failed to connect wallet!", "error");
-        eventBus.emit("wallet:connection:failed", { error: error });
-        this.resetToLoginUI();
+        // console.error("Failed to connect wallet!", error);
+        this.#connectionInProgress = false;
+        this.#showToast("Failed to connect wallet!", "error");
+        eventBus.emit("wallet:connection:failed", {
+          error: "Failed to connect wallet!",
+        });
+        this.#resetToLoginUI();
       }
     }
   }
 
-  showSDKUI() {
+  #showSDKUI() {
     document.getElementById("algomintx-sdk-container").style.display = "flex";
     document.getElementById("sdk-header").style.display = "flex";
     document.getElementById("logoutBtn").style.display = "contents";
     document.getElementById("walletChoiceScreen").style.display = "none";
     document.getElementById("sdkUI").style.display = "flex";
-    this.updateWalletAddressBar();
+    this.#updateWalletAddressBar();
 
     if (this.isMinimized) {
       this.minimizeSDK(true);
@@ -430,11 +460,11 @@ class AlgoMintX {
     }
   }
 
-  updateWalletAddressBar() {
+  #updateWalletAddressBar() {
     const bar = document.getElementById("walletAddressBar");
     if (!bar) return;
 
-    if (this.walletConnected && this.account) {
+    if (this.#walletConnected && this.account) {
       bar.innerText = `Wallet: ${this.account}`;
       bar.style.display = "block";
     } else {
@@ -443,17 +473,17 @@ class AlgoMintX {
     }
   }
 
-  async handleLogout() {
+  async #handleLogout() {
     if (this.processing) {
       return;
     }
     if (confirm("Are you sure you want to logout?")) {
       try {
         if (
-          this.selectedWalletType &&
-          this.walletConnectors[this.selectedWalletType]
+          this.#selectedWalletType &&
+          this.#walletConnectors[this.#selectedWalletType]
         ) {
-          const connector = this.walletConnectors[this.selectedWalletType];
+          const connector = this.#walletConnectors[this.#selectedWalletType];
           await connector.disconnect();
           if (connector.killSession) {
             await connector.killSession(); // Extra hard-kill if supported
@@ -464,18 +494,18 @@ class AlgoMintX {
         localStorage.removeItem("DeflyWallet.Wallet");
         localStorage.removeItem("PeraWallet.Wallet");
       } catch (error) {
-        console.error("Failed to disconnect wallet session:", error);
+        // console.error("Failed to disconnect wallet session:", error);
       }
 
       eventBus.emit("wallet:connection:disconnected", {
         address: this.account,
       });
-      this.showToast("Logged out successfully.", "success");
-      this.resetToLoginUI();
+      this.#showToast("Logged out successfully.", "success");
+      this.#resetToLoginUI();
     }
   }
 
-  showToast(message, type = "info") {
+  #showToast(message, type = "info") {
     // Remove existing toast if any
     const existingToast = document.getElementById("algomintx-toast");
     if (existingToast) existingToast.remove();
@@ -513,23 +543,23 @@ class AlgoMintX {
     }, 3500);
   }
 
-  clearMessage() {
-    if (this.messageElement) this.messageElement.innerText = "";
+  #clearMessage() {
+    if (this.#messageElement) this.#messageElement.innerText = "";
   }
 
-  resetNFTDetails() {
+  #resetNFTDetails() {
     if (this.processing) {
       return;
     }
     document.getElementById("nftName").value = "";
     document.getElementById("nftDescription").value = "";
     document.getElementById("nftFile").value = "";
-    document.getElementById("mintNFTBtn").style.display = "block";
+    document.getElementById("#mintNFTBtn").style.display = "block";
     document.getElementById("resetNFTBtn").style.display = "none";
-    this.messageElement.innerText = "";
+    this.#messageElement.innerText = "";
   }
 
-  async validateNFTDetails() {
+  async #validateNFTDetails() {
     if (this.processing) {
       return;
     }
@@ -539,48 +569,50 @@ class AlgoMintX {
     const fileInput = document.getElementById("nftFile");
 
     if (!name) {
-      this.showToast("Please enter NFT name.", "error");
+      this.#showToast("Please enter NFT name.", "error");
       return;
     }
 
     if (!description) {
-      this.showToast("Please enter NFT description.", "error");
+      this.#showToast("Please enter NFT description.", "error");
       return;
     }
 
     if (!fileInput.files.length) {
-      this.showToast("Please upload a file.", "error");
+      this.#showToast("Please upload a file.", "error");
       return;
     }
 
     this.processing = true;
+    eventBus.emit("sdk:processing:started", { processing: this.processing });
 
-    this.messageElement.style.cursor = "default";
-    this.messageElement.innerText = "Minting NFT... Please wait.";
-    document.getElementById("mintNFTBtn").disabled = true;
+    this.#messageElement.style.cursor = "default";
+    this.#messageElement.innerText = "Minting NFT... Please wait.";
+    document.getElementById("#mintNFTBtn").disabled = true;
     document.getElementById("logoutBtn").disabled = true;
 
     try {
-      const { transactionId, assetId } = await this.mintNFT({
+      const { transactionId, assetId } = await this.#mintNFT({
         name,
         description,
         file: fileInput.files[0],
       });
 
-      this.messageElement.style.cursor = "pointer";
-      this.messageElement.innerText = `NFT Minted! Transaction ID: ${transactionId}`;
+      this.#messageElement.style.cursor = "pointer";
+      this.#messageElement.innerText = `NFT Minted! Transaction ID: ${transactionId}`;
 
       this.processing = false;
+      eventBus.emit("sdk:processing:stopped", { processing: this.processing });
 
-      this.showToast(
+      this.#showToast(
         `NFT Minted Successfully! TxID: ${transactionId}`,
         "success"
       );
 
-      document.getElementById("mintNFTBtn").style.display = "none";
+      document.getElementById("#mintNFTBtn").style.display = "none";
       document.getElementById("resetNFTBtn").style.display = "block";
 
-      document.getElementById("mintNFTBtn").disabled = false;
+      document.getElementById("#mintNFTBtn").disabled = false;
       document.getElementById("logoutBtn").disabled = false;
 
       eventBus.emit("nft:mint:success", {
@@ -589,34 +621,35 @@ class AlgoMintX {
         address: this.account,
       });
     } catch (error) {
-      console.error(error);
+      // console.error(error);
 
       this.processing = false;
+      eventBus.emit("sdk:processing:stopped", { processing: this.processing });
 
       document.getElementById("nftName").value = "";
       document.getElementById("nftDescription").value = "";
       document.getElementById("nftFile").value = "";
 
-      document.getElementById("mintNFTBtn").disabled = false;
+      document.getElementById("#mintNFTBtn").disabled = false;
       document.getElementById("logoutBtn").disabled = false;
 
-      this.messageElement.style.cursor = "pointer";
-      this.messageElement.innerText = "";
+      this.#messageElement.style.cursor = "pointer";
+      this.#messageElement.innerText = "";
 
-      this.showToast("Failed to mint NFT!", "error");
+      this.#showToast("Failed to mint NFT!", "error");
 
-      eventBus.emit("nft:mint:failed", { error: error.message });
+      eventBus.emit("nft:mint:failed", { error: "Failed to mint NFT!" });
     }
   }
 
-  async sha256Hash(data) {
+  async #sha256Hash(data) {
     const encoder = new TextEncoder();
     const dataBuffer = encoder.encode(data);
     const hashBuffer = await crypto.subtle.digest("SHA-256", dataBuffer);
     return new Uint8Array(hashBuffer);
   }
 
-  async getImageIntegrityBase64(file) {
+  async #getImageIntegrityBase64(file) {
     const buffer = await file.arrayBuffer();
     const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -624,16 +657,16 @@ class AlgoMintX {
     return `sha256-${base64Hash}`;
   }
 
-  async mintNFT({ name, description, file }) {
-    if (!this.walletConnected || !this.account) {
+  async #mintNFT({ name, description, file }) {
+    if (!this.#walletConnected || !this.account) {
       throw new Error("Wallet is not connected.");
     }
 
     // 1. Upload file to IPFS (Pinata) using your API key
-    const ipfsHash = await this.uploadFileToIPFS(file);
+    const ipfsHash = await this.#uploadFileToIPFS(file);
 
     // 2. Create metadata JSON with IPFS link, name, description
-    const integrity = await this.getImageIntegrityBase64(file);
+    const integrity = await this.#getImageIntegrityBase64(file);
 
     const metadata = {
       name,
@@ -643,19 +676,19 @@ class AlgoMintX {
       image_mimetype: file.type,
       decimals: 0, // must be 0 for NFTs ARC-3 compliant
       standard: "arc3",
-      minted_by: this.metadataMark,
-      marketplace: this.revenueWalletAddress,
+      minted_by: this.#metadataMark,
+      marketplace: this.#revenueWalletAddress,
     };
 
     // 3. Hash metadata JSON to get 32 byte assetMetadataHash
     const metadataStr = JSON.stringify(metadata);
-    const metadataHash = await this.sha256Hash(metadataStr);
+    const metadataHash = await this.#sha256Hash(metadataStr);
 
     // 4. Upload metadata JSON to IPFS to get the CID for assetURL
-    const metadataIpfsHash = await this.uploadJSONToIPFS(metadata);
+    const metadataIpfsHash = await this.#uploadJSONToIPFS(metadata);
 
     // 4. Create Algorand asset (NFT) pointing to metadata URL
-    const { txid, assetId } = await this.createAlgorandAsset(
+    const { txid, assetId } = await this.#createAlgorandAsset(
       metadataIpfsHash,
       name,
       metadataHash
@@ -664,7 +697,7 @@ class AlgoMintX {
     return { transactionId: txid, assetId };
   }
 
-  async uploadFileToIPFS(file) {
+  async #uploadFileToIPFS(file) {
     const url = "https://api.pinata.cloud/pinning/pinFileToIPFS";
 
     const data = new FormData();
@@ -673,7 +706,7 @@ class AlgoMintX {
     const response = await fetch(url, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${this.pinata_ipfs_server_key}`,
+        Authorization: `Bearer ${this.#pinata_ipfs_server_key}`,
       },
       body: data,
     });
@@ -692,14 +725,14 @@ class AlgoMintX {
     return json.IpfsHash;
   }
 
-  async uploadJSONToIPFS(jsonData) {
+  async #uploadJSONToIPFS(jsonData) {
     const url = "https://api.pinata.cloud/pinning/pinJSONToIPFS";
 
     const response = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${this.pinata_ipfs_server_key}`,
+        Authorization: `Bearer ${this.#pinata_ipfs_server_key}`,
       },
       body: JSON.stringify(jsonData),
     });
@@ -718,8 +751,8 @@ class AlgoMintX {
     return json.IpfsHash;
   }
 
-  async createAlgorandAsset(metadataIpfsHash, assetName, metadataHashBuffer) {
-    const params = await this.algodClient.getTransactionParams().do();
+  async #createAlgorandAsset(metadataIpfsHash, assetName, metadataHashBuffer) {
+    const params = await this.#algodClient.getTransactionParams().do();
 
     /**
      * To access the ipfs files
@@ -739,15 +772,15 @@ class AlgoMintX {
       total: 1,
       decimals: 0,
       defaultFrozen: false,
-      unitName: this.unitName,
+      unitName: this.#unitName,
       assetName: safeAssetName,
       assetURL: metadataURL,
       assetMetadataHash: metadataHashBuffer,
       suggestedParams: params,
-      clawback: this.contractWalletAddress,
+      clawback: this.#contractWalletAddress,
     });
 
-    const walletConnector = this.walletConnectors[this.selectedWalletType];
+    const walletConnector = this.#walletConnectors[this.#selectedWalletType];
 
     // Ask user to sign the transaction
 
@@ -765,13 +798,13 @@ class AlgoMintX {
     ]);
 
     // Submit the signed transaction
-    const { txid } = await this.algodClient
+    const { txid } = await this.#algodClient
       .sendRawTransaction(signedTxn[0])
       .do();
 
     // Wait for confirmation
     const confirmedTxn = await algosdk.waitForConfirmation(
-      this.algodClient,
+      this.#algodClient,
       txid,
       10
     );
@@ -782,15 +815,15 @@ class AlgoMintX {
     return { txid, assetId };
   }
 
-  async decodeListingBoxFromAlgod(boxNameB64) {
+  async #decodeListingBoxFromAlgod(boxNameB64) {
     const boxNameBytes = Uint8Array.from(atob(boxNameB64), (c) =>
       c.charCodeAt(0)
     );
     const assetIdBytes = boxNameBytes.slice(8); // skip 'listing_' prefix
     const assetId = algosdk.decodeUint64(assetIdBytes, "safe");
 
-    const boxValueResponse = await this.algodClient
-      .getApplicationBoxByName(this.contractApplicationId, boxNameBytes)
+    const boxValueResponse = await this.#algodClient
+      .getApplicationBoxByName(this.#contractApplicationId, boxNameBytes)
       .do();
 
     // The value is already a Uint8Array in the browser environment
@@ -826,7 +859,7 @@ class AlgoMintX {
     const priceBytes = raw.slice(priceStart, priceEnd);
 
     // ✅ Decode price as a UTF-8 string (not number)
-    const nftPrice = this.microAlgosToAlgos(
+    const nftPrice = this.#microAlgosToAlgos(
       Number(new TextDecoder().decode(priceBytes))
     );
 
@@ -844,7 +877,9 @@ class AlgoMintX {
     const nfts = [];
 
     try {
-      const url = `${this.indexerUrl}/v2/accounts/${this.contractWalletAddress}`;
+      const url = `${this.#indexerUrl}/v2/accounts/${
+        this.#contractWalletAddress
+      }`;
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Indexer fetch error: ${res.status}`);
 
@@ -854,7 +889,7 @@ class AlgoMintX {
       for (const holding of assets) {
         // You only care about NFTs: total supply = 1 and decimals = 0
         const assetId = holding["asset-id"];
-        const assetUrl = `${this.indexerUrl}/v2/assets/${assetId}`;
+        const assetUrl = `${this.#indexerUrl}/v2/assets/${assetId}`;
         const assetRes = await fetch(assetUrl);
         if (!assetRes.ok) continue;
 
@@ -875,7 +910,7 @@ class AlgoMintX {
           const ipfsHash = params.url.replace("ipfs://", "");
           try {
             const metadataRes = await fetch(
-              `https://${this.pinata_ipfs_gateway_url}/ipfs/${ipfsHash}`
+              `https://${this.#pinata_ipfs_gateway_url}/ipfs/${ipfsHash}`
             );
             if (metadataRes.ok) {
               const metadata = await metadataRes.json();
@@ -886,19 +921,20 @@ class AlgoMintX {
                 metadata.standard &&
                 metadata.image &&
                 metadata.image.startsWith("ipfs://") &&
-                metadata.marketplace === this.revenueWalletAddress &&
-                metadata.minted_by === this.metadataMark
+                metadata.marketplace === this.#revenueWalletAddress &&
+                metadata.minted_by === this.#metadataMark
               ) {
+                metadata.image = this.#convertIpfsToHttp(metadata.image);
                 nft.metadata = metadata;
 
                 // Fetch box data for this NFT
                 try {
-                  const boxRef = this.getListingBoxReference(
-                    this.contractApplicationId,
+                  const boxRef = this.#getListingBoxReference(
+                    this.#contractApplicationId,
                     assetId
                   );
-                  const boxUrl = `${this.indexerUrl}/v2/applications/${
-                    this.contractApplicationId
+                  const boxUrl = `${this.#indexerUrl}/v2/applications/${
+                    this.#contractApplicationId
                   }/boxes?name=${Buffer.from(boxRef.name).toString("base64")}`;
                   const boxRes = await fetch(boxUrl);
 
@@ -909,7 +945,7 @@ class AlgoMintX {
                       for (const box of boxData.boxes) {
                         try {
                           const decodedBox =
-                            await this.decodeListingBoxFromAlgod(box.name);
+                            await this.#decodeListingBoxFromAlgod(box.name);
                           if (decodedBox.key === `listing_${assetId}`) {
                             nft.listing = {
                               seller: decodedBox.value.seller,
@@ -946,6 +982,7 @@ class AlgoMintX {
       }
     } catch (error) {
       console.error("Error fetching NFTs by wallet:", error.message);
+      throw error;
     }
 
     return nfts;
@@ -955,7 +992,7 @@ class AlgoMintX {
     const nfts = [];
 
     try {
-      const url = `${this.indexerUrl}/v2/accounts/${this.account}`;
+      const url = `${this.#indexerUrl}/v2/accounts/${this.account}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Indexer fetch error: ${res.status}`);
 
@@ -968,7 +1005,7 @@ class AlgoMintX {
 
         // You only care about NFTs: total supply = 1 and decimals = 0
         const assetId = holding["asset-id"];
-        const assetUrl = `${this.indexerUrl}/v2/assets/${assetId}`;
+        const assetUrl = `${this.#indexerUrl}/v2/assets/${assetId}`;
         const assetRes = await fetch(assetUrl);
         if (!assetRes.ok) continue;
 
@@ -979,7 +1016,7 @@ class AlgoMintX {
           params.total !== 1 ||
           params.decimals !== 0 ||
           !params.clawback ||
-          params.clawback !== this.contractWalletAddress // filter out NFTs that are not owned by the contract or not set to clawback
+          params.clawback !== this.#contractWalletAddress // filter out NFTs that are not owned by the contract or not set to clawback
         )
           continue;
 
@@ -995,7 +1032,7 @@ class AlgoMintX {
           const ipfsHash = params.url.replace("ipfs://", "");
           try {
             const metadataRes = await fetch(
-              `https://${this.pinata_ipfs_gateway_url}/ipfs/${ipfsHash}`
+              `https://${this.#pinata_ipfs_gateway_url}/ipfs/${ipfsHash}`
             );
             if (metadataRes.ok) {
               const metadata = await metadataRes.json();
@@ -1007,6 +1044,7 @@ class AlgoMintX {
                 metadata.image &&
                 metadata.image.startsWith("ipfs://")
               ) {
+                metadata.image = this.#convertIpfsToHttp(metadata.image);
                 nft.metadata = metadata;
                 nfts.push(nft);
               }
@@ -1021,6 +1059,7 @@ class AlgoMintX {
       }
     } catch (error) {
       console.error("Error fetching NFTs by wallet:", error.message);
+      throw error;
     }
 
     return nfts;
@@ -1037,7 +1076,9 @@ class AlgoMintX {
       };
 
       // Step 1: Get asset config transaction (mint)
-      const txUrl = `${this.indexerUrl}/v2/transactions?asset-id=${assetId}&tx-type=acfg`;
+      const txUrl = `${
+        this.#indexerUrl
+      }/v2/transactions?asset-id=${assetId}&tx-type=acfg`;
       const txRes = await fetch(txUrl);
       if (!txRes.ok) {
         throw new Error(
@@ -1048,7 +1089,7 @@ class AlgoMintX {
       metadata.transactionId = txData.transactions?.[0]?.id;
 
       // Step 2: Get asset metadata from indexer
-      const indexerUrl = `${this.indexerUrl}/v2/assets/${assetId}`;
+      const indexerUrl = `${this.#indexerUrl}/v2/assets/${assetId}`;
       const response = await fetch(indexerUrl);
       if (!response.ok) {
         throw new Error(`Failed to fetch asset data: ${response.status}`);
@@ -1064,12 +1105,12 @@ class AlgoMintX {
 
       // Step 3: Check if NFT is listed by fetching box data
       try {
-        const boxRef = this.getListingBoxReference(
-          this.contractApplicationId,
+        const boxRef = this.#getListingBoxReference(
+          this.#contractApplicationId,
           assetId
         );
-        const boxUrl = `${this.indexerUrl}/v2/applications/${
-          this.contractApplicationId
+        const boxUrl = `${this.#indexerUrl}/v2/applications/${
+          this.#contractApplicationId
         }/boxes?name=${Buffer.from(boxRef.name).toString("base64")}`;
         const boxRes = await fetch(boxUrl);
 
@@ -1079,7 +1120,7 @@ class AlgoMintX {
             // Find the box that matches our asset ID
             for (const box of boxData.boxes) {
               try {
-                const decodedBox = await this.decodeListingBoxFromAlgod(
+                const decodedBox = await this.#decodeListingBoxFromAlgod(
                   box.name
                 );
                 if (decodedBox.key === `listing_${assetId}`) {
@@ -1106,7 +1147,7 @@ class AlgoMintX {
       // Step 4: Get IPFS metadata if available
       const metadataUrl = params.url;
       if (metadataUrl?.startsWith("ipfs://")) {
-        const ipfsUrl = this.convertIpfsToHttp(metadataUrl);
+        const ipfsUrl = this.#convertIpfsToHttp(metadataUrl);
         const metaRes = await fetch(ipfsUrl);
         if (!metaRes.ok) {
           throw new Error(`Failed to fetch IPFS metadata: ${metaRes.status}`);
@@ -1120,30 +1161,31 @@ class AlgoMintX {
           ipfsMetadata.image &&
           ipfsMetadata.image.startsWith("ipfs://")
         ) {
+          ipfsMetadata.image = this.#convertIpfsToHttp(ipfsMetadata.image);
           Object.assign(metadata, ipfsMetadata);
         }
       }
 
       return metadata;
-    } catch (err) {
+    } catch (error) {
       console.error("Failed to fetch NFT metadata:", err);
-      throw err; // Re-throw to allow caller to handle the error
+      throw error; // Re-throw to allow caller to handle the error
     }
   }
 
-  convertIpfsToHttp(ipfsUrl, gateway = "https://ipfs.io/ipfs/") {
+  #convertIpfsToHttp(ipfsUrl, gateway = "https://ipfs.io/ipfs/") {
     return ipfsUrl.replace("ipfs://", gateway);
   }
 
-  microAlgosToAlgos(microAlgos) {
+  #microAlgosToAlgos(microAlgos) {
     return Number(microAlgos / 1_000_000);
   }
 
-  algosToMicroAlgos(algos) {
+  #algosToMicroAlgos(algos) {
     return Math.round(algos * 1_000_000);
   }
 
-  getListingBoxReference(appIndex, assetId) {
+  #getListingBoxReference(appIndex, assetId) {
     const prefix = "listing_";
     const encodedAssetId = algosdk.encodeUint64(BigInt(assetId)); // Uint64 to 8-byte Buffer
     const boxName = new Uint8Array([
@@ -1154,7 +1196,7 @@ class AlgoMintX {
     return { appIndex, name: boxName };
   }
 
-  getBoxNameB64(assetId) {
+  #getBoxNameB64(assetId) {
     const prefix = "listing_";
     const encodedAssetId = algosdk.encodeUint64(BigInt(assetId)); // Uint64 to 8-byte Buffer
     const boxName = new Uint8Array([
@@ -1166,15 +1208,22 @@ class AlgoMintX {
 
   async listNFT({ assetId, nftPrice }) {
     try {
-      if (!this.walletConnected || !this.account) {
+      if (!this.#walletConnected || !this.account) {
         throw new Error("Wallet is not connected");
       }
       if (!assetId || !nftPrice) {
         throw new Error("Asset ID and price are required");
       }
 
+      if (isNaN(assetId) || isNaN(nftPrice)) {
+        throw new Error("Asset ID and price must be a number.");
+      }
+
+      this.processing = true;
+      eventBus.emit("sdk:processing:started", { processing: this.processing });
+
       // Get suggested parameters
-      const suggestedParams = await this.algodClient
+      const suggestedParams = await this.#algodClient
         .getTransactionParams()
         .do();
 
@@ -1185,18 +1234,18 @@ class AlgoMintX {
       const fiveMicroAlgo = { ...suggestedParams, flatFee: true, fee: 5000 }; // 0.005 Algo
 
       // Get the wallet connector
-      const walletConnector = this.walletConnectors[this.selectedWalletType];
+      const walletConnector = this.#walletConnectors[this.#selectedWalletType];
 
       // Get the listing box reference
-      const boxRef = this.getListingBoxReference(
-        this.contractApplicationId,
+      const boxRef = this.#getListingBoxReference(
+        this.#contractApplicationId,
         assetId
       );
 
       const fundContractTxn =
         algosdk.makePaymentTxnWithSuggestedParamsFromObject({
           sender: this.account,
-          receiver: this.contractWalletAddress,
+          receiver: this.#contractWalletAddress,
           amount: 100_000,
           suggestedParams,
         });
@@ -1207,14 +1256,14 @@ class AlgoMintX {
       const transferNFTToContractAndAddListingTxn =
         algosdk.makeApplicationCallTxnFromObject({
           sender: this.account,
-          appIndex: this.contractApplicationId,
+          appIndex: this.#contractApplicationId,
           onComplete: algosdk.OnApplicationComplete.NoOpOC,
           appArgs: [
             transferNFTToContractAndAddListingMethod.getSelector(),
             algosdk.ABIType.from("uint64").encode(BigInt(assetId)),
             algosdk.ABIType.from("string").encode(this.account),
             algosdk.ABIType.from("string").encode(
-              this.algosToMicroAlgos(nftPrice).toString()
+              this.#algosToMicroAlgos(nftPrice).toString()
             ),
           ],
           boxes: [boxRef],
@@ -1224,8 +1273,8 @@ class AlgoMintX {
 
       const revenueTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
         sender: this.account,
-        receiver: this.revenueWalletAddress,
-        amount: Math.round(this.listingFee * 1_000_000), // Convert to microalgos
+        receiver: this.#revenueWalletAddress,
+        amount: Math.round(this.#listingFee * 1_000_000), // Convert to microalgos
         suggestedParams,
       });
 
@@ -1239,11 +1288,14 @@ class AlgoMintX {
       const signedListing = await walletConnector.signTransaction([
         listingGroup.map((txn) => ({ txn, signers: [this.account] })),
       ]);
-      const { txid: listingTxId } = await this.algodClient
+      const { txid: listingTxId } = await this.#algodClient
         .sendRawTransaction(signedListing)
         .do();
 
-      await algosdk.waitForConfirmation(this.algodClient, listingTxId, 10);
+      await algosdk.waitForConfirmation(this.#algodClient, listingTxId, 10);
+
+      this.processing = false;
+      eventBus.emit("sdk:processing:stopped", { processing: this.processing });
 
       // Emit event for successful listing
       eventBus.emit("nft:list:success", {
@@ -1260,15 +1312,18 @@ class AlgoMintX {
         transactionId: listingTxId,
       };
     } catch (error) {
-      console.error("Error listing NFT:", error);
-      eventBus.emit("nft:list:failed", { error: error.message });
+      this.processing = false;
+      eventBus.emit("sdk:processing:stopped", { processing: this.processing });
+
+      // console.error("Error listing NFT:", error);
+      eventBus.emit("nft:list:failed", { error: "Could not list NFT!" });
       throw error;
     }
   }
 
   async buyNFT({ assetId }) {
     try {
-      if (!this.walletConnected || !this.account) {
+      if (!this.#walletConnected || !this.account) {
         throw new Error("Wallet is not connected.");
       }
 
@@ -1276,8 +1331,15 @@ class AlgoMintX {
         throw new Error("Asset ID is required.");
       }
 
+      if (isNaN(assetId)) {
+        throw new Error("Asset ID must be a number.");
+      }
+
+      this.processing = true;
+      eventBus.emit("sdk:processing:started", { processing: this.processing });
+
       // Get suggested parameters
-      const suggestedParams = await this.algodClient
+      const suggestedParams = await this.#algodClient
         .getTransactionParams()
         .do();
 
@@ -1288,11 +1350,11 @@ class AlgoMintX {
       const fiveMicroAlgo = { ...suggestedParams, flatFee: true, fee: 5000 }; // 0.005 Algo
 
       // Get the wallet connector
-      const walletConnector = this.walletConnectors[this.selectedWalletType];
+      const walletConnector = this.#walletConnectors[this.#selectedWalletType];
 
       // Get the listing box reference
-      const boxRef = this.getListingBoxReference(
-        this.contractApplicationId,
+      const boxRef = this.#getListingBoxReference(
+        this.#contractApplicationId,
         assetId
       );
 
@@ -1302,7 +1364,7 @@ class AlgoMintX {
       const transferNFTToReceiverAndRemoveListingTxn =
         algosdk.makeApplicationCallTxnFromObject({
           sender: this.account,
-          appIndex: this.contractApplicationId,
+          appIndex: this.#contractApplicationId,
           onComplete: algosdk.OnApplicationComplete.NoOpOC,
           appArgs: [
             transferNFTToReceiverAndRemoveListingMethod.getSelector(),
@@ -1321,14 +1383,14 @@ class AlgoMintX {
         algosdk.makePaymentTxnWithSuggestedParamsFromObject({
           sender: this.account,
           receiver: nftData.listing.seller,
-          amount: this.algosToMicroAlgos(nftData.listing.price),
+          amount: this.#algosToMicroAlgos(nftData.listing.price),
           suggestedParams,
         });
 
       const revenueTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
         sender: this.account,
-        receiver: this.revenueWalletAddress,
-        amount: Math.round(this.buyingFee * 1_000_000), // Convert to microalgos
+        receiver: this.#revenueWalletAddress,
+        amount: Math.round(this.#buyingFee * 1_000_000), // Convert to microalgos
         suggestedParams,
       });
 
@@ -1342,11 +1404,14 @@ class AlgoMintX {
       const signedBuying = await walletConnector.signTransaction([
         buyingGroup.map((txn) => ({ txn, signers: [this.account] })),
       ]);
-      const { txid: buyingTxId } = await this.algodClient
+      const { txid: buyingTxId } = await this.#algodClient
         .sendRawTransaction(signedBuying)
         .do();
 
-      await algosdk.waitForConfirmation(this.algodClient, buyingTxId, 10);
+      await algosdk.waitForConfirmation(this.#algodClient, buyingTxId, 10);
+
+      this.processing = false;
+      eventBus.emit("sdk:processing:stopped", { processing: this.processing });
 
       // Emit event for successful purchase
       eventBus.emit("nft:buy:success", {
@@ -1361,8 +1426,11 @@ class AlgoMintX {
         transactionId: buyingTxId,
       };
     } catch (error) {
-      console.error("Failed to buy NFT:", error);
-      eventBus.emit("nft:buy:failed", { error: error.message });
+      this.processing = false;
+      eventBus.emit("sdk:processing:stopped", { processing: this.processing });
+
+      // console.error("Failed to buy NFT:", error);
+      eventBus.emit("nft:buy:failed", { error: "Could not buy NFT!" });
       throw error;
     }
   }
