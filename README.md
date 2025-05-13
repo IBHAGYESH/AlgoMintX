@@ -203,6 +203,7 @@ Pull requests and feature suggestions are welcome! For major changes, please ope
 ## 👨‍💻 About the Author
 
 Built and maintained by Bhagyesh Jahangirpuria.
-🌐 Website: http://ibhagyesh.site
-🔗 LinkedIn: https://in.linkedin.com/in/bhagyesh-jahangirpuria
-Feel free to connect for collaborations, feedback, or consulting!
+
+- 🌐 Website: http://ibhagyesh.site
+- 🔗 LinkedIn: https://in.linkedin.com/in/bhagyesh-jahangirpuria
+  Feel free to connect for collaborations, feedback, or consulting!
