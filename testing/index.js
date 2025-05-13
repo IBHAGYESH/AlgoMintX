@@ -184,7 +184,7 @@ window.openListNFTModal = function (assetId) {
 
 // Function to render NFT details
 window.renderNFTDetailsPage = async (assetId) => {
-  const nft = await algoMintXClient.getNFTMetadata(assetId);
+  const nft = await algoMintXClient.getNFTMetadata({ assetId });
 
   document.getElementById("nft-details").innerHTML = `
     <img src="${nft.image}" alt="NFT" />
