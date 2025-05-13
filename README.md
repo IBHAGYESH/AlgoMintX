@@ -16,10 +16,10 @@
 
 ## 💡 UI Highlights
 
-✅ Seamless wallet login with Pera and Defly
-🎨 Minimalistic NFT minting interface
-📌 Minimize SDK to a floating button while browsing
-🔄 Real-time UI feedback and transaction status
+- ✅ Seamless wallet login with Pera and Defly
+- 🎨 Minimalistic NFT minting interface
+- 📌 Minimize SDK to a floating button while browsing
+- 🔄 Real-time UI feedback and transaction status
 
 ---
 
