@@ -677,7 +677,7 @@ class AlgoMintX {
       decimals: 0, // must be 0 for NFTs ARC-3 compliant
       standard: "arc3",
       minted_by: this.#metadataMark,
-      marketplace: this.#revenueWalletAddress,
+      marketplace: this.#unitName,
     };
 
     // 3. Hash metadata JSON to get 32 byte assetMetadataHash
@@ -887,6 +887,9 @@ class AlgoMintX {
       const assets = accountData.account.assets || [];
 
       for (const holding of assets) {
+        // Check if the wallet actually holds this NFT (amount > 0)
+        if (holding.amount === 0) continue;
+
         // You only care about NFTs: total supply = 1 and decimals = 0
         const assetId = holding["asset-id"];
         const assetUrl = `${this.#indexerUrl}/v2/assets/${assetId}`;
@@ -896,7 +899,12 @@ class AlgoMintX {
         const assetData = await assetRes.json();
         const params = assetData.asset.params;
 
-        if (params.total !== 1 || params.decimals !== 0) continue;
+        if (
+          params.total !== 1 ||
+          params.decimals !== 0 ||
+          params["unit-name"] !== this.#unitName // only show current marketplce nfts
+        )
+          continue;
 
         const nft = {
           assetId,
@@ -921,7 +929,6 @@ class AlgoMintX {
                 metadata.standard &&
                 metadata.image &&
                 metadata.image.startsWith("ipfs://") &&
-                metadata.marketplace === this.#revenueWalletAddress &&
                 metadata.minted_by === this.#metadataMark
               ) {
                 metadata.image = this.#convertIpfsToHttp(metadata.image);
@@ -1064,7 +1071,7 @@ class AlgoMintX {
     return nfts;
   }
 
-  async getNFTMetadata(assetId) {
+  async getNFTMetadata({ assetId }) {
     try {
       // Initialize metadata object
       const metadata = {
@@ -1336,7 +1343,7 @@ class AlgoMintX {
       eventBus.emit("sdk:processing:started", { processing: this.processing });
 
       // Get the listing box reference
-      const nftData = await this.getNFTMetadata(assetId);
+      const nftData = await this.getNFTMetadata({ assetId });
 
       // Get suggested parameters
       const suggestedParams = await this.#algodClient
