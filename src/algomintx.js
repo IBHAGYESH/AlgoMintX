@@ -3,7 +3,7 @@ import { PeraWalletConnect } from "@perawallet/connect";
 import { DeflyWalletConnect } from "@blockshake/defly-connect";
 import eventBus from "./event-bus.js";
 import "./algomintx.css";
-import { AlgoMintXClient } from "./AlgoMintXClient/AlgoMintXClient.ts";
+// import { AlgoMintXClient } from "./AlgoMintXClient/AlgoMintXClient.ts";
 import { AlgorandClient } from "@algorandfoundation/algokit-utils";
 
 const appSpecJson = require("./AlgoMintXClient/AlgoMintX.arc32.json");
@@ -140,10 +140,10 @@ class AlgoMintX {
       this.network === "mainnet"
         ? "PPDA6RHCANRK6TDK4TCEHTCUV32BCXND6UYZFXJ3YJGF6DROIXLYSOGRJQ"
         : "PPDA6RHCANRK6TDK4TCEHTCUV32BCXND6UYZFXJ3YJGF6DROIXLYSOGRJQ";
-    this.#appClient = new AlgoMintXClient({
-      appId: this.#contractApplicationId,
-      algorand: this.#algorandClient,
-    });
+    // this.#appClient = new AlgoMintXClient({
+    //   appId: this.#contractApplicationId,
+    //   algorand: this.#algorandClient,
+    // });
 
     /**
      * sdk variables
