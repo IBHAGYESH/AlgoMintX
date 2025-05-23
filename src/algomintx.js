@@ -37,6 +37,7 @@ class AlgoMintX {
   #algorandClient;
   #appClient;
   #disableToast;
+  #minimizeUILocation;
 
   constructor({
     pinata_ipfs_server_key,
@@ -47,10 +48,19 @@ class AlgoMintX {
     listingFee = 0,
     buyingFee = 0,
     disableToast = false,
+    minimizeUILocation = "right",
   }) {
     /**
      * sdk validation
      */
+
+    // Validate minimizeUILocation
+    if (minimizeUILocation !== "left" && minimizeUILocation !== "right") {
+      this.#sdkValidationFailed(
+        "minimizeUILocation must be either 'left' or 'right'!"
+      );
+    }
+    this.#minimizeUILocation = minimizeUILocation;
 
     // pinata config
     this.#pinata_ipfs_server_key = pinata_ipfs_server_key;
@@ -457,6 +467,12 @@ class AlgoMintX {
 
     const container = document.getElementById("algomintx-sdk-container");
     const minimizedBtn = document.getElementById("sdkMinimizedBtn");
+
+    // Set position based on minimizeUILocation
+    minimizedBtn.style.right =
+      this.#minimizeUILocation === "right" ? "20px" : "auto";
+    minimizedBtn.style.left =
+      this.#minimizeUILocation === "left" ? "20px" : "auto";
 
     // Start minimizing animation
     container.classList.add("minimizing");
