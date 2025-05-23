@@ -17,6 +17,7 @@
   overflow: hidden;
   opacity: 1;
   visibility: visible;
+  transform-origin: center;
 }
 
 #algomintx-sdk-container.dark-theme {
@@ -29,6 +30,66 @@
   opacity: 0;
   visibility: hidden;
   transform: translate(-50%, -50%) scale(0.95);
+}
+
+#algomintx-sdk-container.maximizing {
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, -50%) scale(0.95);
+}
+
+#algomintx-loading-overlay {
+  position: absolute;
+  top: 45px; /* Height of header */
+  left: 0;
+  right: 0;
+  bottom: 45px; /* Height of wallet address bar */
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.dark-theme #algomintx-loading-overlay {
+  background: rgba(26, 26, 26, 0.7);
+  border-top-color: rgba(255, 255, 255, 0.1);
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+#algomintx-loading-overlay.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+#algomintx-loader {
+  width: 40px;
+  height: 40px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #3498db;
+  border-radius: 50%;
+  animation: algomintx-spin 1s linear infinite;
+}
+
+.dark-theme #algomintx-loader {
+  border-color: #2d2d2d;
+  border-top-color: #3498db;
+}
+
+@keyframes algomintx-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 #sdkMinimizedBtn {
@@ -49,6 +110,31 @@
   opacity: 0;
   transform: scale(0.8);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#sdkMinimizedBtn::before {
+  content: "";
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+#sdkMinimizedBtn.processing::before {
+  opacity: 1;
+  border-top-color: #3498db;
+  border-right-color: #3498db;
+  animation: algomintx-spin 1s linear infinite;
+}
+
+.dark-theme #sdkMinimizedBtn.processing::before {
+  border-top-color: #3498db;
+  border-right-color: #3498db;
 }
 
 #sdkMinimizedBtn.showing {
@@ -163,6 +249,12 @@
   align-items: center;
   justify-content: center;
   transform: rotate(180deg); /* Rotate the icon to point right */
+  transition: opacity 0.3s ease;
+}
+
+#logoutBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .dark-theme #logoutBtn {

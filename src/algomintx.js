@@ -292,6 +292,10 @@ class AlgoMintX {
       </div>
 
       <div id="walletAddressBar" title="Click to copy connected wallet address"></div>
+
+      <div id="algomintx-loading-overlay">
+        <div id="algomintx-loader"></div>
+      </div>
     `;
 
       document.body.appendChild(container);
@@ -466,8 +470,12 @@ class AlgoMintX {
       // Start showing minimized button animation
       requestAnimationFrame(() => {
         minimizedBtn.classList.add("showing");
+        // Add processing class if processing is active
+        if (this.processing) {
+          minimizedBtn.classList.add("processing");
+        }
       });
-    }, 300); // Match the CSS transition duration
+    }, 300);
 
     this.isMinimized = true;
     this.#saveUIState();
@@ -488,13 +496,23 @@ class AlgoMintX {
     setTimeout(() => {
       minimizedBtn.style.display = "none";
       minimizedBtn.classList.remove("hiding");
+      minimizedBtn.classList.remove("processing"); // Remove processing class
 
       // Show and animate the main container
       container.style.display = "flex";
+      container.classList.add("maximizing");
+
+      // Force a reflow
+      container.offsetHeight;
+
       requestAnimationFrame(() => {
-        container.classList.remove("minimizing");
+        container.classList.remove("maximizing");
+        // Show loading overlay if processing
+        if (this.processing) {
+          this.#showLoadingOverlay();
+        }
       });
-    }, 300); // Match the CSS transition duration
+    }, 300);
 
     this.isMinimized = false;
     this.#saveUIState();
@@ -714,6 +732,7 @@ class AlgoMintX {
     }
 
     this.processing = true;
+    this.#showLoadingOverlay();
     eventBus.emit("sdk:processing:started", { processing: this.processing });
 
     this.#messageElement.style.cursor = "default";
@@ -732,6 +751,7 @@ class AlgoMintX {
       this.#messageElement.innerText = `NFT Minted! Transaction ID: ${transactionId}`;
 
       this.processing = false;
+      this.#hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
 
       this.#showToast(
@@ -751,9 +771,8 @@ class AlgoMintX {
         address: this.account,
       });
     } catch (error) {
-      // console.error(error);
-
       this.processing = false;
+      this.#hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
 
       document.getElementById("nftName").value = "";
@@ -1585,6 +1604,58 @@ class AlgoMintX {
       eventBus.emit("nft:buy:failed", { error: "Could not buy NFT!" });
       throw error;
     }
+  }
+
+  #showLoadingOverlay() {
+    if (this.isMinimized) {
+      // Show processing spinner on minimized button
+      const minimizedBtn = document.getElementById("sdkMinimizedBtn");
+      if (minimizedBtn) {
+        minimizedBtn.classList.add("processing");
+      }
+      return;
+    }
+
+    const overlay = document.getElementById("algomintx-loading-overlay");
+    const logoutBtn = document.getElementById("logoutBtn");
+    if (!overlay) return;
+
+    // Apply theme to overlay
+    if (this.theme === "dark") {
+      overlay.classList.add("dark-theme");
+    } else {
+      overlay.classList.remove("dark-theme");
+    }
+
+    // Disable logout button
+    if (logoutBtn) {
+      logoutBtn.disabled = true;
+    }
+
+    // Show overlay with animation
+    requestAnimationFrame(() => {
+      overlay.classList.add("visible");
+    });
+  }
+
+  #hideLoadingOverlay() {
+    // Remove processing spinner from minimized button
+    const minimizedBtn = document.getElementById("sdkMinimizedBtn");
+    if (minimizedBtn) {
+      minimizedBtn.classList.remove("processing");
+    }
+
+    const overlay = document.getElementById("algomintx-loading-overlay");
+    const logoutBtn = document.getElementById("logoutBtn");
+    if (!overlay) return;
+
+    // Enable logout button
+    if (logoutBtn) {
+      logoutBtn.disabled = false;
+    }
+
+    // Hide overlay with animation
+    overlay.classList.remove("visible");
   }
 }
 
