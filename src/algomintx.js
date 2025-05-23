@@ -35,6 +35,7 @@ class AlgoMintX {
   #revenueWalletAddress;
   #listingFee;
   #buyingFee;
+  #theme;
 
   constructor({
     pinata_ipfs_server_key,
@@ -163,10 +164,87 @@ class AlgoMintX {
 
     this.#messageElement = null;
     this.processing = false;
-    this.isMinimized = JSON.parse(localStorage.getItem("amx")) || false;
-    localStorage.setItem("amx", this.isMinimized);
+
+    // Update localStorage structure
+    const savedState = localStorage.getItem("amx");
+    if (savedState) {
+      try {
+        const parsedState = JSON.parse(savedState);
+        this.isMinimized = parsedState.minimized || false;
+        this.theme = parsedState.theme || this.#getSystemTheme();
+      } catch (e) {
+        // If parsing fails, reset to defaults
+        this.isMinimized = false;
+        this.theme = this.#getSystemTheme();
+      }
+    } else {
+      this.isMinimized = false;
+      this.theme = this.#getSystemTheme();
+    }
+
+    // Save initial state
+    this.#saveUIState();
 
     this.#initUI();
+  }
+
+  #getSystemTheme() {
+    return window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+  }
+
+  #setupThemeListener() {
+    // Listen for system theme changes
+    window
+      .matchMedia("(prefers-color-scheme: dark)")
+      .addEventListener("change", (e) => {
+        // Only update if user hasn't manually set a theme
+        const savedState = localStorage.getItem("amx");
+        if (savedState) {
+          try {
+            const parsedState = JSON.parse(savedState);
+            if (!parsedState.theme) {
+              // If theme wasn't manually set
+              this.theme = e.matches ? "dark" : "light";
+              this.#saveUIState();
+              this.#applyTheme();
+            }
+          } catch (e) {
+            console.error("Failed to parse saved state:", e);
+          }
+        }
+      });
+  }
+
+  #applyTheme() {
+    const container = document.getElementById("algomintx-sdk-container");
+    const minimizedBtn = document.getElementById("sdkMinimizedBtn");
+
+    if (this.theme === "dark") {
+      container.classList.add("dark-theme");
+      minimizedBtn.classList.add("dark-theme");
+    } else {
+      container.classList.remove("dark-theme");
+      minimizedBtn.classList.remove("dark-theme");
+    }
+  }
+
+  #toggleTheme() {
+    this.theme = this.theme === "light" ? "dark" : "light";
+    this.#saveUIState();
+    this.#applyTheme();
+    eventBus.emit("theme:changed", { theme: this.theme });
+  }
+
+  #saveUIState() {
+    localStorage.setItem(
+      "amx",
+      JSON.stringify({
+        minimized: this.isMinimized,
+        theme: this.theme,
+      })
+    );
   }
 
   #sdkValidationFailed(message) {
@@ -191,8 +269,9 @@ class AlgoMintX {
       <div id="sdk-header">
         <h3>AlgoMintX</h3>
           <div>
-            <button id="logoutBtn" title="Logout">Logout</button>
-            <button id="sdkMinimizeBtn" title="Minimize SDK">&#x2013;</button>
+            <button id="themeToggleBtn" title="Toggle Theme">🌓</button>
+            <button id="logoutBtn" title="Logout">⇥</button>
+            <button id="sdkMinimizeBtn" title="Minimize">&#x2013;</button>
           </div>
       </div>
     
@@ -205,11 +284,11 @@ class AlgoMintX {
         <input type="text" id="nftName" placeholder="NFT Name" />
         <textarea id="nftDescription" placeholder="NFT Description"></textarea>
         <input type="file" id="nftFile" />
-        <button id="#mintNFTBtn">Mint NFT</button>
+        <button id="#mintNFTBtn" title="Mint NFT">Mint NFT</button>
         <button id="resetNFTBtn">Mint another NFT</button>
         <br />
         <div id="sdkMessages" title="Click to copy"></div>
-        </div>
+      </div>
 
       <div id="walletAddressBar" title="Click to copy wallet address"></div>
     `;
@@ -222,6 +301,12 @@ class AlgoMintX {
       minimizedBtn.innerHTML = "AmX"; // Button Icon
 
       document.body.appendChild(minimizedBtn);
+
+      // Apply initial theme
+      this.#applyTheme();
+
+      // Setup theme listener
+      this.#setupThemeListener();
 
       // Choose wallet button
       document
@@ -277,10 +362,17 @@ class AlgoMintX {
       // Copy to clipboard for wallet address bar
       walletAddressBar.addEventListener("click", () => {
         if (this.account) {
-          navigator.clipboard.writeText(this.account.replace("Wallet: ", ""));
+          navigator.clipboard.writeText(this.account);
           this.#showToast("Wallet address copied to clipboard", "success");
         }
       });
+
+      // Add theme toggle button listener
+      document
+        .getElementById("themeToggleBtn")
+        .addEventListener("click", () => {
+          this.#toggleTheme();
+        });
 
       // Check if already connected (from localStorage)
       await this.#loadConnectionFromStorage();
@@ -362,7 +454,7 @@ class AlgoMintX {
     document.getElementById("sdkMinimizedBtn").style.display = "block";
 
     this.isMinimized = true;
-    localStorage.setItem("amx", this.isMinimized);
+    this.#saveUIState();
     eventBus.emit("window:size:minimized", { minimized: this.isMinimized });
   }
 
@@ -373,7 +465,7 @@ class AlgoMintX {
     document.getElementById("sdkMinimizedBtn").style.display = "none";
 
     this.isMinimized = false;
-    localStorage.setItem("amx", this.isMinimized);
+    this.#saveUIState();
     eventBus.emit("window:size:minimized", { minimized: this.isMinimized });
   }
 
@@ -465,7 +557,7 @@ class AlgoMintX {
     if (!bar) return;
 
     if (this.#walletConnected && this.account) {
-      bar.innerText = `Wallet: ${this.account}`;
+      bar.innerText = this.account;
       bar.style.display = "block";
     } else {
       bar.innerText = "";

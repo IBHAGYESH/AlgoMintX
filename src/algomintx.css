@@ -17,6 +17,12 @@
   overflow: hidden;
 }
 
+#algomintx-sdk-container.dark-theme {
+  background-color: #1a1a1a;
+  border-color: #333;
+  color: #fff;
+}
+
 #sdkMinimizedBtn {
   position: fixed;
   bottom: 20px;
@@ -34,18 +40,33 @@
   display: none; /* hidden initially */
 }
 
+#sdkMinimizedBtn.dark-theme {
+  background-color: #1a1a1a;
+  color: #fff;
+  border: 1px solid #333;
+}
+
 #walletAddressBar {
-  white-space: normal; /* allow wrapping */
-  word-wrap: break-word; /* break long words if needed */
-  word-break: break-all; /* break very long strings */
-  overflow-wrap: break-word; /* modern equivalent */
-  max-width: 100%; /* keep it within container */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
   user-select: text;
   cursor: pointer;
-  display: none; /* hidden initially */
+  display: none;
   color: black;
-  padding: 15px;
-  font-size: small;
+  padding: 12px 15px;
+  font-size: 0.85rem;
+  font-family: monospace;
+  background-color: #f8f9fa;
+  border-top: 1px solid #ddd;
+  letter-spacing: 0.5px;
+}
+
+.dark-theme #walletAddressBar {
+  color: #fff;
+  background-color: #2d2d2d;
+  border-top-color: #444;
 }
 
 #sdk-header {
@@ -56,18 +77,34 @@
   border-bottom: 1px solid #ddd;
 }
 
+.dark-theme #sdk-header {
+  border-bottom-color: #333;
+}
+
 #sdk-header h3 {
   margin: 0;
   font-size: 1.25rem;
   color: black;
 }
 
-#sdkMinimizeBtn {
+.dark-theme #sdk-header h3 {
+  color: #fff;
+}
+
+#sdkMinimizeBtn,
+#themeToggleBtn {
   background: none;
+  border: none;
   border-radius: 25%;
   font-size: 1.25rem;
   cursor: pointer;
   width: 30px;
+  color: black;
+}
+
+.dark-theme #sdkMinimizeBtn,
+.dark-theme #themeToggleBtn {
+  color: #fff;
 }
 
 #walletChoiceScreen {
@@ -78,18 +115,37 @@
   padding: 10px;
   font-size: 1rem;
   cursor: pointer;
+  background-color: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  color: black;
+}
+
+.dark-theme .walletBtn {
+  background-color: #2d2d2d;
+  border-color: #444;
+  color: #fff;
 }
 
 #logoutBtn {
   padding: 8px;
-  font-size: 0.9rem;
+  font-size: 1.25rem;
   cursor: pointer;
   margin-top: auto;
   background: none;
   border: none;
-  font-size: 1.25rem;
-  cursor: pointer;
   display: none;
+  color: black;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotate(180deg); /* Rotate the icon to point right */
+}
+
+.dark-theme #logoutBtn {
+  color: #fff;
 }
 
 #wallet-choice-screen {
@@ -100,7 +156,7 @@
 }
 
 #sdkUI {
-  display: none; /* default hidden */
+  display: none;
   padding: 15px;
   flex-direction: column;
   gap: 10px;
@@ -109,12 +165,27 @@
   border-bottom: 1px solid #ddd;
 }
 
+.dark-theme #sdkUI {
+  border-bottom-color: #333;
+}
+
 #sdkUI input[type="text"],
 #sdkUI textarea,
 #sdkUI input[type="file"] {
   padding: 8px;
   font-size: 1rem;
   color: black;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.dark-theme #sdkUI input[type="text"],
+.dark-theme #sdkUI textarea,
+.dark-theme #sdkUI input[type="file"] {
+  color: #fff;
+  background-color: #2d2d2d;
+  border-color: #444;
 }
 
 #sdkUI textarea {
@@ -130,6 +201,16 @@
   padding: 10px;
   font-size: 1rem;
   cursor: pointer;
+  background-color: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  color: black;
+}
+
+.dark-theme #sdkUI button {
+  background-color: #2d2d2d;
+  border-color: #444;
+  color: #fff;
 }
 
 #sdkMessages {
@@ -139,6 +220,10 @@
   word-break: break-word;
   user-select: text;
   cursor: pointer;
+}
+
+.dark-theme #sdkMessages {
+  color: #fff;
 }
 
 #algomintx-toast {
