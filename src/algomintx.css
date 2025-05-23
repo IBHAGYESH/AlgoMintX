@@ -10,17 +10,25 @@
   border-radius: 8px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
   font-family: Arial, sans-serif;
-  transition: all 0.3s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
   max-height: 80vh;
   overflow: hidden;
+  opacity: 1;
+  visibility: visible;
 }
 
 #algomintx-sdk-container.dark-theme {
   background-color: #1a1a1a;
   border-color: #333;
   color: #fff;
+}
+
+#algomintx-sdk-container.minimizing {
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(-50%, -50%) scale(0.95);
 }
 
 #sdkMinimizedBtn {
@@ -37,7 +45,20 @@
   cursor: pointer;
   box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
   z-index: 99999999;
-  display: none; /* hidden initially */
+  display: none;
+  opacity: 0;
+  transform: scale(0.8);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#sdkMinimizedBtn.showing {
+  opacity: 1;
+  transform: scale(1);
+}
+
+#sdkMinimizedBtn.hiding {
+  opacity: 0;
+  transform: scale(0.8);
 }
 
 #sdkMinimizedBtn.dark-theme {

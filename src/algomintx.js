@@ -4,7 +4,7 @@ import { DeflyWalletConnect } from "@blockshake/defly-connect";
 import eventBus from "./event-bus.js";
 import "./algomintx.css";
 // import { AlgoMintXClient } from "./AlgoMintXClient/AlgoMintXClient.ts";
-import { AlgorandClient } from "@algorandfoundation/algokit-utils";
+// import { AlgorandClient } from "@algorandfoundation/algokit-utils";
 
 const appSpecJson = require("./AlgoMintXClient/AlgoMintX.arc32.json");
 const encoder = new algosdk.ABIContract({
@@ -21,10 +21,8 @@ class AlgoMintX {
   #supportedWallets;
   #selectedWalletType;
   #algodClient;
-  #algorandClient;
   #contractApplicationId;
   #contractWalletAddress;
-  #appClient;
   #indexerUrl;
   #unitName;
   #metadataMark;
@@ -36,6 +34,8 @@ class AlgoMintX {
   #listingFee;
   #buyingFee;
   #theme;
+  #algorandClient;
+  #appClient;
 
   constructor({
     pinata_ipfs_server_key,
@@ -128,9 +128,9 @@ class AlgoMintX {
         : "https://testnet-api.algonode.cloud",
       443
     );
-    this.#algorandClient = AlgorandClient.fromClients({
-      algod: this.#algodClient,
-    });
+    // this.#algorandClient = AlgorandClient.fromClients({
+    //   algod: this.#algodClient,
+    // });
 
     /**
      * smart contract
@@ -290,7 +290,7 @@ class AlgoMintX {
         <div id="sdkMessages" title="Click to copy"></div>
       </div>
 
-      <div id="walletAddressBar" title="Click to copy wallet address"></div>
+      <div id="walletAddressBar" title="Click to copy connected wallet address"></div>
     `;
 
       document.body.appendChild(container);
@@ -298,7 +298,7 @@ class AlgoMintX {
       // Create minimized circle button but hide initially
       const minimizedBtn = document.createElement("button");
       minimizedBtn.id = "sdkMinimizedBtn";
-      minimizedBtn.innerHTML = "AmX"; // Button Icon
+      minimizedBtn.innerHTML = "AMX"; // Button Icon
 
       document.body.appendChild(minimizedBtn);
 
@@ -450,8 +450,23 @@ class AlgoMintX {
   minimizeSDK(initialLoad) {
     if (!initialLoad && this.isMinimized) return;
 
-    document.getElementById("algomintx-sdk-container").style.display = "none";
-    document.getElementById("sdkMinimizedBtn").style.display = "block";
+    const container = document.getElementById("algomintx-sdk-container");
+    const minimizedBtn = document.getElementById("sdkMinimizedBtn");
+
+    // Start minimizing animation
+    container.classList.add("minimizing");
+    minimizedBtn.style.display = "block";
+
+    // Wait for the minimizing animation to complete
+    setTimeout(() => {
+      container.style.display = "none";
+      container.classList.remove("minimizing");
+
+      // Start showing minimized button animation
+      requestAnimationFrame(() => {
+        minimizedBtn.classList.add("showing");
+      });
+    }, 300); // Match the CSS transition duration
 
     this.isMinimized = true;
     this.#saveUIState();
@@ -461,8 +476,24 @@ class AlgoMintX {
   maximizeSDK(initialLoad) {
     if (!initialLoad && !this.isMinimized) return;
 
-    document.getElementById("algomintx-sdk-container").style.display = "flex";
-    document.getElementById("sdkMinimizedBtn").style.display = "none";
+    const container = document.getElementById("algomintx-sdk-container");
+    const minimizedBtn = document.getElementById("sdkMinimizedBtn");
+
+    // Start hiding minimized button animation
+    minimizedBtn.classList.remove("showing");
+    minimizedBtn.classList.add("hiding");
+
+    // Wait for the hiding animation to complete
+    setTimeout(() => {
+      minimizedBtn.style.display = "none";
+      minimizedBtn.classList.remove("hiding");
+
+      // Show and animate the main container
+      container.style.display = "flex";
+      requestAnimationFrame(() => {
+        container.classList.remove("minimizing");
+      });
+    }, 300); // Match the CSS transition duration
 
     this.isMinimized = false;
     this.#saveUIState();
