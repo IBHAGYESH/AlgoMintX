@@ -297,7 +297,6 @@ class AlgoMintX {
         <input type="file" id="nftFile" />
         <button id="#mintNFTBtn" title="Mint NFT">Mint NFT</button>
         <button id="resetNFTBtn">Mint another NFT</button>
-        <br />
         <div id="sdkMessages" title="Click to copy"></div>
       </div>
 
@@ -364,13 +363,19 @@ class AlgoMintX {
           this.#messageElement.innerText &&
           this.#messageElement.innerText !== "Minting NFT... Please wait."
         ) {
-          navigator.clipboard.writeText(
-            this.#messageElement.innerText.replace(
-              "NFT Minted! Transaction ID: ",
-              ""
-            )
+          const txId = this.#messageElement.innerText.replace(
+            "NFT Minted! Transaction ID: ",
+            ""
           );
+
+          // Copy to clipboard
+          navigator.clipboard.writeText(txId);
           this.#showToast("Transaction ID copied to clipboard", "success");
+
+          // Open transaction in new tab
+          const network = this.network === "mainnet" ? "mainnet" : "testnet";
+          const txUrl = `https://lora.algokit.io/${network}/transaction/${txId}`;
+          window.open(txUrl, "_blank");
         }
       });
 
@@ -708,7 +713,10 @@ class AlgoMintX {
   }
 
   #clearMessage() {
-    if (this.#messageElement) this.#messageElement.innerText = "";
+    if (this.#messageElement) {
+      this.#messageElement.innerText = "";
+      this.#messageElement.style.display = "none";
+    }
   }
 
   #resetNFTDetails() {
@@ -720,7 +728,7 @@ class AlgoMintX {
     document.getElementById("nftFile").value = "";
     document.getElementById("#mintNFTBtn").style.display = "block";
     document.getElementById("resetNFTBtn").style.display = "none";
-    this.#messageElement.innerText = "";
+    this.#clearMessage();
   }
 
   async #validateNFTDetails() {
@@ -751,6 +759,7 @@ class AlgoMintX {
     this.#showLoadingOverlay();
     eventBus.emit("sdk:processing:started", { processing: this.processing });
 
+    this.#messageElement.style.display = "block";
     this.#messageElement.style.cursor = "default";
     this.#messageElement.innerText = "Minting NFT... Please wait.";
     document.getElementById("#mintNFTBtn").disabled = true;
@@ -798,8 +807,7 @@ class AlgoMintX {
       document.getElementById("#mintNFTBtn").disabled = false;
       document.getElementById("logoutBtn").disabled = false;
 
-      this.#messageElement.style.cursor = "pointer";
-      this.#messageElement.innerText = "";
+      this.#clearMessage();
 
       this.#showToast("Failed to mint NFT!", "error");
 

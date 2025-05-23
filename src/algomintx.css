@@ -332,10 +332,21 @@
   word-break: break-word;
   user-select: text;
   cursor: pointer;
+  display: none;
+  padding: 8px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+
+#sdkMessages:not(:empty) {
+  display: block;
 }
 
 .dark-theme #sdkMessages {
   color: #fff;
+  background-color: #2d2d2d;
+  border-color: #444;
 }
 
 #algomintx-toast {
