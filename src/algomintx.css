@@ -43,7 +43,7 @@
   top: 45px; /* Height of header */
   left: 0;
   right: 0;
-  bottom: 45px; /* Height of wallet address bar */
+  bottom: 90px; /* Height of wallet address bar + footer bar */
   background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
