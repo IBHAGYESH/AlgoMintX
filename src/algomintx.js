@@ -36,6 +36,7 @@ class AlgoMintX {
   #theme;
   #algorandClient;
   #appClient;
+  #disableToast;
 
   constructor({
     pinata_ipfs_server_key,
@@ -45,6 +46,7 @@ class AlgoMintX {
     revenueWalletAddress,
     listingFee,
     buyingFee,
+    disableToast = false,
   }) {
     /**
      * sdk validation
@@ -99,6 +101,9 @@ class AlgoMintX {
     } else if (typeof this.#buyingFee !== "number") {
       this.#sdkValidationFailed("NFT buying fee must be of type number!");
     }
+
+    // toast config
+    this.#disableToast = disableToast;
 
     /**
      * wallet connection config
@@ -629,6 +634,12 @@ class AlgoMintX {
   }
 
   #showToast(message, type = "info") {
+    // Emit toast event regardless of disableToast setting
+    eventBus.emit("toast:show", { message, type });
+
+    // Only show toast UI if not disabled
+    if (this.#disableToast) return;
+
     // Remove existing toast if any
     const existingToast = document.getElementById("algomintx-toast");
     if (existingToast) existingToast.remove();
@@ -637,7 +648,7 @@ class AlgoMintX {
     toast.id = "algomintx-toast";
     toast.innerText = message;
 
-    // Assign toast type class dynamically (e.g. 'error', 'success', 'info')
+    // Assign toast type class dynamically
     if (type === "error") {
       toast.classList.add("error");
     } else if (type === "success") {
