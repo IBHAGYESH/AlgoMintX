@@ -44,8 +44,8 @@ class AlgoMintX {
     env,
     namespace,
     revenueWalletAddress,
-    listingFee,
-    buyingFee,
+    listingFee = 0,
+    buyingFee = 0,
     disableToast = false,
   }) {
     /**
@@ -90,15 +90,11 @@ class AlgoMintX {
       );
     }
     this.#listingFee = listingFee;
-    if (!this.#listingFee) {
-      this.#sdkValidationFailed("Specify a NFT listing fee!");
-    } else if (typeof this.#listingFee !== "number") {
+    if (typeof this.#listingFee !== "number") {
       this.#sdkValidationFailed("NFT listing fee must be of type number!");
     }
     this.#buyingFee = buyingFee;
-    if (!this.#buyingFee) {
-      this.#sdkValidationFailed("Specify a NFT buying fee!");
-    } else if (typeof this.#buyingFee !== "number") {
+    if (typeof this.#buyingFee !== "number") {
       this.#sdkValidationFailed("NFT buying fee must be of type number!");
     }
 
@@ -1421,8 +1417,13 @@ class AlgoMintX {
       const listingGroup = [
         fundContractTxn,
         transferNFTToContractAndAddListingTxn,
-        revenueTxn,
       ];
+
+      // if listing fee is greater than 0, add revenue transaction to the listing group
+      if (this.#listingFee > 0) {
+        listingGroup.push(revenueTxn);
+      }
+
       algosdk.assignGroupID(listingGroup);
 
       const signedListing = await walletConnector.signTransaction([
@@ -1545,8 +1546,13 @@ class AlgoMintX {
         receiverOptInToNFTTxn,
         transferNFTToReceiverAndRemoveListingTxn,
         transferNFTPriceToSellerTxn,
-        revenueTxn,
       ];
+
+      // if buying fee is greater than 0, add revenue transaction to the buying group
+      if (this.#buyingFee > 0) {
+        buyingGroup.push(revenueTxn);
+      }
+
       algosdk.assignGroupID(buyingGroup);
 
       const signedBuying = await walletConnector.signTransaction([
