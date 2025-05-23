@@ -1610,6 +1610,7 @@ class AlgoMintX {
 
       return {
         assetId,
+        price: nftData.listing.price,
         transactionId: buyingTxId,
       };
     } catch (error) {
