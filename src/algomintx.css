@@ -375,3 +375,38 @@
 #algomintx-toast.info {
   background-color: #333;
 }
+
+#sdkFooter {
+  padding: 8px 15px;
+  font-size: 0.85rem;
+  text-align: center;
+  color: #666;
+  background-color: #f8f9fa;
+  border-top: 1px solid #ddd;
+  user-select: none;
+}
+
+.dark-theme #sdkFooter {
+  color: #999;
+  background-color: #2d2d2d;
+  border-top-color: #444;
+}
+
+#sdkFooter a {
+  color: #3498db;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+#sdkFooter a:hover {
+  color: #2980b9;
+  text-decoration: underline;
+}
+
+.dark-theme #sdkFooter a {
+  color: #5dade2;
+}
+
+.dark-theme #sdkFooter a:hover {
+  color: #3498db;
+}

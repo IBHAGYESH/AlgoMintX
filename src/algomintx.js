@@ -301,6 +301,10 @@ class AlgoMintX {
       </div>
 
       <div id="walletAddressBar" title="Click to copy connected wallet address"></div>
+      
+      <div id="sdkFooter">
+        <span>AlgoMintX crafted with ❤️ by <a href="https://ibhagyesh.site/" target="_blank" rel="noopener noreferrer">ibhagyesh</a></span>
+      </div>
 
       <div id="algomintx-loading-overlay">
         <div id="algomintx-loader"></div>
