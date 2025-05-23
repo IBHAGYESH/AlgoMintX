@@ -1399,6 +1399,7 @@ class AlgoMintX {
       }
 
       this.processing = true;
+      this.#showLoadingOverlay();
       eventBus.emit("sdk:processing:started", { processing: this.processing });
 
       // Get suggested parameters
@@ -1479,6 +1480,7 @@ class AlgoMintX {
       await algosdk.waitForConfirmation(this.#algodClient, listingTxId, 10);
 
       this.processing = false;
+      this.#hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
 
       // Emit event for successful listing
@@ -1495,6 +1497,7 @@ class AlgoMintX {
       };
     } catch (error) {
       this.processing = false;
+      this.#hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
 
       // console.error("Error listing NFT:", error);
@@ -1518,6 +1521,7 @@ class AlgoMintX {
       }
 
       this.processing = true;
+      this.#showLoadingOverlay();
       eventBus.emit("sdk:processing:started", { processing: this.processing });
 
       // Get the listing box reference
@@ -1608,6 +1612,7 @@ class AlgoMintX {
       await algosdk.waitForConfirmation(this.#algodClient, buyingTxId, 10);
 
       this.processing = false;
+      this.#hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
 
       // Emit event for successful purchase
@@ -1623,6 +1628,7 @@ class AlgoMintX {
       };
     } catch (error) {
       this.processing = false;
+      this.#hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
 
       // console.error("Failed to buy NFT:", error);
