@@ -38,6 +38,7 @@ class AlgoMintX {
   #appClient;
   #disableToast;
   #minimizeUILocation;
+  #logo;
 
   constructor({
     pinata_ipfs_server_key,
@@ -49,6 +50,7 @@ class AlgoMintX {
     buyingFee = 0,
     disableToast = false,
     minimizeUILocation = "right",
+    logo = null,
   }) {
     /**
      * sdk validation
@@ -110,6 +112,9 @@ class AlgoMintX {
 
     // toast config
     this.#disableToast = disableToast;
+
+    // logo config
+    this.#logo = logo;
 
     /**
      * wallet connection config
@@ -278,12 +283,23 @@ class AlgoMintX {
 
       container.innerHTML = `
       <div id="sdk-header">
-        <h3>AlgoMintX</h3>
-          <div>
-            <button id="themeToggleBtn" title="Toggle Theme">🌓</button>
-            <button id="logoutBtn" title="Logout">⇥</button>
-            <button id="sdkMinimizeBtn" title="Minimize">&#x2013;</button>
-          </div>
+        <div class="header-logo">
+          ${
+            this.#logo
+              ? `<img src="${
+                  this.#logo
+                }" alt="AlgoMintX" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />`
+              : ""
+          }
+          <h3 style="${
+            this.#logo ? "display: none;" : "display: block;"
+          }">AlgoMintX</h3>
+        </div>
+        <div>
+          <button id="themeToggleBtn" title="Toggle Theme">🌓</button>
+          <button id="logoutBtn" title="Logout">⇥</button>
+          <button id="sdkMinimizeBtn" title="Minimize">&#x2013;</button>
+        </div>
       </div>
     
       <div id="walletChoiceScreen">
@@ -316,7 +332,11 @@ class AlgoMintX {
       // Create minimized circle button but hide initially
       const minimizedBtn = document.createElement("button");
       minimizedBtn.id = "sdkMinimizedBtn";
-      minimizedBtn.innerHTML = "AMX"; // Button Icon
+      minimizedBtn.innerHTML = this.#logo
+        ? `<img src="${
+            this.#logo
+          }" alt="AMX" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" /><span style="display: none;">AMX</span>`
+        : "AMX";
 
       document.body.appendChild(minimizedBtn);
 

@@ -109,6 +109,22 @@
   opacity: 0;
   transform: scale(0.8);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  overflow: hidden;
+}
+
+#sdkMinimizedBtn img {
+  width: 35px;
+  height: 35px;
+  object-fit: contain;
+}
+
+#sdkMinimizedBtn span {
+  font-size: 1.1rem;
+  line-height: 1;
 }
 
 #sdkMinimizedBtn::before {
@@ -409,4 +425,26 @@
 
 .dark-theme #sdkFooter a:hover {
   color: #3498db;
+}
+
+.header-logo {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.header-logo img {
+  height: 30px;
+  width: auto;
+  object-fit: contain;
+}
+
+.header-logo h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: black;
+}
+
+.dark-theme .header-logo h3 {
+  color: #fff;
 }
