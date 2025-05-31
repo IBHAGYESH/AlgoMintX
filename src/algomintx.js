@@ -40,6 +40,176 @@ class AlgoMintX {
   #minimizeUILocation;
   #logo;
 
+  #validateRequired(value, paramName) {
+    if (value === undefined || value === null) {
+      throw new Error(`${paramName} is required`);
+    }
+    return value;
+  }
+
+  #validateString(value, paramName) {
+    this.#validateRequired(value, paramName);
+    if (typeof value !== "string") {
+      throw new Error(`${paramName} must be a string`);
+    }
+    if (value.trim().length === 0) {
+      throw new Error(`${paramName} cannot be empty`);
+    }
+    return value;
+  }
+
+  #validateEnum(value, paramName, validValues) {
+    this.#validateString(value, paramName);
+    if (!validValues.includes(value)) {
+      throw new Error(`${paramName} must be one of: ${validValues.join(", ")}`);
+    }
+    return value;
+  }
+
+  #validateNumber(value, paramName, options = {}) {
+    if (value === undefined || value === null) {
+      return options.default ?? 0;
+    }
+    if (typeof value !== "number") {
+      throw new Error(`${paramName} must be a number`);
+    }
+    if (!Number.isFinite(value)) {
+      throw new Error(`${paramName} must be a finite number`);
+    }
+    if (options.min !== undefined && value < options.min) {
+      throw new Error(
+        `${paramName} must be greater than or equal to ${options.min}`
+      );
+    }
+    if (options.max !== undefined && value > options.max) {
+      throw new Error(
+        `${paramName} must be less than or equal to ${options.max}`
+      );
+    }
+    return value;
+  }
+
+  #validateBoolean(value, paramName, defaultValue = false) {
+    if (value === undefined || value === null) {
+      return defaultValue;
+    }
+    if (typeof value !== "boolean") {
+      throw new Error(`${paramName} must be a boolean`);
+    }
+    return value;
+  }
+
+  #validateUrl(value, paramName) {
+    this.#validateString(value, paramName);
+    try {
+      new URL(value);
+      return value;
+    } catch (e) {
+      throw new Error(`${paramName} must be a valid URL`);
+    }
+  }
+
+  #validatePinataServerKey(key) {
+    return this.#validateString(key, "Pinata IPFS server key");
+  }
+
+  #validatePinataGatewayUrl(url) {
+    const validatedUrl = this.#validateString(url, "Pinata IPFS gateway URL");
+    try {
+      new URL(`https://${validatedUrl}`);
+      return validatedUrl;
+    } catch (e) {
+      throw new Error("Pinata IPFS gateway URL must be a valid URL");
+    }
+  }
+
+  #validateEnvironment(env) {
+    return this.#validateEnum(env, "Environment", ["testnet", "mainnet"]);
+  }
+
+  #validateNamespace(namespace) {
+    const validatedNamespace = this.#validateString(namespace, "Namespace");
+    if (validatedNamespace.length !== 5) {
+      throw new Error("Namespace must be exactly 5 characters long");
+    }
+    if (!/^[A-Z]+$/.test(validatedNamespace)) {
+      throw new Error("Namespace must contain only uppercase letters");
+    }
+    return validatedNamespace;
+  }
+
+  #validateRevenueWalletAddress(address) {
+    const validatedAddress = this.#validateString(
+      address,
+      "Revenue wallet address"
+    );
+    if (validatedAddress.length !== 58) {
+      throw new Error("Revenue wallet address must be 58 characters long");
+    }
+    if (!/^[A-Z2-7]{58}$/.test(validatedAddress)) {
+      throw new Error("Invalid Algorand wallet address format");
+    }
+    return validatedAddress;
+  }
+
+  #validateFee(fee, paramName) {
+    return this.#validateNumber(fee, paramName, { min: 0 });
+  }
+
+  #validateDisableToast(disableToast) {
+    return this.#validateBoolean(disableToast, "disableToast", false);
+  }
+
+  #validateMinimizeUILocation(location) {
+    return (
+      this.#validateEnum(location, "minimizeUILocation", ["left", "right"]) ||
+      "right"
+    );
+  }
+
+  #validateLogo(logo) {
+    if (logo === undefined || logo === null) {
+      return null;
+    }
+
+    const validatedLogo = this.#validateString(logo, "Logo");
+
+    // Check if it's a URL
+    if (
+      validatedLogo.startsWith("http://") ||
+      validatedLogo.startsWith("https://")
+    ) {
+      try {
+        new URL(validatedLogo);
+        return validatedLogo;
+      } catch (e) {
+        throw new Error("Logo URL must be a valid URL");
+      }
+    }
+
+    // Check if it's a local file path
+    if (
+      validatedLogo.startsWith("./") ||
+      validatedLogo.startsWith("../") ||
+      validatedLogo.startsWith("/")
+    ) {
+      if (
+        !/^[./\\a-zA-Z0-9_-]+\.(png|jpg|jpeg|gif|svg|webp)$/i.test(
+          validatedLogo
+        )
+      ) {
+        throw new Error(
+          "Invalid logo file path. Must be a valid image file path"
+        );
+      }
+      return validatedLogo;
+    }
+
+    throw new Error(
+      "Logo must be either a valid URL or a valid local file path"
+    );
+  }
+
   constructor({
     pinata_ipfs_server_key,
     pinata_ipfs_gateway_url,
@@ -52,156 +222,90 @@ class AlgoMintX {
     minimizeUILocation = "right",
     logo = null,
   }) {
-    /**
-     * sdk validation
-     */
-
-    // Validate minimizeUILocation
-    if (minimizeUILocation !== "left" && minimizeUILocation !== "right") {
-      this.#sdkValidationFailed(
-        "minimizeUILocation must be either 'left' or 'right'!"
+    try {
+      // Validate all parameters
+      this.#pinata_ipfs_server_key = this.#validatePinataServerKey(
+        pinata_ipfs_server_key
       );
-    }
-    this.#minimizeUILocation = minimizeUILocation;
-
-    // pinata config
-    this.#pinata_ipfs_server_key = pinata_ipfs_server_key;
-    this.#pinata_ipfs_gateway_url = pinata_ipfs_gateway_url;
-
-    if (!this.#pinata_ipfs_server_key || !this.#pinata_ipfs_gateway_url) {
-      this.#sdkValidationFailed("Missing pinata IPFS config!");
-    }
-
-    // networks supported
-    this.#supportedNetworks = ["mainnet", "testnet"];
-    const networkSupported = this.#supportedNetworks.includes(env);
-    if (!networkSupported) {
-      this.#sdkValidationFailed("Specify a valid blockchain network!");
-    }
-    this.network = env;
-
-    // namespace
-    this.#namespace = namespace.toUpperCase();
-    if (!this.#namespace) {
-      this.#sdkValidationFailed("Specify a namespace!");
-    } else if (typeof this.#namespace !== "string") {
-      this.#sdkValidationFailed("namespace must be of type string!");
-    } else if (this.#namespace.length > 5 || this.#namespace.length < 5) {
-      this.#sdkValidationFailed("namespace must be of length 5!");
-    } else if (!/^[A-Z]+$/.test(this.#namespace)) {
-      this.#sdkValidationFailed("namespace must only contain alphabets!");
-    }
-
-    // revenue config
-    this.#revenueWalletAddress = revenueWalletAddress;
-    if (!this.#revenueWalletAddress) {
-      this.#sdkValidationFailed("Specify a valid algorand wallet address!");
-    } else if (typeof this.#revenueWalletAddress !== "string") {
-      this.#sdkValidationFailed(
-        "algorand wallet address must be of type string!"
+      this.#pinata_ipfs_gateway_url = this.#validatePinataGatewayUrl(
+        pinata_ipfs_gateway_url
       );
-    }
-    this.#listingFee = listingFee;
-    if (typeof this.#listingFee !== "number") {
-      this.#sdkValidationFailed("NFT listing fee must be of type number!");
-    }
-    this.#buyingFee = buyingFee;
-    if (typeof this.#buyingFee !== "number") {
-      this.#sdkValidationFailed("NFT buying fee must be of type number!");
-    }
+      this.network = this.#validateEnvironment(env);
+      this.#namespace = this.#validateNamespace(namespace);
+      this.#revenueWalletAddress =
+        this.#validateRevenueWalletAddress(revenueWalletAddress);
+      this.#listingFee = this.#validateFee(listingFee, "Listing fee");
+      this.#buyingFee = this.#validateFee(buyingFee, "Buying fee");
+      this.#disableToast = this.#validateDisableToast(disableToast);
+      this.#minimizeUILocation =
+        this.#validateMinimizeUILocation(minimizeUILocation);
+      this.#logo = this.#validateLogo(logo);
 
-    // toast config
-    this.#disableToast = disableToast;
+      // Initialize other properties
+      this.#supportedNetworks = ["mainnet", "testnet"];
+      this.#walletConnectors = {
+        pera: new PeraWalletConnect(),
+        defly: new DeflyWalletConnect(),
+      };
+      this.#walletConnected = false;
+      this.account = null;
+      this.#connectionInfo = null;
+      this.#connectionInProgress = false;
+      this.#supportedWallets = ["pera", "defly"];
+      this.#selectedWalletType = null;
 
-    // logo config
-    this.#logo = logo;
+      // Initialize algosdk client
+      this.#algodClient = new algosdk.Algodv2(
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        this.network === "mainnet"
+          ? "https://mainnet-api.algonode.cloud"
+          : "https://testnet-api.algonode.cloud",
+        443
+      );
 
-    /**
-     * wallet connection config
-     */
+      // Initialize contract details
+      this.#contractApplicationId =
+        this.network === "mainnet" ? 739334702 : 739334702;
+      this.#contractWalletAddress =
+        this.network === "mainnet"
+          ? "PPDA6RHCANRK6TDK4TCEHTCUV32BCXND6UYZFXJ3YJGF6DROIXLYSOGRJQ"
+          : "PPDA6RHCANRK6TDK4TCEHTCUV32BCXND6UYZFXJ3YJGF6DROIXLYSOGRJQ";
 
-    // wallet connectors for different wallets
-    this.#walletConnectors = {
-      pera: new PeraWalletConnect(),
-      defly: new DeflyWalletConnect(),
-    };
+      // Initialize SDK variables
+      this.#indexerUrl =
+        this.network === "mainnet"
+          ? "https://mainnet-idx.algonode.cloud"
+          : "https://testnet-idx.algonode.cloud";
+      this.#unitName = `AMX${this.#namespace}`;
+      this.#metadataMark = "AlgoMintX";
+      this.events = eventBus;
 
-    // Wallet connection state
-    this.#walletConnected = false;
-    this.account = null;
-    this.#connectionInfo = null;
-    this.#connectionInProgress = false;
+      // Initialize UI state
+      this.#messageElement = null;
+      this.processing = false;
 
-    // Wallet types supported
-    this.#supportedWallets = ["pera", "defly"];
-    this.#selectedWalletType = null;
-
-    // algosdk config
-    this.#algodClient = new algosdk.Algodv2(
-      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-      this.network === "mainnet"
-        ? "https://mainnet-api.algonode.cloud"
-        : "https://testnet-api.algonode.cloud",
-      443
-    );
-    // this.#algorandClient = AlgorandClient.fromClients({
-    //   algod: this.#algodClient,
-    // });
-
-    /**
-     * smart contract
-     */
-    this.#contractApplicationId =
-      this.network === "mainnet" ? 739334702 : 739334702;
-    this.#contractWalletAddress =
-      this.network === "mainnet"
-        ? "PPDA6RHCANRK6TDK4TCEHTCUV32BCXND6UYZFXJ3YJGF6DROIXLYSOGRJQ"
-        : "PPDA6RHCANRK6TDK4TCEHTCUV32BCXND6UYZFXJ3YJGF6DROIXLYSOGRJQ";
-    // this.#appClient = new AlgoMintXClient({
-    //   appId: this.#contractApplicationId,
-    //   algorand: this.#algorandClient,
-    // });
-
-    /**
-     * sdk variables
-     */
-
-    this.#indexerUrl =
-      this.network === "mainnet"
-        ? "https://mainnet-idx.algonode.cloud"
-        : "https://testnet-idx.algonode.cloud";
-    this.#unitName = `AMX${this.#namespace}`;
-    this.#metadataMark = "AlgoMintX";
-    this.events = eventBus;
-
-    /**
-     * ui config
-     */
-
-    this.#messageElement = null;
-    this.processing = false;
-
-    // Update localStorage structure
-    const savedState = localStorage.getItem("amx");
-    if (savedState) {
-      try {
-        const parsedState = JSON.parse(savedState);
-        this.isMinimized = parsedState.minimized || false;
-        this.theme = parsedState.theme || this.#getSystemTheme();
-      } catch (e) {
-        // If parsing fails, reset to defaults
+      // Load saved UI state
+      const savedState = localStorage.getItem("amx");
+      if (savedState) {
+        try {
+          const parsedState = JSON.parse(savedState);
+          this.isMinimized = parsedState.minimized || false;
+          this.theme = parsedState.theme || this.#getSystemTheme();
+        } catch (e) {
+          this.isMinimized = false;
+          this.theme = this.#getSystemTheme();
+        }
+      } else {
         this.isMinimized = false;
         this.theme = this.#getSystemTheme();
       }
-    } else {
-      this.isMinimized = false;
-      this.theme = this.#getSystemTheme();
+
+      // Save initial state and initialize UI
+      this.#saveUIState();
+      this.#initUI();
+    } catch (error) {
+      this.#sdkValidationFailed(error.message);
     }
-
-    // Save initial state
-    this.#saveUIState();
-
-    this.#initUI();
   }
 
   #getSystemTheme() {
