@@ -3,8 +3,6 @@ import { PeraWalletConnect } from "@perawallet/connect";
 import { DeflyWalletConnect } from "@blockshake/defly-connect";
 import eventBus from "./event-bus.js";
 import "./algomintx.css";
-// import { AlgoMintXClient } from "./AlgoMintXClient/AlgoMintXClient.ts";
-// import { AlgorandClient } from "@algorandfoundation/algokit-utils";
 
 const appSpecJson = require("./AlgoMintXClient/AlgoMintX.arc32.json");
 const encoder = new algosdk.ABIContract({
@@ -13,7 +11,6 @@ const encoder = new algosdk.ABIContract({
 });
 
 class AlgoMintX {
-  #supportedNetworks;
   #walletConnectors;
   #walletConnected;
   #connectionInfo;
@@ -33,12 +30,11 @@ class AlgoMintX {
   #revenueWalletAddress;
   #listingFee;
   #buyingFee;
-  #theme;
-  #algorandClient;
-  #appClient;
   #disableToast;
   #minimizeUILocation;
   #logo;
+  #supportedNetworks;
+  #theme;
 
   #validateRequired(value, paramName) {
     if (value === undefined || value === null) {
@@ -179,12 +175,7 @@ class AlgoMintX {
       validatedLogo.startsWith("http://") ||
       validatedLogo.startsWith("https://")
     ) {
-      try {
-        new URL(validatedLogo);
-        return validatedLogo;
-      } catch (e) {
-        throw new Error("Logo URL must be a valid URL");
-      }
+      return this.#validateUrl(validatedLogo, "Logo");
     }
 
     // Check if it's a local file path
@@ -865,6 +856,10 @@ class AlgoMintX {
       return;
     }
 
+    this.processing = true;
+    this.#showLoadingOverlay();
+    eventBus.emit("sdk:processing:started", { processing: this.processing });
+
     const name = document.getElementById("nftName").value.trim();
     const description = document.getElementById("nftDescription").value.trim();
     const fileInput = document.getElementById("nftFile");
@@ -883,10 +878,6 @@ class AlgoMintX {
       this.#showToast("Please upload a file.", "error");
       return;
     }
-
-    this.processing = true;
-    this.#showLoadingOverlay();
-    eventBus.emit("sdk:processing:started", { processing: this.processing });
 
     this.#messageElement.style.display = "block";
     this.#messageElement.style.cursor = "default";
@@ -1516,7 +1507,15 @@ class AlgoMintX {
 
   async listNFT({ assetId, nftPrice }) {
     try {
+      this.processing = true;
+      this.#showLoadingOverlay();
+      eventBus.emit("sdk:processing:started", { processing: this.processing });
+
       if (!this.#walletConnected || !this.account) {
+        // Maximize SDK if minimized to show login screen
+        if (this.isMinimized) {
+          this.maximizeSDK(true);
+        }
         throw new Error("Wallet is not connected");
       }
       if (!assetId || !nftPrice) {
@@ -1526,10 +1525,6 @@ class AlgoMintX {
       if (isNaN(assetId) || isNaN(nftPrice)) {
         throw new Error("Asset ID and price must be a number.");
       }
-
-      this.processing = true;
-      this.#showLoadingOverlay();
-      eventBus.emit("sdk:processing:started", { processing: this.processing });
 
       // Get suggested parameters
       const suggestedParams = await this.#algodClient
@@ -1628,8 +1623,6 @@ class AlgoMintX {
       this.processing = false;
       this.#hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
-
-      // console.error("Error listing NFT:", error);
       eventBus.emit("nft:list:failed", { error: "Could not list NFT!" });
       throw error;
     }
@@ -1637,7 +1630,15 @@ class AlgoMintX {
 
   async buyNFT({ assetId }) {
     try {
+      this.processing = true;
+      this.#showLoadingOverlay();
+      eventBus.emit("sdk:processing:started", { processing: this.processing });
+
       if (!this.#walletConnected || !this.account) {
+        // Maximize SDK if minimized to show login screen
+        if (this.isMinimized) {
+          this.maximizeSDK(true);
+        }
         throw new Error("Wallet is not connected.");
       }
 
@@ -1648,10 +1649,6 @@ class AlgoMintX {
       if (isNaN(assetId)) {
         throw new Error("Asset ID must be a number.");
       }
-
-      this.processing = true;
-      this.#showLoadingOverlay();
-      eventBus.emit("sdk:processing:started", { processing: this.processing });
 
       // Get the listing box reference
       const nftData = await this.getNFTMetadata({ assetId });
@@ -1759,8 +1756,6 @@ class AlgoMintX {
       this.processing = false;
       this.#hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
-
-      // console.error("Failed to buy NFT:", error);
       eventBus.emit("nft:buy:failed", { error: "Could not buy NFT!" });
       throw error;
     }
@@ -1780,7 +1775,6 @@ class AlgoMintX {
     const processingMessage = document.getElementById(
       "algomintx-processing-message"
     );
-    const logoutBtn = document.getElementById("logoutBtn");
     if (!overlay) return;
 
     // Apply theme to overlay
@@ -1797,15 +1791,16 @@ class AlgoMintX {
       } wallet on your mobile to continue`;
     }
 
-    // Disable logout button
-    if (logoutBtn) {
-      logoutBtn.disabled = true;
-    }
-
     // Show overlay with animation
     requestAnimationFrame(() => {
       overlay.classList.add("visible");
     });
+
+    // Disable logout button
+    const logoutBtn = document.getElementById("logoutBtn");
+    if (logoutBtn) {
+      logoutBtn.disabled = true;
+    }
   }
 
   #hideLoadingOverlay() {
@@ -1816,16 +1811,18 @@ class AlgoMintX {
     }
 
     const overlay = document.getElementById("algomintx-loading-overlay");
-    const logoutBtn = document.getElementById("logoutBtn");
     if (!overlay) return;
 
+    // Hide overlay with animation using requestAnimationFrame
+    requestAnimationFrame(() => {
+      overlay.classList.remove("visible");
+    });
+
     // Enable logout button
+    const logoutBtn = document.getElementById("logoutBtn");
     if (logoutBtn) {
       logoutBtn.disabled = false;
     }
-
-    // Hide overlay with animation
-    overlay.classList.remove("visible");
   }
 }
 
