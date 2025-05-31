@@ -324,6 +324,7 @@ class AlgoMintX {
 
       <div id="algomintx-loading-overlay">
         <div id="algomintx-loader"></div>
+        <div id="algomintx-processing-message"></div>
       </div>
     `;
 
@@ -1672,6 +1673,9 @@ class AlgoMintX {
     }
 
     const overlay = document.getElementById("algomintx-loading-overlay");
+    const processingMessage = document.getElementById(
+      "algomintx-processing-message"
+    );
     const logoutBtn = document.getElementById("logoutBtn");
     if (!overlay) return;
 
@@ -1680,6 +1684,13 @@ class AlgoMintX {
       overlay.classList.add("dark-theme");
     } else {
       overlay.classList.remove("dark-theme");
+    }
+
+    // Update processing message
+    if (processingMessage && this.#selectedWalletType) {
+      processingMessage.textContent = `Processing... Open ${
+        this.#selectedWalletType
+      } wallet on your mobile to continue`;
     }
 
     // Disable logout button
