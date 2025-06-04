@@ -178,6 +178,17 @@ main {
   background-color: #1976d2;
 }
 
+.btn-warning {
+  background-color: #ffc107;
+  color: #000;
+  border: 1px solid #ffc107;
+}
+
+.btn-warning:hover {
+  background-color: #ffb300;
+  border-color: #ffb300;
+}
+
 /* Modal */
 .modal {
   display: none;

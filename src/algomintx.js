@@ -30,6 +30,7 @@ class AlgoMintX {
   #revenueWalletAddress;
   #listingFee;
   #buyingFee;
+  #unListingFee;
   #disableToast;
   #minimizeUILocation;
   #logo;
@@ -209,6 +210,7 @@ class AlgoMintX {
     revenueWalletAddress,
     listingFee = 0,
     buyingFee = 0,
+    unListingFee = 0,
     disableToast = false,
     minimizeUILocation = "right",
     logo = null,
@@ -227,6 +229,7 @@ class AlgoMintX {
         this.#validateRevenueWalletAddress(revenueWalletAddress);
       this.#listingFee = this.#validateFee(listingFee, "Listing fee");
       this.#buyingFee = this.#validateFee(buyingFee, "Buying fee");
+      this.#unListingFee = this.#validateFee(unListingFee, "unListingFee fee");
       this.#disableToast = this.#validateDisableToast(disableToast);
       this.#minimizeUILocation =
         this.#validateMinimizeUILocation(minimizeUILocation);
@@ -256,11 +259,11 @@ class AlgoMintX {
 
       // Initialize contract details
       this.#contractApplicationId =
-        this.network === "mainnet" ? 739334702 : 739334702;
+        this.network === "mainnet" ? 740618565 : 740618565;
       this.#contractWalletAddress =
         this.network === "mainnet"
-          ? "PPDA6RHCANRK6TDK4TCEHTCUV32BCXND6UYZFXJ3YJGF6DROIXLYSOGRJQ"
-          : "PPDA6RHCANRK6TDK4TCEHTCUV32BCXND6UYZFXJ3YJGF6DROIXLYSOGRJQ";
+          ? "WT4FYX3TGHMB65WUBQFZEXQPAIDQ4R7FILXN3UP62KKAIWXTJKW6XONOSI"
+          : "WT4FYX3TGHMB65WUBQFZEXQPAIDQ4R7FILXN3UP62KKAIWXTJKW6XONOSI";
 
       // Initialize SDK variables
       this.#indexerUrl =
@@ -1765,6 +1768,130 @@ class AlgoMintX {
       this.#hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
       eventBus.emit("nft:buy:failed", { error: "Could not buy NFT!" });
+      throw error;
+    }
+  }
+
+  async unlistNFT({ assetId }) {
+    try {
+      this.processing = true;
+      this.#showLoadingOverlay();
+      eventBus.emit("sdk:processing:started", { processing: this.processing });
+
+      if (!this.#walletConnected || !this.account) {
+        // Maximize SDK if minimized to show login screen
+        if (this.isMinimized) {
+          this.maximizeSDK(true);
+        }
+        throw new Error("Wallet is not connected.");
+      }
+
+      if (!assetId) {
+        throw new Error("Asset ID is required.");
+      }
+
+      if (isNaN(assetId)) {
+        throw new Error("Asset ID must be a number.");
+      }
+
+      // Get the listing box reference
+      const nftData = await this.getNFTMetadata({ assetId });
+
+      // Get suggested parameters
+      const suggestedParams = await this.#algodClient
+        .getTransactionParams()
+        .do();
+
+      const oneMicroAlgo = { ...suggestedParams, flatFee: true, fee: 1000 }; // 0.001 Algo
+      const twoMicroAlgo = { ...suggestedParams, flatFee: true, fee: 2000 }; // 0.002 Algo
+      const threeMicroAlgo = { ...suggestedParams, flatFee: true, fee: 3000 }; // 0.003 Algo
+      const fourMicroAlgo = { ...suggestedParams, flatFee: true, fee: 4000 }; // 0.004 Algo
+      const fiveMicroAlgo = { ...suggestedParams, flatFee: true, fee: 5000 }; // 0.005 Algo
+
+      // Get the wallet connector
+      const walletConnector = this.#walletConnectors[this.#selectedWalletType];
+
+      // Get the listing box reference
+      const boxRef = this.#getListingBoxReference(
+        this.#contractApplicationId,
+        assetId
+      );
+
+      const receiverOptInToNFTTxn =
+        algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+          sender: this.account,
+          receiver: this.account,
+          amount: 0,
+          assetIndex: assetId,
+          suggestedParams,
+        });
+
+      const transferNFTToSellerAndRemoveListingMethod = encoder.methods.find(
+        (m) => m.name === "transferNFTToSellerAndRemoveListing"
+      );
+      const transferNFTToSellerAndRemoveListingTxn =
+        algosdk.makeApplicationCallTxnFromObject({
+          sender: this.account,
+          appIndex: this.#contractApplicationId,
+          onComplete: algosdk.OnApplicationComplete.NoOpOC,
+          appArgs: [
+            transferNFTToSellerAndRemoveListingMethod.getSelector(),
+            algosdk.ABIType.from("uint64").encode(BigInt(assetId)),
+            algosdk.ABIType.from("string").encode(this.account),
+          ],
+          boxes: [boxRef],
+          foreignAssets: [assetId],
+          suggestedParams: threeMicroAlgo,
+        });
+
+      const revenueTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        sender: this.account,
+        receiver: this.#revenueWalletAddress,
+        amount: this.#algosToMicroAlgos(this.#unListingFee),
+        suggestedParams,
+      });
+
+      const unlistingGroup = [
+        receiverOptInToNFTTxn,
+        transferNFTToSellerAndRemoveListingTxn,
+      ];
+
+      // if unlisting fee is greater than 0, add revenue transaction to the unlisting group
+      if (this.#unListingFee > 0) {
+        unlistingGroup.push(revenueTxn);
+      }
+
+      algosdk.assignGroupID(unlistingGroup);
+
+      const signedUnlisting = await walletConnector.signTransaction([
+        unlistingGroup.map((txn) => ({ txn, signers: [this.account] })),
+      ]);
+      const { txid: unlistingTxId } = await this.#algodClient
+        .sendRawTransaction(signedUnlisting)
+        .do();
+
+      await algosdk.waitForConfirmation(this.#algodClient, unlistingTxId, 10);
+
+      this.processing = false;
+      this.#hideLoadingOverlay();
+      eventBus.emit("sdk:processing:stopped", { processing: this.processing });
+
+      // Emit event for successful purchase
+      eventBus.emit("nft:unlist:success", {
+        assetId,
+        transactionId: unlistingTxId,
+      });
+
+      return {
+        assetId,
+        price: nftData.listing.price,
+        transactionId: buyingTxId,
+      };
+    } catch (error) {
+      this.processing = false;
+      this.#hideLoadingOverlay();
+      eventBus.emit("sdk:processing:stopped", { processing: this.processing });
+      eventBus.emit("nft:unlist:failed", { error: "Could not unlist NFT!" });
       throw error;
     }
   }

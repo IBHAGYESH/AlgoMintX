@@ -5,10 +5,14 @@ window.algoMintXClient = new window.AlgoMintX({
   pinata_ipfs_server_key: "", // your pinata api key
   pinata_ipfs_gateway_url: "", // your pinata gateway url
   env: "testnet", // testnet | mainnet
-  namespace: "", // unique 5 letter string
+  namespace: "DEMOY", // unique 5 letter string
   revenueWalletAddress: "", // where fees go
   listingFee: 0.1, // in Algos
+  unListingFee: 0.1, // in Algos
   buyingFee: 0.5, // in Algos
+  disableToast: true, // disable toast notifications
+  minimizeUILocation: "right", // left | right
+  logo: "", // your website logo (URL / path to image)
 });
 
 /**
@@ -69,13 +73,24 @@ algoMintXClient.events.on("nft:list:failed", async ({ error }) => {
 
 algoMintXClient.events.on(
   "nft:buy:success",
-  async ({ transactionId, assetId }) => {
-    console.log("nft:buy:success:", transactionId, assetId);
+  async ({ transactionId, price, assetId }) => {
+    console.log("nft:buy:success:", transactionId, price, assetId);
   }
 );
 
 algoMintXClient.events.on("nft:buy:failed", async ({ error }) => {
   console.log("nft:buy:failed:", error);
+});
+
+algoMintXClient.events.on(
+  "nft:unlist:success",
+  async ({ transactionId, price, assetId }) => {
+    console.log("nft:unlist:success:", transactionId, price, assetId);
+  }
+);
+
+algoMintXClient.events.on("nft:unlist:failed", async ({ error }) => {
+  console.log("nft:unlist:failed:", error);
 });
 
 /**
@@ -96,9 +111,18 @@ window.renderNFTCards = function (nfts) {
     const card = document.createElement("div");
     card.className = "nft-card";
 
-    const buttonHtml = nft.listing
-      ? `<button class="btn btn-primary buy-nft-btn" onclick="window.algoMintXClient.buyNFT({ assetId: ${nft.assetId} })">Buy Now</button>`
-      : `<button class="btn btn-secondary list-nft-btn" onclick="openListNFTModal(${nft.assetId})">List NFT</button>`;
+    let buttonHtml = "";
+    if (nft.listing) {
+      if (nft.listing.seller === window.algoMintXClient.account) {
+        // Show unlist button if seller is the current user
+        buttonHtml = `<button class="btn btn-warning unlist-nft-btn" onclick="window.algoMintXClient.unlistNFT({ assetId: ${nft.assetId} })">Unlist NFT</button>`;
+      } else {
+        // Show buy button if seller is not the current user
+        buttonHtml = `<button class="btn btn-primary buy-nft-btn" onclick="window.algoMintXClient.buyNFT({ assetId: ${nft.assetId} })">Buy Now</button>`;
+      }
+    } else {
+      buttonHtml = `<button class="btn btn-secondary list-nft-btn" onclick="openListNFTModal(${nft.assetId})">List NFT</button>`;
+    }
 
     card.innerHTML = `
       <img src="${nft.metadata.image}" alt="${nft.name}" class="nft-image">
@@ -119,7 +143,8 @@ window.renderNFTCards = function (nfts) {
     card.addEventListener("click", (e) => {
       if (
         e.target.classList.contains("buy-nft-btn") ||
-        e.target.classList.contains("list-nft-btn")
+        e.target.classList.contains("list-nft-btn") ||
+        e.target.classList.contains("unlist-nft-btn")
       ) {
         return;
       }
