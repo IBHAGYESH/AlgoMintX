@@ -136,6 +136,9 @@ class AlgoMintX {
       this.#sdkValidationFailed(error.message);
     }
   }
+  /**
+   * SDK parameters Validation
+   */
 
   #validateRequired(value, paramName) {
     if (value === undefined || value === null) {
@@ -302,6 +305,19 @@ class AlgoMintX {
     );
   }
 
+  #sdkValidationFailed(message) {
+    localStorage.removeItem("walletconnect");
+    localStorage.removeItem("DeflyWallet.Wallet");
+    localStorage.removeItem("PeraWallet.Wallet");
+
+    alert(message);
+    window.location.reload();
+  }
+
+  /**
+   * SDK private methods
+   */
+
   #getSystemTheme() {
     return window.matchMedia("(prefers-color-scheme: dark)").matches
       ? "dark"
@@ -359,15 +375,6 @@ class AlgoMintX {
         theme: this.theme,
       })
     );
-  }
-
-  #sdkValidationFailed(message) {
-    localStorage.removeItem("walletconnect");
-    localStorage.removeItem("DeflyWallet.Wallet");
-    localStorage.removeItem("PeraWallet.Wallet");
-
-    alert(message);
-    window.location.reload();
   }
 
   async #initUI() {
@@ -617,7 +624,7 @@ class AlgoMintX {
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(
           () => reject(new Error("Wallet connection timed out.")),
-          30 * 1000
+          60 * 1000
         )
       );
 
@@ -1192,6 +1199,10 @@ class AlgoMintX {
       logoutBtn.disabled = false;
     }
   }
+
+  /**
+   * SDK public methods
+   */
 
   minimizeSDK(initialLoad) {
     if (!initialLoad && this.isMinimized) return;
