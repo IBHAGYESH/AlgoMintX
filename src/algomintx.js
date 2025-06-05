@@ -215,7 +215,26 @@ class AlgoMintX {
 
   #validatePinataGatewayUrl(url) {
     const validatedUrl = this.#validateString(url, "Pinata IPFS gateway URL");
+
+    // Check for https:// or http://
+    if (
+      validatedUrl.startsWith("http://") ||
+      validatedUrl.startsWith("https://")
+    ) {
+      throw new Error(
+        "Pinata IPFS gateway URL must not include http:// or https://"
+      );
+    }
+
+    // Check for any forward slashes
+    if (validatedUrl.includes("/")) {
+      throw new Error(
+        "Pinata IPFS gateway URL must not contain any forward slashes"
+      );
+    }
+
     try {
+      // Test if it's a valid URL by adding https://
       new URL(`https://${validatedUrl}`);
       return validatedUrl;
     } catch (e) {
