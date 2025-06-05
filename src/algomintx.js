@@ -402,7 +402,7 @@ class AlgoMintX {
         </div>
         <div>
           <button id="themeToggleBtn" title="Toggle Theme">🌓</button>
-          <button id="logoutBtn" title="Logout">⇥</button>
+          <button id="logoutBtn" title="Logout">⏻</button>
           <button id="sdkMinimizeBtn" title="Minimize">&#x2013;</button>
         </div>
       </div>
