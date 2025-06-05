@@ -1167,9 +1167,9 @@ class AlgoMintX {
 
     // Update processing message
     if (processingMessage && this.#selectedWalletType) {
-      processingMessage.textContent = `Processing... Open ${
+      processingMessage.innerHTML = `Processing... Open ${
         this.#selectedWalletType
-      } wallet on your mobile to continue`;
+      } wallet on your mobile to continue<br><br>Please do not reload the page or close the tab`;
     }
 
     // Show overlay with animation
