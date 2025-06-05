@@ -430,3 +430,40 @@ footer {
 .buy-nft-btn:hover {
   background-color: #1976d2;
 }
+
+.walletBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem 2rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  background-color: #ffffff;
+  color: #333;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  margin-bottom: 1rem;
+}
+
+.walletBtn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.walletBtn img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+#walletChoiceScreen {
+  display: flex;
+  flex-direction: column;
+  padding: 2rem;
+  max-width: 400px;
+  margin: 0 auto;
+}

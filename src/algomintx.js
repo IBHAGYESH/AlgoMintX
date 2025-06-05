@@ -408,8 +408,14 @@ class AlgoMintX {
       </div>
     
       <div id="walletChoiceScreen">
-        <button class="walletBtn" data-wallet="pera">Connect Pera Wallet</button>
-        <button class="walletBtn" data-wallet="defly">Connect Defly Wallet</button>
+        <button class="walletBtn" data-wallet="pera">
+          <img src="https://perawallet.s3.amazonaws.com/images/media-kit/logomark-white.svg" alt="Pera Wallet" />
+          Connect Pera Wallet
+        </button>
+        <button class="walletBtn" data-wallet="defly">
+          <img src="https://docs.defly.app/~gitbook/image?url=https%3A%2F%2F2700986753-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fcollections%252FWDbwYIFtoiPa3JoJufCw%252Ficon%252FbQUUOW6VhH6vKR0XH7UB%252Flogo-notext-whiteonblack.png%3Falt%3Dmedia%26token%3D7d62c65b-fd29-47b6-a83b-162caac2fc8f&width=32&dpr=2&quality=100&sign=952138fe&sv=2" alt="Defly Wallet" />
+          Connect Defly Wallet
+        </button>
       </div>
     
       <div id="sdkUI">
