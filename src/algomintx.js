@@ -1293,7 +1293,11 @@ class AlgoMintX {
   }
 
   #convertIpfsToHttp(ipfsUrl, gateway = "https://ipfs.io/ipfs/") {
-    return ipfsUrl.replace("ipfs://", gateway);
+    if (gateway) {
+      return ipfsUrl.replace("ipfs://", `https://${gateway}/ipfs/`);
+    } else {
+      return ipfsUrl.replace("ipfs://", gateway);
+    }
   }
 
   #microAlgosToAlgos(microAlgos) {
@@ -1483,7 +1487,6 @@ class AlgoMintX {
         // Check if the wallet actually holds this NFT (amount > 0)
         if (holding.amount === 0) continue;
 
-        // You only care about NFTs: total supply = 1 and decimals = 0
         const assetId = holding["asset-id"];
         const assetUrl = `${this.#indexerUrl}/v2/assets/${assetId}`;
         const assetRes = await fetch(assetUrl);
@@ -1495,24 +1498,26 @@ class AlgoMintX {
         if (
           params.total !== 1 ||
           params.decimals !== 0 ||
+          (params.clawback &&
+            params.clawback !== this.#contractWalletAddress) || // filter out NFTs that are not owned by the contract or not set to clawback
           params["unit-name"] !== this.#unitName // only show current marketplce nfts
         )
           continue;
 
         const nft = {
+          ...params,
           assetId,
-          name: params.name,
-          unitName: params["unit-name"],
-          url: params.url,
         };
 
         // Handle IPFS metadata
-        if (params.url?.startsWith("ipfs://")) {
-          const ipfsHash = params.url.replace("ipfs://", "");
+        const metadataUrl = params.url;
+        if (metadataUrl?.startsWith("ipfs://")) {
+          const ipfsUrl = this.#convertIpfsToHttp(
+            metadataUrl,
+            this.#pinata_ipfs_gateway_url
+          );
           try {
-            const metadataRes = await fetch(
-              `https://${this.#pinata_ipfs_gateway_url}/ipfs/${ipfsHash}`
-            );
+            const metadataRes = await fetch(ipfsUrl);
             if (metadataRes.ok) {
               const metadata = await metadataRes.json();
               if (
@@ -1524,52 +1529,11 @@ class AlgoMintX {
                 metadata.image.startsWith("ipfs://") &&
                 metadata.minted_by === this.#metadataMark
               ) {
-                metadata.image = this.#convertIpfsToHttp(metadata.image);
+                metadata.image = this.#convertIpfsToHttp(
+                  metadata.image,
+                  this.#pinata_ipfs_gateway_url
+                );
                 nft.metadata = metadata;
-
-                // Fetch box data for this NFT
-                try {
-                  const boxRef = this.#getListingBoxReference(
-                    this.#contractApplicationId,
-                    assetId
-                  );
-                  const boxUrl = `${this.#indexerUrl}/v2/applications/${
-                    this.#contractApplicationId
-                  }/boxes?name=${Buffer.from(boxRef.name).toString("base64")}`;
-                  const boxRes = await fetch(boxUrl);
-
-                  if (boxRes.ok) {
-                    const boxData = await boxRes.json();
-                    if (boxData.boxes && boxData.boxes.length > 0) {
-                      // Find the box that matches our asset ID
-                      for (const box of boxData.boxes) {
-                        try {
-                          const decodedBox =
-                            await this.#decodeListingBoxFromAlgod(box.name);
-                          if (decodedBox.key === `listing_${assetId}`) {
-                            nft.listing = {
-                              seller: decodedBox.value.seller,
-                              price: decodedBox.value.nftPrice,
-                            };
-                            break; // Found and processed the matching box
-                          }
-                        } catch (decodeError) {
-                          console.warn(
-                            `Failed to decode box for NFT ${assetId}:`,
-                            decodeError
-                          );
-                        }
-                      }
-                    }
-                  }
-                } catch (boxError) {
-                  console.warn(
-                    `Failed to fetch box data for NFT ${assetId}:`,
-                    boxError
-                  );
-                }
-
-                nfts.push(nft);
               }
             }
           } catch (err) {
@@ -1579,6 +1543,51 @@ class AlgoMintX {
             );
           }
         }
+
+        // Fetch box data for this NFT
+        try {
+          const boxRef = this.#getListingBoxReference(
+            this.#contractApplicationId,
+            assetId
+          );
+          const boxUrl = `${this.#indexerUrl}/v2/applications/${
+            this.#contractApplicationId
+          }/boxes?name=${Buffer.from(boxRef.name).toString("base64")}`;
+          const boxRes = await fetch(boxUrl);
+
+          if (boxRes.ok) {
+            const boxData = await boxRes.json();
+            if (boxData.boxes && boxData.boxes.length > 0) {
+              // Find the box that matches our asset ID
+              for (const box of boxData.boxes) {
+                try {
+                  const decodedBox = await this.#decodeListingBoxFromAlgod(
+                    box.name
+                  );
+                  if (decodedBox.key === `listing_${assetId}`) {
+                    nft.listing = {
+                      seller: decodedBox.value.seller,
+                      price: decodedBox.value.nftPrice,
+                    };
+                    break; // Found and processed the matching box
+                  }
+                } catch (decodeError) {
+                  console.warn(
+                    `Failed to decode box for NFT ${assetId}:`,
+                    decodeError
+                  );
+                }
+              }
+            }
+          }
+        } catch (boxError) {
+          console.warn(
+            `Failed to fetch box data for NFT ${assetId}:`,
+            boxError
+          );
+        }
+
+        nfts.push(nft);
       }
     } catch (error) {
       console.error("Error fetching NFTs by wallet:", error.message);
@@ -1611,7 +1620,6 @@ class AlgoMintX {
         // Check if the wallet actually holds this NFT (amount > 0)
         if (holding.amount === 0) continue;
 
-        // You only care about NFTs: total supply = 1 and decimals = 0
         const assetId = holding["asset-id"];
         const assetUrl = `${this.#indexerUrl}/v2/assets/${assetId}`;
         const assetRes = await fetch(assetUrl);
@@ -1628,19 +1636,19 @@ class AlgoMintX {
           continue;
 
         const nft = {
+          ...params,
           assetId,
-          name: params.name,
-          unitName: params["unit-name"],
-          url: params.url,
         };
 
         // Handle IPFS metadata
-        if (params.url?.startsWith("ipfs://")) {
-          const ipfsHash = params.url.replace("ipfs://", "");
+        const metadataUrl = params.url;
+        if (metadataUrl?.startsWith("ipfs://")) {
+          const ipfsUrl = this.#convertIpfsToHttp(
+            metadataUrl,
+            this.#pinata_ipfs_gateway_url
+          );
           try {
-            const metadataRes = await fetch(
-              `https://${this.#pinata_ipfs_gateway_url}/ipfs/${ipfsHash}`
-            );
+            const metadataRes = await fetch(ipfsUrl);
             if (metadataRes.ok) {
               const metadata = await metadataRes.json();
               if (
@@ -1651,9 +1659,11 @@ class AlgoMintX {
                 metadata.image &&
                 metadata.image.startsWith("ipfs://")
               ) {
-                metadata.image = this.#convertIpfsToHttp(metadata.image);
+                metadata.image = this.#convertIpfsToHttp(
+                  metadata.image,
+                  this.#pinata_ipfs_gateway_url
+                );
                 nft.metadata = metadata;
-                nfts.push(nft);
               }
             }
           } catch (err) {
@@ -1663,6 +1673,8 @@ class AlgoMintX {
             );
           }
         }
+
+        nfts.push(nft);
       }
     } catch (error) {
       console.error("Error fetching NFTs by wallet:", error.message);
@@ -1674,43 +1686,54 @@ class AlgoMintX {
 
   async getNFTMetadata({ assetId }) {
     try {
-      // Initialize metadata object
-      const metadata = {
+      const assetUrl = `${this.#indexerUrl}/v2/assets/${assetId}`;
+      const assetRes = await fetch(assetUrl);
+      if (!assetRes.ok) {
+        throw new Error(`Failed to fetch asset data: ${assetRes.status}`);
+      }
+      const assetData = await assetRes.json();
+      const params = assetData.asset.params;
+
+      const nft = {
+        ...params,
         assetId,
-        transactionId: null,
-        isListed: false,
-        listing: null,
       };
 
-      // Step 1: Get asset config transaction (mint)
-      const txUrl = `${
-        this.#indexerUrl
-      }/v2/transactions?asset-id=${assetId}&tx-type=acfg`;
-      const txRes = await fetch(txUrl);
-      if (!txRes.ok) {
-        throw new Error(
-          `Failed to fetch asset config transaction: ${txRes.status}`
+      // Handle IPFS metadata
+      const metadataUrl = params.url;
+      if (metadataUrl?.startsWith("ipfs://")) {
+        const ipfsUrl = this.#convertIpfsToHttp(
+          metadataUrl,
+          this.#pinata_ipfs_gateway_url
         );
+        try {
+          const metadataRes = await fetch(ipfsUrl);
+          if (!metadataRes.ok) {
+            throw new Error(
+              `Failed to fetch IPFS metadata: ${metadataRes.status}`
+            );
+          }
+          const metadata = await metadataRes.json();
+          if (
+            metadata.decimals === 0 &&
+            metadata.image_integrity &&
+            metadata.image_mimetype &&
+            metadata.standard &&
+            metadata.image &&
+            metadata.image.startsWith("ipfs://")
+          ) {
+            metadata.image = this.#convertIpfsToHttp(
+              metadata.image,
+              this.#pinata_ipfs_gateway_url
+            );
+            nft.metadata = metadata;
+          }
+        } catch (err) {
+          console.warn(`IPFS metadata fetch failed for asset ${assetId}`, err);
+        }
       }
-      const txData = await txRes.json();
-      metadata.transactionId = txData.transactions?.[0]?.id;
 
-      // Step 2: Get asset metadata from indexer
-      const indexerUrl = `${this.#indexerUrl}/v2/assets/${assetId}`;
-      const response = await fetch(indexerUrl);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch asset data: ${response.status}`);
-      }
-      const data = await response.json();
-      const params = data.asset.params;
-
-      // Add asset parameters to metadata
-      Object.assign(metadata, {
-        ...params,
-        assetId: data.asset.index,
-      });
-
-      // Step 3: Check if NFT is listed by fetching box data
+      // Fetch box data for this NFT
       try {
         const boxRef = this.#getListingBoxReference(
           this.#contractApplicationId,
@@ -1731,7 +1754,7 @@ class AlgoMintX {
                   box.name
                 );
                 if (decodedBox.key === `listing_${assetId}`) {
-                  metadata.listing = {
+                  nft.listing = {
                     seller: decodedBox.value.seller,
                     price: decodedBox.value.nftPrice,
                   };
@@ -1751,29 +1774,20 @@ class AlgoMintX {
         console.error(`NFT ${assetId} is not listed: ${error.message}`);
       }
 
-      // Step 4: Get IPFS metadata if available
-      const metadataUrl = params.url;
-      if (metadataUrl?.startsWith("ipfs://")) {
-        const ipfsUrl = this.#convertIpfsToHttp(metadataUrl);
-        const metaRes = await fetch(ipfsUrl);
-        if (!metaRes.ok) {
-          throw new Error(`Failed to fetch IPFS metadata: ${metaRes.status}`);
-        }
-        const ipfsMetadata = await metaRes.json();
-        if (
-          ipfsMetadata.decimals === 0 &&
-          ipfsMetadata.image_integrity &&
-          ipfsMetadata.image_mimetype &&
-          ipfsMetadata.standard &&
-          ipfsMetadata.image &&
-          ipfsMetadata.image.startsWith("ipfs://")
-        ) {
-          ipfsMetadata.image = this.#convertIpfsToHttp(ipfsMetadata.image);
-          Object.assign(metadata, ipfsMetadata);
-        }
+      // Fetch transaction id for this NFT
+      const txUrl = `${
+        this.#indexerUrl
+      }/v2/transactions?asset-id=${assetId}&tx-type=acfg`;
+      const txRes = await fetch(txUrl);
+      if (!txRes.ok) {
+        throw new Error(
+          `Failed to fetch asset config transaction: ${txRes.status}`
+        );
       }
+      const txData = await txRes.json();
+      nft.transactionId = txData.transactions?.[0]?.id;
 
-      return metadata;
+      return nft;
     } catch (error) {
       console.error("Failed to fetch NFT metadata:", err);
       throw error; // Re-throw to allow caller to handle the error
