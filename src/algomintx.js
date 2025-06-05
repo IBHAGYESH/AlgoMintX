@@ -37,6 +37,106 @@ class AlgoMintX {
   #supportedNetworks;
   #theme;
 
+  constructor({
+    pinata_ipfs_server_key,
+    pinata_ipfs_gateway_url,
+    env,
+    namespace,
+    revenueWalletAddress,
+    listingFee = 0,
+    buyingFee = 0,
+    unListingFee = 0,
+    disableToast = false,
+    minimizeUILocation = "right",
+    logo = null,
+  }) {
+    try {
+      // Validate all parameters
+      this.#pinata_ipfs_server_key = this.#validatePinataServerKey(
+        pinata_ipfs_server_key
+      );
+      this.#pinata_ipfs_gateway_url = this.#validatePinataGatewayUrl(
+        pinata_ipfs_gateway_url
+      );
+      this.network = this.#validateEnvironment(env);
+      this.#namespace = this.#validateNamespace(namespace);
+      this.#revenueWalletAddress =
+        this.#validateRevenueWalletAddress(revenueWalletAddress);
+      this.#listingFee = this.#validateFee(listingFee, "Listing fee");
+      this.#buyingFee = this.#validateFee(buyingFee, "Buying fee");
+      this.#unListingFee = this.#validateFee(unListingFee, "unListingFee fee");
+      this.#disableToast = this.#validateDisableToast(disableToast);
+      this.#minimizeUILocation =
+        this.#validateMinimizeUILocation(minimizeUILocation);
+      this.#logo = this.#validateLogo(logo);
+
+      // Initialize other properties
+      this.#supportedNetworks = ["mainnet", "testnet"];
+      this.#walletConnectors = {
+        pera: new PeraWalletConnect(),
+        defly: new DeflyWalletConnect(),
+      };
+      this.#walletConnected = false;
+      this.account = null;
+      this.#connectionInfo = null;
+      this.#connectionInProgress = false;
+      this.#supportedWallets = ["pera", "defly"];
+      this.#selectedWalletType = null;
+
+      // Initialize algosdk client
+      this.#algodClient = new algosdk.Algodv2(
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        this.network === "mainnet"
+          ? "https://mainnet-api.algonode.cloud"
+          : "https://testnet-api.algonode.cloud",
+        443
+      );
+
+      // Initialize contract details
+      this.#contractApplicationId =
+        this.network === "mainnet" ? 740618565 : 740618565;
+      this.#contractWalletAddress =
+        this.network === "mainnet"
+          ? "WT4FYX3TGHMB65WUBQFZEXQPAIDQ4R7FILXN3UP62KKAIWXTJKW6XONOSI"
+          : "WT4FYX3TGHMB65WUBQFZEXQPAIDQ4R7FILXN3UP62KKAIWXTJKW6XONOSI";
+
+      // Initialize SDK variables
+      this.#indexerUrl =
+        this.network === "mainnet"
+          ? "https://mainnet-idx.algonode.cloud"
+          : "https://testnet-idx.algonode.cloud";
+      this.#unitName = `AMX${this.#namespace}`;
+      this.#metadataMark = "AlgoMintX";
+      this.events = eventBus;
+
+      // Initialize UI state
+      this.#messageElement = null;
+      this.processing = false;
+
+      // Load saved UI state
+      const savedState = localStorage.getItem("amx");
+      if (savedState) {
+        try {
+          const parsedState = JSON.parse(savedState);
+          this.isMinimized = parsedState.minimized || false;
+          this.theme = parsedState.theme || this.#getSystemTheme();
+        } catch (e) {
+          this.isMinimized = false;
+          this.theme = this.#getSystemTheme();
+        }
+      } else {
+        this.isMinimized = false;
+        this.theme = this.#getSystemTheme();
+      }
+
+      // Save initial state and initialize UI
+      this.#saveUIState();
+      this.#initUI();
+    } catch (error) {
+      this.#sdkValidationFailed(error.message);
+    }
+  }
+
   #validateRequired(value, paramName) {
     if (value === undefined || value === null) {
       throw new Error(`${paramName} is required`);
@@ -200,106 +300,6 @@ class AlgoMintX {
     throw new Error(
       "Logo must be either a valid URL or a valid local file path"
     );
-  }
-
-  constructor({
-    pinata_ipfs_server_key,
-    pinata_ipfs_gateway_url,
-    env,
-    namespace,
-    revenueWalletAddress,
-    listingFee = 0,
-    buyingFee = 0,
-    unListingFee = 0,
-    disableToast = false,
-    minimizeUILocation = "right",
-    logo = null,
-  }) {
-    try {
-      // Validate all parameters
-      this.#pinata_ipfs_server_key = this.#validatePinataServerKey(
-        pinata_ipfs_server_key
-      );
-      this.#pinata_ipfs_gateway_url = this.#validatePinataGatewayUrl(
-        pinata_ipfs_gateway_url
-      );
-      this.network = this.#validateEnvironment(env);
-      this.#namespace = this.#validateNamespace(namespace);
-      this.#revenueWalletAddress =
-        this.#validateRevenueWalletAddress(revenueWalletAddress);
-      this.#listingFee = this.#validateFee(listingFee, "Listing fee");
-      this.#buyingFee = this.#validateFee(buyingFee, "Buying fee");
-      this.#unListingFee = this.#validateFee(unListingFee, "unListingFee fee");
-      this.#disableToast = this.#validateDisableToast(disableToast);
-      this.#minimizeUILocation =
-        this.#validateMinimizeUILocation(minimizeUILocation);
-      this.#logo = this.#validateLogo(logo);
-
-      // Initialize other properties
-      this.#supportedNetworks = ["mainnet", "testnet"];
-      this.#walletConnectors = {
-        pera: new PeraWalletConnect(),
-        defly: new DeflyWalletConnect(),
-      };
-      this.#walletConnected = false;
-      this.account = null;
-      this.#connectionInfo = null;
-      this.#connectionInProgress = false;
-      this.#supportedWallets = ["pera", "defly"];
-      this.#selectedWalletType = null;
-
-      // Initialize algosdk client
-      this.#algodClient = new algosdk.Algodv2(
-        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        this.network === "mainnet"
-          ? "https://mainnet-api.algonode.cloud"
-          : "https://testnet-api.algonode.cloud",
-        443
-      );
-
-      // Initialize contract details
-      this.#contractApplicationId =
-        this.network === "mainnet" ? 740618565 : 740618565;
-      this.#contractWalletAddress =
-        this.network === "mainnet"
-          ? "WT4FYX3TGHMB65WUBQFZEXQPAIDQ4R7FILXN3UP62KKAIWXTJKW6XONOSI"
-          : "WT4FYX3TGHMB65WUBQFZEXQPAIDQ4R7FILXN3UP62KKAIWXTJKW6XONOSI";
-
-      // Initialize SDK variables
-      this.#indexerUrl =
-        this.network === "mainnet"
-          ? "https://mainnet-idx.algonode.cloud"
-          : "https://testnet-idx.algonode.cloud";
-      this.#unitName = `AMX${this.#namespace}`;
-      this.#metadataMark = "AlgoMintX";
-      this.events = eventBus;
-
-      // Initialize UI state
-      this.#messageElement = null;
-      this.processing = false;
-
-      // Load saved UI state
-      const savedState = localStorage.getItem("amx");
-      if (savedState) {
-        try {
-          const parsedState = JSON.parse(savedState);
-          this.isMinimized = parsedState.minimized || false;
-          this.theme = parsedState.theme || this.#getSystemTheme();
-        } catch (e) {
-          this.isMinimized = false;
-          this.theme = this.#getSystemTheme();
-        }
-      } else {
-        this.isMinimized = false;
-        this.theme = this.#getSystemTheme();
-      }
-
-      // Save initial state and initialize UI
-      this.#saveUIState();
-      this.#initUI();
-    } catch (error) {
-      this.#sdkValidationFailed(error.message);
-    }
   }
 
   #getSystemTheme() {
@@ -588,79 +588,6 @@ class AlgoMintX {
       });
       this.#resetToLoginUI();
     }
-  }
-
-  minimizeSDK(initialLoad) {
-    if (!initialLoad && this.isMinimized) return;
-
-    const container = document.getElementById("algomintx-sdk-container");
-    const minimizedBtn = document.getElementById("sdkMinimizedBtn");
-
-    // Set position based on minimizeUILocation
-    minimizedBtn.style.right =
-      this.#minimizeUILocation === "right" ? "20px" : "auto";
-    minimizedBtn.style.left =
-      this.#minimizeUILocation === "left" ? "20px" : "auto";
-
-    // Start minimizing animation
-    container.classList.add("minimizing");
-    minimizedBtn.style.display = "block";
-
-    // Wait for the minimizing animation to complete
-    setTimeout(() => {
-      container.style.display = "none";
-      container.classList.remove("minimizing");
-
-      // Start showing minimized button animation
-      requestAnimationFrame(() => {
-        minimizedBtn.classList.add("showing");
-        // Add processing class if processing is active
-        if (this.processing) {
-          minimizedBtn.classList.add("processing");
-        }
-      });
-    }, 300);
-
-    this.isMinimized = true;
-    this.#saveUIState();
-    eventBus.emit("window:size:minimized", { minimized: this.isMinimized });
-  }
-
-  maximizeSDK(initialLoad) {
-    if (!initialLoad && !this.isMinimized) return;
-
-    const container = document.getElementById("algomintx-sdk-container");
-    const minimizedBtn = document.getElementById("sdkMinimizedBtn");
-
-    // Start hiding minimized button animation
-    minimizedBtn.classList.remove("showing");
-    minimizedBtn.classList.add("hiding");
-
-    // Wait for the hiding animation to complete
-    setTimeout(() => {
-      minimizedBtn.style.display = "none";
-      minimizedBtn.classList.remove("hiding");
-      minimizedBtn.classList.remove("processing"); // Remove processing class
-
-      // Show and animate the main container
-      container.style.display = "flex";
-      container.classList.add("maximizing");
-
-      // Force a reflow
-      container.offsetHeight;
-
-      requestAnimationFrame(() => {
-        container.classList.remove("maximizing");
-        // Show loading overlay if processing
-        if (this.processing) {
-          this.#showLoadingOverlay();
-        }
-      });
-    }, 300);
-
-    this.isMinimized = false;
-    this.#saveUIState();
-    eventBus.emit("window:size:minimized", { minimized: this.isMinimized });
   }
 
   async #startWalletConnection(walletType) {
@@ -1169,6 +1096,176 @@ class AlgoMintX {
     };
   }
 
+  #convertIpfsToHttp(ipfsUrl, gateway = "https://ipfs.io/ipfs/") {
+    return ipfsUrl.replace("ipfs://", gateway);
+  }
+
+  #microAlgosToAlgos(microAlgos) {
+    return Number(microAlgos / 1_000_000);
+  }
+
+  #algosToMicroAlgos(algos) {
+    return Math.round(algos * 1_000_000);
+  }
+
+  #getListingBoxReference(appIndex, assetId) {
+    const prefix = "listing_";
+    const encodedAssetId = algosdk.encodeUint64(BigInt(assetId)); // Uint64 to 8-byte Buffer
+    const boxName = new Uint8Array([
+      ...Buffer.from(prefix), // "listing_" as bytes
+      ...encodedAssetId, // 8-byte encoded assetId
+    ]);
+
+    return { appIndex, name: boxName };
+  }
+
+  #getBoxNameB64(assetId) {
+    const prefix = "listing_";
+    const encodedAssetId = algosdk.encodeUint64(BigInt(assetId)); // Uint64 to 8-byte Buffer
+    const boxName = new Uint8Array([
+      ...Buffer.from(prefix), // "listing_" as bytes
+      ...encodedAssetId, // 8-byte encoded assetId
+    ]);
+    return Buffer.from(boxName).toString("base64");
+  }
+
+  #showLoadingOverlay() {
+    if (this.isMinimized) {
+      // Show processing spinner on minimized button
+      const minimizedBtn = document.getElementById("sdkMinimizedBtn");
+      if (minimizedBtn) {
+        minimizedBtn.classList.add("processing");
+      }
+      return;
+    }
+
+    const overlay = document.getElementById("algomintx-loading-overlay");
+    const processingMessage = document.getElementById(
+      "algomintx-processing-message"
+    );
+    if (!overlay) return;
+
+    // Apply theme to overlay
+    if (this.theme === "dark") {
+      overlay.classList.add("dark-theme");
+    } else {
+      overlay.classList.remove("dark-theme");
+    }
+
+    // Update processing message
+    if (processingMessage && this.#selectedWalletType) {
+      processingMessage.textContent = `Processing... Open ${
+        this.#selectedWalletType
+      } wallet on your mobile to continue`;
+    }
+
+    // Show overlay with animation
+    requestAnimationFrame(() => {
+      overlay.classList.add("visible");
+    });
+
+    // Disable logout button
+    const logoutBtn = document.getElementById("logoutBtn");
+    if (logoutBtn) {
+      logoutBtn.disabled = true;
+    }
+  }
+
+  #hideLoadingOverlay() {
+    // Remove processing spinner from minimized button
+    const minimizedBtn = document.getElementById("sdkMinimizedBtn");
+    if (minimizedBtn) {
+      minimizedBtn.classList.remove("processing");
+    }
+
+    const overlay = document.getElementById("algomintx-loading-overlay");
+    if (!overlay) return;
+
+    // Hide overlay with animation using requestAnimationFrame
+    requestAnimationFrame(() => {
+      overlay.classList.remove("visible");
+    });
+
+    // Enable logout button
+    const logoutBtn = document.getElementById("logoutBtn");
+    if (logoutBtn) {
+      logoutBtn.disabled = false;
+    }
+  }
+
+  minimizeSDK(initialLoad) {
+    if (!initialLoad && this.isMinimized) return;
+
+    const container = document.getElementById("algomintx-sdk-container");
+    const minimizedBtn = document.getElementById("sdkMinimizedBtn");
+
+    // Set position based on minimizeUILocation
+    minimizedBtn.style.right =
+      this.#minimizeUILocation === "right" ? "20px" : "auto";
+    minimizedBtn.style.left =
+      this.#minimizeUILocation === "left" ? "20px" : "auto";
+
+    // Start minimizing animation
+    container.classList.add("minimizing");
+    minimizedBtn.style.display = "block";
+
+    // Wait for the minimizing animation to complete
+    setTimeout(() => {
+      container.style.display = "none";
+      container.classList.remove("minimizing");
+
+      // Start showing minimized button animation
+      requestAnimationFrame(() => {
+        minimizedBtn.classList.add("showing");
+        // Add processing class if processing is active
+        if (this.processing) {
+          minimizedBtn.classList.add("processing");
+        }
+      });
+    }, 300);
+
+    this.isMinimized = true;
+    this.#saveUIState();
+    eventBus.emit("window:size:minimized", { minimized: this.isMinimized });
+  }
+
+  maximizeSDK(initialLoad) {
+    if (!initialLoad && !this.isMinimized) return;
+
+    const container = document.getElementById("algomintx-sdk-container");
+    const minimizedBtn = document.getElementById("sdkMinimizedBtn");
+
+    // Start hiding minimized button animation
+    minimizedBtn.classList.remove("showing");
+    minimizedBtn.classList.add("hiding");
+
+    // Wait for the hiding animation to complete
+    setTimeout(() => {
+      minimizedBtn.style.display = "none";
+      minimizedBtn.classList.remove("hiding");
+      minimizedBtn.classList.remove("processing"); // Remove processing class
+
+      // Show and animate the main container
+      container.style.display = "flex";
+      container.classList.add("maximizing");
+
+      // Force a reflow
+      container.offsetHeight;
+
+      requestAnimationFrame(() => {
+        container.classList.remove("maximizing");
+        // Show loading overlay if processing
+        if (this.processing) {
+          this.#showLoadingOverlay();
+        }
+      });
+    }, 300);
+
+    this.isMinimized = false;
+    this.#saveUIState();
+    eventBus.emit("window:size:minimized", { minimized: this.isMinimized });
+  }
+
   async getListedNFTs() {
     const nfts = [];
 
@@ -1481,39 +1578,6 @@ class AlgoMintX {
       console.error("Failed to fetch NFT metadata:", err);
       throw error; // Re-throw to allow caller to handle the error
     }
-  }
-
-  #convertIpfsToHttp(ipfsUrl, gateway = "https://ipfs.io/ipfs/") {
-    return ipfsUrl.replace("ipfs://", gateway);
-  }
-
-  #microAlgosToAlgos(microAlgos) {
-    return Number(microAlgos / 1_000_000);
-  }
-
-  #algosToMicroAlgos(algos) {
-    return Math.round(algos * 1_000_000);
-  }
-
-  #getListingBoxReference(appIndex, assetId) {
-    const prefix = "listing_";
-    const encodedAssetId = algosdk.encodeUint64(BigInt(assetId)); // Uint64 to 8-byte Buffer
-    const boxName = new Uint8Array([
-      ...Buffer.from(prefix), // "listing_" as bytes
-      ...encodedAssetId, // 8-byte encoded assetId
-    ]);
-
-    return { appIndex, name: boxName };
-  }
-
-  #getBoxNameB64(assetId) {
-    const prefix = "listing_";
-    const encodedAssetId = algosdk.encodeUint64(BigInt(assetId)); // Uint64 to 8-byte Buffer
-    const boxName = new Uint8Array([
-      ...Buffer.from(prefix), // "listing_" as bytes
-      ...encodedAssetId, // 8-byte encoded assetId
-    ]);
-    return Buffer.from(boxName).toString("base64");
   }
 
   async listNFT({ assetId, nftPrice }) {
@@ -1893,70 +1957,6 @@ class AlgoMintX {
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
       eventBus.emit("nft:unlist:failed", { error: "Could not unlist NFT!" });
       throw error;
-    }
-  }
-
-  #showLoadingOverlay() {
-    if (this.isMinimized) {
-      // Show processing spinner on minimized button
-      const minimizedBtn = document.getElementById("sdkMinimizedBtn");
-      if (minimizedBtn) {
-        minimizedBtn.classList.add("processing");
-      }
-      return;
-    }
-
-    const overlay = document.getElementById("algomintx-loading-overlay");
-    const processingMessage = document.getElementById(
-      "algomintx-processing-message"
-    );
-    if (!overlay) return;
-
-    // Apply theme to overlay
-    if (this.theme === "dark") {
-      overlay.classList.add("dark-theme");
-    } else {
-      overlay.classList.remove("dark-theme");
-    }
-
-    // Update processing message
-    if (processingMessage && this.#selectedWalletType) {
-      processingMessage.textContent = `Processing... Open ${
-        this.#selectedWalletType
-      } wallet on your mobile to continue`;
-    }
-
-    // Show overlay with animation
-    requestAnimationFrame(() => {
-      overlay.classList.add("visible");
-    });
-
-    // Disable logout button
-    const logoutBtn = document.getElementById("logoutBtn");
-    if (logoutBtn) {
-      logoutBtn.disabled = true;
-    }
-  }
-
-  #hideLoadingOverlay() {
-    // Remove processing spinner from minimized button
-    const minimizedBtn = document.getElementById("sdkMinimizedBtn");
-    if (minimizedBtn) {
-      minimizedBtn.classList.remove("processing");
-    }
-
-    const overlay = document.getElementById("algomintx-loading-overlay");
-    if (!overlay) return;
-
-    // Hide overlay with animation using requestAnimationFrame
-    requestAnimationFrame(() => {
-      overlay.classList.remove("visible");
-    });
-
-    // Enable logout button
-    const logoutBtn = document.getElementById("logoutBtn");
-    if (logoutBtn) {
-      logoutBtn.disabled = false;
     }
   }
 }
