@@ -421,7 +421,7 @@ class AlgoMintX {
       <div id="sdkUI">
         <input type="text" id="nftName" placeholder="NFT Name" />
         <textarea id="nftDescription" placeholder="NFT Description"></textarea>
-        <input type="file" id="nftFile" />
+        <input type="file" id="nftFile" accept="image/*,video/*" />
         <button id="#mintNFTBtn" title="Mint NFT">Mint NFT</button>
         <button id="resetNFTBtn">Mint another NFT</button>
         <div id="sdkMessages" title="Click to copy"></div>
@@ -532,6 +532,23 @@ class AlgoMintX {
 
       // Check if already connected (from localStorage)
       await this.#loadConnectionFromStorage();
+
+      // Add validation for mint button
+      const nftName = document.getElementById("nftName");
+      const nftDescription = document.getElementById("nftDescription");
+      const nftFile = document.getElementById("nftFile");
+
+      // Setup input validation and sanitization
+      this.#setupNFTInputValidation();
+
+      nftName.addEventListener("input", () => this.#validateMintButton());
+      nftDescription.addEventListener("input", () =>
+        this.#validateMintButton()
+      );
+      nftFile.addEventListener("change", () => this.#validateMintButton());
+
+      // Initial validation
+      this.#validateMintButton();
     } catch (error) {
       console.error(error, "init");
     }
@@ -786,12 +803,170 @@ class AlgoMintX {
     if (this.processing) {
       return;
     }
-    document.getElementById("nftName").value = "";
-    document.getElementById("nftDescription").value = "";
-    document.getElementById("nftFile").value = "";
-    document.getElementById("#mintNFTBtn").style.display = "block";
-    document.getElementById("resetNFTBtn").style.display = "none";
+
+    // Reset form fields
+    const nftName = document.getElementById("nftName");
+    const nftDescription = document.getElementById("nftDescription");
+    const nftFile = document.getElementById("nftFile");
+    const mintBtn = document.getElementById("#mintNFTBtn");
+    const resetBtn = document.getElementById("resetNFTBtn");
+
+    nftName.value = "";
+    nftDescription.value = "";
+    nftFile.value = "";
+
+    // Reset UI state
+    mintBtn.style.display = "block";
+    resetBtn.style.display = "none";
+    mintBtn.disabled = true; // Keep button disabled until fields are filled
     this.#clearMessage();
+
+    // Re-validate mint button
+    this.#validateMintButton();
+  }
+
+  #validateMintButton() {
+    const mintBtn = document.getElementById("#mintNFTBtn");
+    const nftName = document.getElementById("nftName");
+    const nftDescription = document.getElementById("nftDescription");
+    const nftFile = document.getElementById("nftFile");
+
+    const isNameValid = nftName.value.trim().length > 0;
+    const isDescriptionValid = nftDescription.value.trim().length > 0;
+    const isFileValid = nftFile.files.length > 0;
+    mintBtn.disabled = !(isNameValid && isDescriptionValid && isFileValid);
+  }
+
+  #sanitizeInput(input) {
+    // Remove any HTML tags
+    input = input.replace(/<[^>]*>/g, "");
+    // Remove any script tags and their content
+    input = input.replace(
+      /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+      ""
+    );
+    // Remove any special characters except basic punctuation and spaces
+    input = input.replace(/[^a-zA-Z0-9\s.,!?-]/g, "");
+    // Remove multiple spaces
+    input = input.replace(/\s+/g, " ");
+    return input.trim();
+  }
+
+  #validateNFTName(name) {
+    // Check length (between 1 and 50 characters)
+    if (name.length < 1 || name.length > 50) {
+      return {
+        valid: false,
+        message: "NFT name must be between 1 and 50 characters",
+      };
+    }
+    return { valid: true };
+  }
+
+  #validateNFTDescription(description) {
+    // Check length (between 1 and 500 characters)
+    if (description.length < 1 || description.length > 500) {
+      return {
+        valid: false,
+        message: "NFT description must be between 1 and 500 characters",
+      };
+    }
+    return { valid: true };
+  }
+
+  #validateFileType(file) {
+    const allowedImageTypes = [
+      "image/jpeg",
+      "image/png",
+      "image/gif",
+      "image/webp",
+      "image/svg+xml",
+    ];
+
+    const allowedVideoTypes = [
+      "video/mp4",
+      "video/webm",
+      "video/ogg",
+      "video/quicktime",
+    ];
+
+    const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
+
+    if (!allowedTypes.includes(file.type)) {
+      return {
+        valid: false,
+        message:
+          "Please upload an image (JPEG, PNG, GIF, WebP, SVG) or video (MP4, WebM, OGG, MOV) file",
+      };
+    }
+
+    // Check file size (max 100MB)
+    const maxSize = 100 * 1024 * 1024; // 100MB in bytes
+    if (file.size > maxSize) {
+      return {
+        valid: false,
+        message: "File size must be less than 100MB",
+      };
+    }
+
+    return { valid: true };
+  }
+
+  #setupNFTInputValidation() {
+    const nftName = document.getElementById("nftName");
+    const nftDescription = document.getElementById("nftDescription");
+    const nftFile = document.getElementById("nftFile");
+
+    // Add input event listeners for real-time validation
+    nftName.addEventListener("input", (e) => {
+      const sanitized = this.#sanitizeInput(e.target.value);
+      if (sanitized !== e.target.value) {
+        e.target.value = sanitized;
+      }
+      this.#validateMintButton();
+    });
+
+    nftDescription.addEventListener("input", (e) => {
+      const sanitized = this.#sanitizeInput(e.target.value);
+      if (sanitized !== e.target.value) {
+        e.target.value = sanitized;
+      }
+      this.#validateMintButton();
+    });
+
+    // Add file validation
+    nftFile.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const validation = this.#validateFileType(file);
+        if (!validation.valid) {
+          this.#showToast(validation.message, "error");
+          e.target.value = ""; // Clear the file input
+        }
+      }
+      this.#validateMintButton();
+    });
+
+    // Add paste event listeners to sanitize pasted content
+    nftName.addEventListener("paste", (e) => {
+      e.preventDefault();
+      const pastedText = (e.clipboardData || window.clipboardData).getData(
+        "text"
+      );
+      const sanitized = this.#sanitizeInput(pastedText);
+      e.target.value = sanitized;
+      this.#validateMintButton();
+    });
+
+    nftDescription.addEventListener("paste", (e) => {
+      e.preventDefault();
+      const pastedText = (e.clipboardData || window.clipboardData).getData(
+        "text"
+      );
+      const sanitized = this.#sanitizeInput(pastedText);
+      e.target.value = sanitized;
+      this.#validateMintButton();
+    });
   }
 
   async #validateNFTDetails() {
@@ -799,21 +974,23 @@ class AlgoMintX {
       return;
     }
 
-    this.processing = true;
-    this.#showLoadingOverlay();
-    eventBus.emit("sdk:processing:started", { processing: this.processing });
-
-    const name = document.getElementById("nftName").value.trim();
-    const description = document.getElementById("nftDescription").value.trim();
+    const name = this.#sanitizeInput(document.getElementById("nftName").value);
+    const description = this.#sanitizeInput(
+      document.getElementById("nftDescription").value
+    );
     const fileInput = document.getElementById("nftFile");
 
-    if (!name) {
-      this.#showToast("Please enter NFT name.", "error");
+    // Validate name
+    const nameValidation = this.#validateNFTName(name);
+    if (!nameValidation.valid) {
+      this.#showToast(nameValidation.message, "error");
       return;
     }
 
-    if (!description) {
-      this.#showToast("Please enter NFT description.", "error");
+    // Validate description
+    const descriptionValidation = this.#validateNFTDescription(description);
+    if (!descriptionValidation.valid) {
+      this.#showToast(descriptionValidation.message, "error");
       return;
     }
 
@@ -822,11 +999,24 @@ class AlgoMintX {
       return;
     }
 
+    // Validate file type
+    const fileValidation = this.#validateFileType(fileInput.files[0]);
+    if (!fileValidation.valid) {
+      this.#showToast(fileValidation.message, "error");
+      return;
+    }
+
+    // Disable UI elements
     this.#messageElement.style.display = "block";
     this.#messageElement.style.cursor = "default";
     this.#messageElement.innerText = "Minting NFT... Please wait.";
     document.getElementById("#mintNFTBtn").disabled = true;
     document.getElementById("logoutBtn").disabled = true;
+
+    // show loading overlay after validation
+    this.processing = true;
+    this.#showLoadingOverlay();
+    eventBus.emit("sdk:processing:started", { processing: this.processing });
 
     try {
       const { transactionId, assetId } = await this.#mintNFT({
@@ -863,17 +1053,10 @@ class AlgoMintX {
       this.#hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
 
-      document.getElementById("nftName").value = "";
-      document.getElementById("nftDescription").value = "";
-      document.getElementById("nftFile").value = "";
-
-      document.getElementById("#mintNFTBtn").disabled = false;
-      document.getElementById("logoutBtn").disabled = false;
-
-      this.#clearMessage();
+      // Reset form on error
+      this.#resetNFTDetails();
 
       this.#showToast("Failed to mint NFT!", "error");
-
       eventBus.emit("nft:mint:failed", { error: "Failed to mint NFT!" });
     }
   }
