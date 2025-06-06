@@ -1071,10 +1071,11 @@ class AlgoMintX {
       document.getElementById("#mintNFTBtn").disabled = false;
       document.getElementById("logoutBtn").disabled = false;
 
+      const nftData = await this.getNFTMetadata({ assetId });
+
       eventBus.emit("nft:mint:success", {
         transactionId,
-        assetId,
-        address: this.account,
+        nft: nftData,
       });
     } catch (error) {
       this.processing = false;
@@ -1134,7 +1135,7 @@ class AlgoMintX {
     // 4. Upload metadata JSON to IPFS to get the CID for assetURL
     const metadataIpfsHash = await this.#uploadJSONToIPFS(metadata);
 
-    // 4. Create Algorand asset (NFT) pointing to metadata URL
+    // 5. Create Algorand asset (NFT) pointing to metadata URL
     const { txid, assetId } = await this.#createAlgorandAsset(
       metadataIpfsHash,
       name,
@@ -1942,16 +1943,16 @@ class AlgoMintX {
       this.#hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
 
+      const nftData = await this.getNFTMetadata({ assetId });
+
       // Emit event for successful listing
       eventBus.emit("nft:list:success", {
-        assetId,
-        price: nftPrice,
+        nft: nftData,
         transactionId: listingTxId,
       });
 
       return {
-        assetId,
-        price: nftPrice,
+        nft: nftData,
         transactionId: listingTxId,
       };
     } catch (error) {
@@ -1959,6 +1960,130 @@ class AlgoMintX {
       this.#hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
       eventBus.emit("nft:list:failed", { error: "Could not list NFT!" });
+      throw error;
+    }
+  }
+
+  async unlistNFT({ assetId }) {
+    try {
+      this.processing = true;
+      this.#showLoadingOverlay();
+      eventBus.emit("sdk:processing:started", { processing: this.processing });
+
+      if (!this.#walletConnected || !this.account) {
+        // Maximize SDK if minimized to show login screen
+        if (this.isMinimized) {
+          this.maximizeSDK(true);
+        }
+        throw new Error("Wallet is not connected.");
+      }
+
+      if (!assetId) {
+        throw new Error("Asset ID is required.");
+      }
+
+      if (isNaN(assetId)) {
+        throw new Error("Asset ID must be a number.");
+      }
+
+      const nftData = await this.getNFTMetadata({ assetId });
+
+      // Get suggested parameters
+      const suggestedParams = await this.#algodClient
+        .getTransactionParams()
+        .do();
+
+      const oneMicroAlgo = { ...suggestedParams, flatFee: true, fee: 1000 }; // 0.001 Algo
+      const twoMicroAlgo = { ...suggestedParams, flatFee: true, fee: 2000 }; // 0.002 Algo
+      const threeMicroAlgo = { ...suggestedParams, flatFee: true, fee: 3000 }; // 0.003 Algo
+      const fourMicroAlgo = { ...suggestedParams, flatFee: true, fee: 4000 }; // 0.004 Algo
+      const fiveMicroAlgo = { ...suggestedParams, flatFee: true, fee: 5000 }; // 0.005 Algo
+
+      // Get the wallet connector
+      const walletConnector = this.#walletConnectors[this.#selectedWalletType];
+
+      // Get the listing box reference
+      const boxRef = this.#getListingBoxReference(
+        this.#contractApplicationId,
+        assetId
+      );
+
+      const receiverOptInToNFTTxn =
+        algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+          sender: this.account,
+          receiver: this.account,
+          amount: 0,
+          assetIndex: assetId,
+          suggestedParams,
+        });
+
+      const transferNFTToSellerAndRemoveListingMethod = encoder.methods.find(
+        (m) => m.name === "transferNFTToSellerAndRemoveListing"
+      );
+      const transferNFTToSellerAndRemoveListingTxn =
+        algosdk.makeApplicationCallTxnFromObject({
+          sender: this.account,
+          appIndex: this.#contractApplicationId,
+          onComplete: algosdk.OnApplicationComplete.NoOpOC,
+          appArgs: [
+            transferNFTToSellerAndRemoveListingMethod.getSelector(),
+            algosdk.ABIType.from("uint64").encode(BigInt(assetId)),
+            algosdk.ABIType.from("string").encode(this.account),
+          ],
+          boxes: [boxRef],
+          foreignAssets: [assetId],
+          suggestedParams: threeMicroAlgo,
+        });
+
+      const revenueTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        sender: this.account,
+        receiver: this.#revenueWalletAddress,
+        amount: this.#algosToMicroAlgos(this.#unListingFee),
+        suggestedParams,
+      });
+
+      const unlistingGroup = [
+        receiverOptInToNFTTxn,
+        transferNFTToSellerAndRemoveListingTxn,
+      ];
+
+      // if unlisting fee is greater than 0, add revenue transaction to the unlisting group
+      if (this.#unListingFee > 0) {
+        unlistingGroup.push(revenueTxn);
+      }
+
+      algosdk.assignGroupID(unlistingGroup);
+
+      const signedUnlisting = await walletConnector.signTransaction([
+        unlistingGroup.map((txn) => ({ txn, signers: [this.account] })),
+      ]);
+      const { txid: unlistingTxId } = await this.#algodClient
+        .sendRawTransaction(signedUnlisting)
+        .do();
+
+      await algosdk.waitForConfirmation(this.#algodClient, unlistingTxId, 10);
+
+      this.processing = false;
+      this.#hideLoadingOverlay();
+      eventBus.emit("sdk:processing:stopped", { processing: this.processing });
+
+      const newNftData = await this.getNFTMetadata({ assetId });
+
+      // Emit event for successful purchase
+      eventBus.emit("nft:buy:success", {
+        nft: newNftData,
+        transactionId: unlistingTxId,
+      });
+
+      return {
+        nft: newNftData,
+        transactionId: unlistingTxId,
+      };
+    } catch (error) {
+      this.processing = false;
+      this.#hideLoadingOverlay();
+      eventBus.emit("sdk:processing:stopped", { processing: this.processing });
+      eventBus.emit("nft:unlist:failed", { error: "Could not unlist NFT!" });
       throw error;
     }
   }
@@ -2080,15 +2205,16 @@ class AlgoMintX {
       this.#hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
 
+      const newNftData = await this.getNFTMetadata({ assetId });
+
       // Emit event for successful purchase
       eventBus.emit("nft:buy:success", {
-        assetId,
+        nft: newNftData,
         transactionId: buyingTxId,
       });
 
       return {
-        assetId,
-        price: nftData.listing.price,
+        nft: newNftData,
         transactionId: buyingTxId,
       };
     } catch (error) {
@@ -2096,130 +2222,6 @@ class AlgoMintX {
       this.#hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
       eventBus.emit("nft:buy:failed", { error: "Could not buy NFT!" });
-      throw error;
-    }
-  }
-
-  async unlistNFT({ assetId }) {
-    try {
-      this.processing = true;
-      this.#showLoadingOverlay();
-      eventBus.emit("sdk:processing:started", { processing: this.processing });
-
-      if (!this.#walletConnected || !this.account) {
-        // Maximize SDK if minimized to show login screen
-        if (this.isMinimized) {
-          this.maximizeSDK(true);
-        }
-        throw new Error("Wallet is not connected.");
-      }
-
-      if (!assetId) {
-        throw new Error("Asset ID is required.");
-      }
-
-      if (isNaN(assetId)) {
-        throw new Error("Asset ID must be a number.");
-      }
-
-      // Get the listing box reference
-      const nftData = await this.getNFTMetadata({ assetId });
-
-      // Get suggested parameters
-      const suggestedParams = await this.#algodClient
-        .getTransactionParams()
-        .do();
-
-      const oneMicroAlgo = { ...suggestedParams, flatFee: true, fee: 1000 }; // 0.001 Algo
-      const twoMicroAlgo = { ...suggestedParams, flatFee: true, fee: 2000 }; // 0.002 Algo
-      const threeMicroAlgo = { ...suggestedParams, flatFee: true, fee: 3000 }; // 0.003 Algo
-      const fourMicroAlgo = { ...suggestedParams, flatFee: true, fee: 4000 }; // 0.004 Algo
-      const fiveMicroAlgo = { ...suggestedParams, flatFee: true, fee: 5000 }; // 0.005 Algo
-
-      // Get the wallet connector
-      const walletConnector = this.#walletConnectors[this.#selectedWalletType];
-
-      // Get the listing box reference
-      const boxRef = this.#getListingBoxReference(
-        this.#contractApplicationId,
-        assetId
-      );
-
-      const receiverOptInToNFTTxn =
-        algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
-          sender: this.account,
-          receiver: this.account,
-          amount: 0,
-          assetIndex: assetId,
-          suggestedParams,
-        });
-
-      const transferNFTToSellerAndRemoveListingMethod = encoder.methods.find(
-        (m) => m.name === "transferNFTToSellerAndRemoveListing"
-      );
-      const transferNFTToSellerAndRemoveListingTxn =
-        algosdk.makeApplicationCallTxnFromObject({
-          sender: this.account,
-          appIndex: this.#contractApplicationId,
-          onComplete: algosdk.OnApplicationComplete.NoOpOC,
-          appArgs: [
-            transferNFTToSellerAndRemoveListingMethod.getSelector(),
-            algosdk.ABIType.from("uint64").encode(BigInt(assetId)),
-            algosdk.ABIType.from("string").encode(this.account),
-          ],
-          boxes: [boxRef],
-          foreignAssets: [assetId],
-          suggestedParams: threeMicroAlgo,
-        });
-
-      const revenueTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-        sender: this.account,
-        receiver: this.#revenueWalletAddress,
-        amount: this.#algosToMicroAlgos(this.#unListingFee),
-        suggestedParams,
-      });
-
-      const unlistingGroup = [
-        receiverOptInToNFTTxn,
-        transferNFTToSellerAndRemoveListingTxn,
-      ];
-
-      // if unlisting fee is greater than 0, add revenue transaction to the unlisting group
-      if (this.#unListingFee > 0) {
-        unlistingGroup.push(revenueTxn);
-      }
-
-      algosdk.assignGroupID(unlistingGroup);
-
-      const signedUnlisting = await walletConnector.signTransaction([
-        unlistingGroup.map((txn) => ({ txn, signers: [this.account] })),
-      ]);
-      const { txid: unlistingTxId } = await this.#algodClient
-        .sendRawTransaction(signedUnlisting)
-        .do();
-
-      await algosdk.waitForConfirmation(this.#algodClient, unlistingTxId, 10);
-
-      this.processing = false;
-      this.#hideLoadingOverlay();
-      eventBus.emit("sdk:processing:stopped", { processing: this.processing });
-
-      // Emit event for successful purchase
-      eventBus.emit("nft:unlist:success", {
-        assetId,
-        transactionId: unlistingTxId,
-      });
-
-      return {
-        assetId,
-        price: nftData.listing.price,
-        transactionId: buyingTxId,
-      };
-    } catch (error) {
-      this.processing = false;
-      this.#hideLoadingOverlay();
-      eventBus.emit("sdk:processing:stopped", { processing: this.processing });
-      eventBus.emit("nft:unlist:failed", { error: "Could not unlist NFT!" });
       throw error;
     }
   }
