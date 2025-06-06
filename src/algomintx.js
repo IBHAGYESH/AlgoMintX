@@ -36,6 +36,7 @@ class AlgoMintX {
   #logo;
   #supportedNetworks;
   #theme;
+  #toastLocation;
 
   constructor({
     pinata_ipfs_server_key,
@@ -49,6 +50,7 @@ class AlgoMintX {
     disableToast = false,
     minimizeUILocation = "right",
     logo = null,
+    toastLocation = "TOP_RIGHT",
   }) {
     try {
       // Validate all parameters
@@ -69,6 +71,7 @@ class AlgoMintX {
       this.#minimizeUILocation =
         this.#validateMinimizeUILocation(minimizeUILocation);
       this.#logo = this.#validateLogo(logo);
+      this.#toastLocation = this.#validateToastLocation(toastLocation);
 
       // Initialize other properties
       this.#supportedNetworks = ["mainnet", "testnet"];
@@ -322,6 +325,13 @@ class AlgoMintX {
     throw new Error(
       "Logo must be either a valid URL or a valid local file path"
     );
+  }
+
+  #validateToastLocation(location) {
+    return this.#validateEnum(location, "Toast location", [
+      "TOP_LEFT",
+      "TOP_RIGHT",
+    ]);
   }
 
   #sdkValidationFailed(message) {
@@ -618,9 +628,7 @@ class AlgoMintX {
         }
 
         this.#showToast(
-          `Restored connection to ${this.#connectionInfo.peerMeta.name}: ${
-            this.account
-          }`,
+          `Restored connection to ${this.#connectionInfo.peerMeta.name}`,
           "success"
         );
 
@@ -681,10 +689,7 @@ class AlgoMintX {
       this.#connectionInfo = { address: this.account, walletType };
 
       this.#showSDKUI();
-      this.#showToast(
-        `Connected to ${walletType} wallet: ${this.account}`,
-        "success"
-      );
+      this.#showToast(`Connected to ${walletType} wallet`, "success");
       this.#updateWalletAddressBar();
       eventBus.emit("wallet:connection:connected", { address: this.account });
       this.#connectionInProgress = false;
@@ -780,7 +785,30 @@ class AlgoMintX {
 
     const toast = document.createElement("div");
     toast.id = "algomintx-toast";
-    toast.innerText = message;
+
+    // Create toast content container
+    const toastContent = document.createElement("div");
+    toastContent.className = "toast-content";
+    toastContent.innerText = message;
+
+    // Create close button
+    const closeButton = document.createElement("button");
+    closeButton.className = "toast-close";
+    closeButton.innerHTML = "×";
+    closeButton.onclick = () => {
+      toast.style.opacity = "0";
+      toast.addEventListener(
+        "transitionend",
+        () => {
+          if (toast.parentElement) toast.parentElement.removeChild(toast);
+        },
+        { once: true }
+      );
+    };
+
+    // Add content and close button to toast
+    toast.appendChild(toastContent);
+    toast.appendChild(closeButton);
 
     // Assign toast type class dynamically
     if (type === "error") {
@@ -790,6 +818,10 @@ class AlgoMintX {
     } else {
       toast.classList.add("info");
     }
+
+    // Set toast location - convert to lowercase for CSS class
+    const locationClass = this.#toastLocation.toLowerCase().replace("_", "-");
+    toast.classList.add(locationClass);
 
     document.body.appendChild(toast);
 

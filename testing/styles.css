@@ -429,82 +429,40 @@ footer {
   background-color: #45a049;
 }
 
-.walletBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  padding: 1rem 2rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-  background-color: #ffffff;
-  color: #333;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  width: 100%;
-}
-
-.walletBtn:hover {
-  transform: translateY(-2px);
-}
-
-.walletBtn img {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-}
-
-#walletChoiceScreen {
-  display: flex;
-  flex-direction: column;
-  max-width: 400px;
-}
-
-#\#mintNFTBtn:disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-#\#mintNFTBtn:disabled:hover {
-  transform: none;
-  box-shadow: none;
-}
-
 /* NFT Actions */
 .nft-actions {
   margin-top: 20px;
-  text-align: center;
+  display: flex;
+  gap: 10px;
 }
 
 .action-button {
-  padding: 12px 24px;
-  font-size: 16px;
+  padding: 8px 16px;
   border: none;
-  border-radius: 8px;
+  border-radius: 4px;
   cursor: pointer;
-  font-weight: bold;
-  transition: all 0.3s ease;
+  font-weight: 500;
+  transition: all 0.2s ease;
 }
 
 .buy-button {
-  background-color: #4caf50; /* Green for buy actions */
+  background-color: #4caf50;
   color: white;
 }
 
 .unlist-button {
-  background-color: #f44336; /* Red for unlist actions */
+  background-color: #f44336;
   color: white;
 }
 
 .list-button {
-  background-color: #2196f3; /* Blue for list actions */
+  background-color: #2196f3;
   color: white;
 }
 
 .action-button:hover {
   opacity: 0.9;
-  transform: translateY(-2px);
+  transform: translateY(-1px);
 }
 
 .action-button:active {

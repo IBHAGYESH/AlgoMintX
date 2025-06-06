@@ -10,9 +10,10 @@ window.algoMintXClient = new window.AlgoMintX({
   listingFee: 0.1, // in Algos
   unListingFee: 0.1, // in Algos
   buyingFee: 0.5, // in Algos
-  disableToast: true, // disable toast notifications
+  disableToast: false, // disable toast notifications
+  toastLocation: "TOP_RIGHT", // TOP_LEFT | TOP_RIGHT
   minimizeUILocation: "right", // left | right
-  logo: "", // your website logo (URL / path to image)
+  logo: "./logo.png", // your website logo (URL / path to image)
 });
 
 /**
@@ -51,8 +52,8 @@ algoMintXClient.events.on("sdk:processing:stopped", async ({ processing }) => {
 
 algoMintXClient.events.on(
   "nft:mint:success",
-  async ({ transactionId, assetId, address }) => {
-    console.log("nft:mint:success:", transactionId, assetId, address);
+  async ({ transactionId, nft }) => {
+    console.log("nft:mint:success:", transactionId, nft);
   }
 );
 
@@ -62,8 +63,8 @@ algoMintXClient.events.on("nft:mint:failed", async ({ error }) => {
 
 algoMintXClient.events.on(
   "nft:list:success",
-  async ({ transactionId, assetId, price }) => {
-    console.log("nft:list:success:", transactionId, assetId, price);
+  async ({ transactionId, nft }) => {
+    console.log("nft:list:success:", transactionId, nft);
   }
 );
 
@@ -72,25 +73,22 @@ algoMintXClient.events.on("nft:list:failed", async ({ error }) => {
 });
 
 algoMintXClient.events.on(
-  "nft:buy:success",
-  async ({ transactionId, price, assetId }) => {
-    console.log("nft:buy:success:", transactionId, price, assetId);
-  }
-);
-
-algoMintXClient.events.on("nft:buy:failed", async ({ error }) => {
-  console.log("nft:buy:failed:", error);
-});
-
-algoMintXClient.events.on(
   "nft:unlist:success",
-  async ({ transactionId, price, assetId }) => {
-    console.log("nft:unlist:success:", transactionId, price, assetId);
+  async ({ transactionId, nft }) => {
+    console.log("nft:unlist:success:", transactionId, nft);
   }
 );
 
 algoMintXClient.events.on("nft:unlist:failed", async ({ error }) => {
   console.log("nft:unlist:failed:", error);
+});
+
+algoMintXClient.events.on("nft:buy:success", async ({ transactionId, nft }) => {
+  console.log("nft:buy:success:", transactionId, nft);
+});
+
+algoMintXClient.events.on("nft:buy:failed", async ({ error }) => {
+  console.log("nft:buy:failed:", error);
 });
 
 /**
@@ -212,11 +210,13 @@ window.renderNFTDetailsPage = async (assetId) => {
   const nft = await algoMintXClient.getNFTMetadata({ assetId });
 
   document.getElementById("nft-details").innerHTML = `
-    <img src="${nft.image}" alt="NFT" />
+    <img src="${nft.metadata.image}" alt="NFT" />
     <p><strong>Asset ID:</strong> ${assetId}</p>
     <p><strong>Transaction:</strong> ${nft.transactionId}</p>
-    <p><strong>Owner:</strong> ${nft.creator}</p>
+    <p><strong>Creator:</strong> ${nft.creator}</p>
+    <p><strong>Owner:</strong> ${nft.currentHolder}</p>
     <p><strong>Name:</strong> ${nft.name}</p>
-    <p><strong>Description:</strong> ${nft.description}</p>
+    <p><strong>Description:</strong> ${nft.metadata.description}</p>
   `;
+  return nft;
 };
