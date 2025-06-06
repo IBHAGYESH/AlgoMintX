@@ -122,6 +122,16 @@ window.renderNFTCards = function (nfts) {
       buttonHtml = `<button class="btn btn-secondary list-nft-btn" onclick="openListNFTModal(${nft.assetId})">List NFT</button>`;
     }
 
+    // Format wallet address to show first 6 and last 4 characters
+    const formatWalletAddress = (address) => {
+      if (!address) return "Unknown";
+      return `${address.slice(0, 6)}...${address.slice(-4)}`;
+    };
+
+    // Get the appropriate wallet address based on listing status
+    const walletAddress = nft.listing ? nft.listing.seller : nft.currentHolder;
+    const walletLabel = nft.listing ? "Seller" : "Owner";
+
     card.innerHTML = `
       <img src="${nft.metadata.image}" alt="${nft.name}" class="nft-image">
       <div class="nft-content">
@@ -134,6 +144,9 @@ window.renderNFTCards = function (nfts) {
             ? `<p class="nft-price">${nft.listing.price} ALGO</p>`
             : ""
         }
+        <p class="nft-wallet"><strong>${walletLabel}:</strong> ${formatWalletAddress(
+      walletAddress
+    )}</p>
         ${buttonHtml}
       </div>
     `;
@@ -214,9 +227,9 @@ window.renderNFTDetailsPage = async (assetId) => {
     <p><strong>Asset ID:</strong> ${assetId}</p>
     <p><strong>Transaction:</strong> ${nft.transactionId}</p>
     <p><strong>Creator:</strong> ${nft.creator}</p>
-    <p><strong>Owner:</strong> ${
-      nft?.listing ? nft.listing.seller : nft.currentHolder
-    }</p>
+    <p><strong>${nft?.listing ? "Seller" : "Owner"}:</strong> ${
+    nft?.listing ? nft.listing.seller : nft.currentHolder
+  }</p>
     <p><strong>Name:</strong> ${nft.name}</p>
     <p><strong>Description:</strong> ${nft.metadata.description}</p>
   `;

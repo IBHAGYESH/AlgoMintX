@@ -71,17 +71,7 @@
         }
 
         connectWalletBtn.addEventListener("click", async () => {
-          try {
-            loginMessage.style.display = "none";
-            loadingContainer.style.display = "block";
-            await window.algoMintXClient.maximizeSDK();
-            await loadUserNFTs();
-          } catch (error) {
-            console.error("Error connecting wallet:", error);
-            alert("Failed to connect wallet: " + error.message);
-            loginMessage.style.display = "block";
-            loadingContainer.style.display = "none";
-          }
+          window.algoMintXClient.maximizeSDK();
         });
 
         async function loadUserNFTs() {

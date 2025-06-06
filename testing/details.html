@@ -84,8 +84,10 @@
               const buyButton = document.createElement("button");
               buyButton.className = "action-button buy-button";
               buyButton.textContent = `Buy NFT for ${nftData.listing.price} Algo`;
-              buyButton.onclick = () => {
-                window.algoMintXClient.buyNFT({ assetId });
+              buyButton.onclick = async () => {
+                await window.algoMintXClient.buyNFT({
+                  assetId: Number(assetId),
+                });
               };
               nftActions.appendChild(buyButton);
             }
@@ -97,7 +99,7 @@
               unlistButton.onclick = async () => {
                 try {
                   await window.algoMintXClient.unlistNFT({
-                    assetId,
+                    assetId: Number(assetId),
                   });
                   window.location.reload();
                 } catch (error) {
@@ -112,12 +114,9 @@
               buyButton.className = "action-button buy-button";
               buyButton.textContent = `Buy NFT for ${nftData.listing.price} Algo`;
               buyButton.onclick = async () => {
-                try {
-                  await window.algoMintXClient.buyNFT({ assetId });
-                  window.location.reload();
-                } catch (error) {
-                  alert("Failed to buy NFT: " + error.message);
-                }
+                await window.algoMintXClient.buyNFT({
+                  assetId: Number(assetId),
+                });
               };
               nftActions.appendChild(buyButton);
             }
@@ -128,22 +127,7 @@
               listButton.className = "action-button list-button";
               listButton.textContent = "List NFT";
               listButton.onclick = () => {
-                const price = prompt("Enter listing price in Algo:");
-                if (price && !isNaN(price) && parseFloat(price) > 0) {
-                  window.algoMintXClient
-                    .listNFT({
-                      assetId,
-                      nftPrice: parseFloat(price),
-                    })
-                    .then(() => {
-                      window.location.reload();
-                    })
-                    .catch((error) => {
-                      alert("Failed to list NFT: " + error.message);
-                    });
-                } else {
-                  alert("Please enter a valid price");
-                }
+                window.openListNFTModal(Number(assetId));
               };
               nftActions.appendChild(listButton);
             }

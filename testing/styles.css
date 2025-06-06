@@ -468,3 +468,14 @@ footer {
 .action-button:active {
   transform: translateY(0);
 }
+
+.nft-wallet {
+  font-size: 0.85rem;
+  color: #666;
+  margin-bottom: 1rem;
+  word-break: break-all;
+}
+
+.nft-wallet strong {
+  color: #333;
+}
