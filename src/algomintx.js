@@ -1023,6 +1023,13 @@ class AlgoMintX {
 
     // Add input event listeners for real-time validation
     nftName.addEventListener("input", (e) => {
+      // Stop input if length exceeds 50 characters
+      if (e.target.value.length > 50) {
+        e.target.value = e.target.value.slice(0, 50);
+        this.#showToast("NFT name cannot exceed 50 characters", "error");
+        return;
+      }
+
       // Only sanitize if there are HTML tags or scripts
       if (e.target.value.includes("<") || e.target.value.includes(">")) {
         const sanitized = this.#sanitizeInput(e.target.value);
@@ -1034,6 +1041,16 @@ class AlgoMintX {
     });
 
     nftDescription.addEventListener("input", (e) => {
+      // Stop input if length exceeds 500 characters
+      if (e.target.value.length > 500) {
+        e.target.value = e.target.value.slice(0, 500);
+        this.#showToast(
+          "NFT description cannot exceed 500 characters",
+          "error"
+        );
+        return;
+      }
+
       // Only sanitize if there are HTML tags or scripts
       if (e.target.value.includes("<") || e.target.value.includes(">")) {
         const sanitized = this.#sanitizeInput(e.target.value);
@@ -1063,8 +1080,13 @@ class AlgoMintX {
       const pastedText = (e.clipboardData || window.clipboardData).getData(
         "text"
       );
-      const sanitized = this.#sanitizeInput(pastedText);
+      // Truncate pasted text if it exceeds 50 characters
+      const truncatedText = pastedText.slice(0, 50);
+      const sanitized = this.#sanitizeInput(truncatedText);
       e.target.value = sanitized;
+      if (pastedText.length > 50) {
+        this.#showToast("NFT name cannot exceed 50 characters", "error");
+      }
       this.#validateMintButton();
     });
 
@@ -1073,8 +1095,16 @@ class AlgoMintX {
       const pastedText = (e.clipboardData || window.clipboardData).getData(
         "text"
       );
-      const sanitized = this.#sanitizeInput(pastedText);
+      // Truncate pasted text if it exceeds 500 characters
+      const truncatedText = pastedText.slice(0, 500);
+      const sanitized = this.#sanitizeInput(truncatedText);
       e.target.value = sanitized;
+      if (pastedText.length > 500) {
+        this.#showToast(
+          "NFT description cannot exceed 500 characters",
+          "error"
+        );
+      }
       this.#validateMintButton();
     });
   }

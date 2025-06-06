@@ -572,3 +572,38 @@
 .dark-theme #algomintx-processing-message {
   color: #fff;
 }
+
+#sdkUI input[type="text"],
+#sdkUI textarea {
+  transition: border-color 0.3s ease;
+}
+
+#sdkUI input[type="text"]:focus,
+#sdkUI textarea:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+#sdkUI input[type="text"].error,
+#sdkUI textarea.error {
+  border-color: #ff4444;
+}
+
+#sdkUI .input-counter {
+  font-size: 0.8rem;
+  color: #666;
+  text-align: right;
+  margin-top: 4px;
+}
+
+.dark-theme #sdkUI .input-counter {
+  color: #999;
+}
+
+#sdkUI .input-counter.warning {
+  color: #ff9800;
+}
+
+#sdkUI .input-counter.error {
+  color: #ff4444;
+}
