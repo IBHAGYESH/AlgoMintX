@@ -1979,6 +1979,10 @@ class AlgoMintX {
       // Get the listing box reference
       const nftData = await this.getNFTMetadata({ assetId });
 
+      if (nftData.listing.seller === this.account) {
+        throw new Error("Seller cannot buy the listed nft.");
+      }
+
       // Get suggested parameters
       const suggestedParams = await this.#algodClient
         .getTransactionParams()
