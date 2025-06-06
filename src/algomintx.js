@@ -864,9 +864,12 @@ class AlgoMintX {
       /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
       ""
     );
-    // Remove any special characters except basic punctuation and spaces
-    input = input.replace(/[^a-zA-Z0-9\s.,!?-]/g, "");
-    // Remove multiple spaces
+    // Remove any special characters except basic punctuation, spaces, and alphanumeric
+    input = input.replace(
+      /[^a-zA-Z0-9\s.,!?@#$%^&*()_+\-=\[\]{};':"\\|<>\/]/g,
+      ""
+    );
+    // Remove multiple spaces but keep single spaces
     input = input.replace(/\s+/g, " ");
     return input.trim();
   }
@@ -938,17 +941,23 @@ class AlgoMintX {
 
     // Add input event listeners for real-time validation
     nftName.addEventListener("input", (e) => {
-      const sanitized = this.#sanitizeInput(e.target.value);
-      if (sanitized !== e.target.value) {
-        e.target.value = sanitized;
+      // Only sanitize if there are HTML tags or scripts
+      if (e.target.value.includes("<") || e.target.value.includes(">")) {
+        const sanitized = this.#sanitizeInput(e.target.value);
+        if (sanitized !== e.target.value) {
+          e.target.value = sanitized;
+        }
       }
       this.#validateMintButton();
     });
 
     nftDescription.addEventListener("input", (e) => {
-      const sanitized = this.#sanitizeInput(e.target.value);
-      if (sanitized !== e.target.value) {
-        e.target.value = sanitized;
+      // Only sanitize if there are HTML tags or scripts
+      if (e.target.value.includes("<") || e.target.value.includes(">")) {
+        const sanitized = this.#sanitizeInput(e.target.value);
+        if (sanitized !== e.target.value) {
+          e.target.value = sanitized;
+        }
       }
       this.#validateMintButton();
     });
