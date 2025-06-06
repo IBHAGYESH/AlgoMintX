@@ -214,7 +214,9 @@ window.renderNFTDetailsPage = async (assetId) => {
     <p><strong>Asset ID:</strong> ${assetId}</p>
     <p><strong>Transaction:</strong> ${nft.transactionId}</p>
     <p><strong>Creator:</strong> ${nft.creator}</p>
-    <p><strong>Owner:</strong> ${nft.currentHolder}</p>
+    <p><strong>Owner:</strong> ${
+      nft?.listing ? nft.listing.seller : nft.currentHolder
+    }</p>
     <p><strong>Name:</strong> ${nft.name}</p>
     <p><strong>Description:</strong> ${nft.metadata.description}</p>
   `;
