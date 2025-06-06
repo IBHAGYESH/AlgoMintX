@@ -37,6 +37,7 @@ class AlgoMintX {
   #supportedNetworks;
   #theme;
   #toastLocation;
+  #supportedMediaFormats;
 
   constructor({
     pinata_ipfs_server_key,
@@ -51,6 +52,7 @@ class AlgoMintX {
     minimizeUILocation = "right",
     logo = null,
     toastLocation = "TOP_RIGHT",
+    supportedMediaFormats = ["IMAGE"],
   }) {
     try {
       // Validate all parameters
@@ -72,6 +74,9 @@ class AlgoMintX {
         this.#validateMinimizeUILocation(minimizeUILocation);
       this.#logo = this.#validateLogo(logo);
       this.#toastLocation = this.#validateToastLocation(toastLocation);
+      this.#supportedMediaFormats = this.#validateSupportedMediaFormats(
+        supportedMediaFormats
+      );
 
       // Initialize other properties
       this.#supportedNetworks = ["mainnet", "testnet"];
@@ -332,6 +337,76 @@ class AlgoMintX {
       "TOP_LEFT",
       "TOP_RIGHT",
     ]);
+  }
+
+  #validateSupportedMediaFormats(formats) {
+    if (!Array.isArray(formats)) {
+      throw new Error("supportedMediaFormats must be an array");
+    }
+
+    const validFormats = ["IMAGE", "VIDEO", "AUDIO"];
+    const invalidFormats = formats.filter(
+      (format) => !validFormats.includes(format)
+    );
+
+    if (invalidFormats.length > 0) {
+      throw new Error(
+        `Invalid media formats: ${invalidFormats.join(
+          ", "
+        )}. Valid formats are: ${validFormats.join(", ")}`
+      );
+    }
+
+    return formats;
+  }
+
+  #validateFileType(file) {
+    const allowedTypes = {
+      IMAGE: [
+        "image/jpeg",
+        "image/png",
+        "image/gif",
+        "image/webp",
+        "image/svg+xml",
+      ],
+      VIDEO: ["video/mp4", "video/webm", "video/ogg", "video/quicktime"],
+      AUDIO: [
+        "audio/mpeg",
+        "audio/wav",
+        "audio/ogg",
+        "audio/mp4",
+        "audio/webm",
+      ],
+    };
+
+    // Get all allowed types based on supported formats
+    const allowedMimeTypes = this.#supportedMediaFormats.reduce(
+      (types, format) => {
+        return [...types, ...allowedTypes[format]];
+      },
+      []
+    );
+
+    if (!allowedMimeTypes.includes(file.type)) {
+      const formatNames = this.#supportedMediaFormats
+        .map((format) => format.toLowerCase())
+        .join(", ");
+      return {
+        valid: false,
+        message: `Please upload a supported file type (${formatNames})`,
+      };
+    }
+
+    // Check file size (max 100MB)
+    const maxSize = 100 * 1024 * 1024; // 100MB in bytes
+    if (file.size > maxSize) {
+      return {
+        valid: false,
+        message: "File size must be less than 100MB",
+      };
+    }
+
+    return { valid: true };
   }
 
   #sdkValidationFailed(message) {
@@ -928,48 +1003,23 @@ class AlgoMintX {
     return { valid: true };
   }
 
-  #validateFileType(file) {
-    const allowedImageTypes = [
-      "image/jpeg",
-      "image/png",
-      "image/gif",
-      "image/webp",
-      "image/svg+xml",
-    ];
-
-    const allowedVideoTypes = [
-      "video/mp4",
-      "video/webm",
-      "video/ogg",
-      "video/quicktime",
-    ];
-
-    const allowedTypes = [...allowedImageTypes, ...allowedVideoTypes];
-
-    if (!allowedTypes.includes(file.type)) {
-      return {
-        valid: false,
-        message:
-          "Please upload an image (JPEG, PNG, GIF, WebP, SVG) or video (MP4, WebM, OGG, MOV) file",
-      };
-    }
-
-    // Check file size (max 100MB)
-    const maxSize = 100 * 1024 * 1024; // 100MB in bytes
-    if (file.size > maxSize) {
-      return {
-        valid: false,
-        message: "File size must be less than 100MB",
-      };
-    }
-
-    return { valid: true };
-  }
-
   #setupNFTInputValidation() {
     const nftName = document.getElementById("nftName");
     const nftDescription = document.getElementById("nftDescription");
     const nftFile = document.getElementById("nftFile");
+
+    // Set up file input accept attribute based on supported formats
+    const mimeTypes = {
+      IMAGE: "image/jpeg,image/png,image/gif,image/webp,image/svg+xml",
+      VIDEO: "video/mp4,video/webm,video/ogg,video/quicktime",
+      AUDIO: "audio/mpeg,audio/wav,audio/ogg,audio/mp4,audio/webm",
+    };
+
+    const acceptedTypes = this.#supportedMediaFormats
+      .map((format) => mimeTypes[format])
+      .join(",");
+
+    nftFile.setAttribute("accept", acceptedTypes);
 
     // Add input event listeners for real-time validation
     nftName.addEventListener("input", (e) => {
@@ -1002,9 +1052,9 @@ class AlgoMintX {
         if (!validation.valid) {
           this.#showToast(validation.message, "error");
           e.target.value = ""; // Clear the file input
+          this.#validateMintButton();
         }
       }
-      this.#validateMintButton();
     });
 
     // Add paste event listeners to sanitize pasted content
@@ -1056,13 +1106,6 @@ class AlgoMintX {
 
     if (!fileInput.files.length) {
       this.#showToast("Please upload a file.", "error");
-      return;
-    }
-
-    // Validate file type
-    const fileValidation = this.#validateFileType(fileInput.files[0]);
-    if (!fileValidation.valid) {
-      this.#showToast(fileValidation.message, "error");
       return;
     }
 
