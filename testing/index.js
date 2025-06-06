@@ -132,8 +132,19 @@ window.renderNFTCards = function (nfts) {
     const walletAddress = nft.listing ? nft.listing.seller : nft.currentHolder;
     const walletLabel = nft.listing ? "Seller" : "Owner";
 
+    // Check if the NFT is a video using image_mimetype
+    const isVideo = nft.metadata.image_mimetype?.startsWith("video/");
+
+    // Create media element based on type
+    const mediaElement = isVideo
+      ? `<video class="nft-image" loop muted playsinline>
+           <source src="${nft.metadata.image}" type="${nft.metadata.image_mimetype}">
+           Your browser does not support the video tag.
+         </video>`
+      : `<img src="${nft.metadata.image}" alt="${nft.name}" class="nft-image">`;
+
     card.innerHTML = `
-      <img src="${nft.metadata.image}" alt="${nft.name}" class="nft-image">
+      ${mediaElement}
       <div class="nft-content">
         <h3 class="nft-title">${nft.name || "Unnamed NFT"}</h3>
         <p class="nft-description">${
@@ -150,6 +161,18 @@ window.renderNFTCards = function (nfts) {
         ${buttonHtml}
       </div>
     `;
+
+    // Add event listeners for video autoplay on hover
+    if (isVideo) {
+      const video = card.querySelector("video");
+      card.addEventListener("mouseenter", () => {
+        video.play();
+      });
+      card.addEventListener("mouseleave", () => {
+        video.pause();
+        video.currentTime = 0;
+      });
+    }
 
     card.addEventListener("click", (e) => {
       if (
@@ -222,9 +245,19 @@ window.openListNFTModal = function (assetId) {
 window.renderNFTDetailsPage = async (assetId) => {
   const nft = await algoMintXClient.getNFTMetadata({ assetId });
 
-  document.getElementById("nft-details").innerHTML = `
-    <img src="${nft.metadata.image}" alt="NFT" />
-    <p><strong>Asset ID:</strong> ${assetId}</p>
+  // Check if the NFT is a video using image_mimetype
+  const isVideo = nft.metadata.image_mimetype?.startsWith("video/");
+
+  // Create media element based on type
+  const mediaElement = isVideo
+    ? `<video class="nft-details-media" controls autoplay loop>
+         <source src="${nft.metadata.image}" type="${nft.metadata.image_mimetype}">
+         Your browser does not support the video tag.
+       </video>`
+    : `<img src="${nft.metadata.image}" alt="NFT" class="nft-details-media" />`;
+
+  const div = (document.getElementById("nft-details").innerHTML = `
+    ${mediaElement}
     <p><strong>Transaction:</strong> ${nft.transactionId}</p>
     <p><strong>Creator:</strong> ${nft.creator}</p>
     <p><strong>${nft?.listing ? "Seller" : "Owner"}:</strong> ${
@@ -232,6 +265,17 @@ window.renderNFTDetailsPage = async (assetId) => {
   }</p>
     <p><strong>Name:</strong> ${nft.name}</p>
     <p><strong>Description:</strong> ${nft.metadata.description}</p>
-  `;
+  `);
+
+  // Ensure video starts playing after the element is added to the DOM
+  if (isVideo) {
+    const video = document.querySelector(".nft-details-media");
+    video.play().catch((error) => {
+      console.log("Autoplay failed:", error);
+      // Some browsers require user interaction before autoplay
+      // We'll keep the controls visible so users can play manually
+    });
+  }
+
   return nft;
 };
