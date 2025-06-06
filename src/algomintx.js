@@ -38,6 +38,7 @@ class AlgoMintX {
   #theme;
   #toastLocation;
   #supportedMediaFormats;
+  #currentLoadingMessage;
 
   constructor({
     pinata_ipfs_server_key,
@@ -1148,7 +1149,7 @@ class AlgoMintX {
 
     // show loading overlay after validation
     this.processing = true;
-    this.#showLoadingOverlay();
+    this.#showLoadingOverlay("Processing...");
     eventBus.emit("sdk:processing:started", { processing: this.processing });
 
     try {
@@ -1215,39 +1216,103 @@ class AlgoMintX {
       throw new Error("Wallet is not connected.");
     }
 
-    // 1. Upload file to IPFS (Pinata) using your API key
-    const ipfsHash = await this.#uploadFileToIPFS(file);
+    let ipfsHash = null;
+    let metadataIpfsHash = null;
+    let currentStep = 0;
 
-    // 2. Create metadata JSON with IPFS link, name, description
-    const integrity = await this.#getImageIntegrityBase64(file);
+    try {
+      // 1. Upload file to IPFS (Pinata) using your API key
+      currentStep = 1;
+      this.#updateLoadingMessage(
+        "Processing... Step 1: Uploading file to IPFS"
+      );
+      ipfsHash = await this.#uploadFileToIPFS(file);
 
-    const metadata = {
-      name,
-      description,
-      image: `ipfs://${ipfsHash}`,
-      image_integrity: integrity,
-      image_mimetype: file.type,
-      decimals: 0, // must be 0 for NFTs ARC-3 compliant
-      standard: "arc3",
-      minted_by: this.#metadataMark,
-      marketplace: this.#unitName,
-    };
+      // 2. Create metadata JSON with IPFS link, name, description
+      currentStep = 2;
+      this.#updateLoadingMessage("Processing... Step 2: Creating metadata");
+      const integrity = await this.#getImageIntegrityBase64(file);
 
-    // 3. Hash metadata JSON to get 32 byte assetMetadataHash
-    const metadataStr = JSON.stringify(metadata);
-    const metadataHash = await this.#sha256Hash(metadataStr);
+      const metadata = {
+        name,
+        description,
+        image: `ipfs://${ipfsHash}`,
+        image_integrity: integrity,
+        image_mimetype: file.type,
+        decimals: 0, // must be 0 for NFTs ARC-3 compliant
+        standard: "arc3",
+        minted_by: this.#metadataMark,
+        marketplace: this.#unitName,
+      };
 
-    // 4. Upload metadata JSON to IPFS to get the CID for assetURL
-    const metadataIpfsHash = await this.#uploadJSONToIPFS(metadata);
+      // 3. Hash metadata JSON to get 32 byte assetMetadataHash
+      currentStep = 3;
+      this.#updateLoadingMessage("Processing... Step 3: Hashing metadata");
+      const metadataStr = JSON.stringify(metadata);
+      const metadataHash = await this.#sha256Hash(metadataStr);
 
-    // 5. Create Algorand asset (NFT) pointing to metadata URL
-    const { txid, assetId } = await this.#createAlgorandAsset(
-      metadataIpfsHash,
-      name,
-      metadataHash
-    );
+      // 4. Upload metadata JSON to IPFS to get the CID for assetURL
+      currentStep = 4;
+      this.#updateLoadingMessage(
+        "Processing... Step 4: Uploading metadata to IPFS"
+      );
+      metadataIpfsHash = await this.#uploadJSONToIPFS(metadata);
 
-    return { transactionId: txid, assetId };
+      // 5. Create Algorand asset (NFT) pointing to metadata URL
+      currentStep = 5;
+      this.#updateLoadingMessage("Processing... Open your wallet to continue");
+      const { txid, assetId } = await this.#createAlgorandAsset(
+        metadataIpfsHash,
+        name,
+        metadataHash
+      );
+
+      return { transactionId: txid, assetId };
+    } catch (error) {
+      // Cleanup IPFS files if minting fails
+      try {
+        if (currentStep >= 4) {
+          // If we got to step 4 or beyond, delete both the metadata JSON and the file
+          if (metadataIpfsHash) {
+            await this.#deleteFromIPFS(metadataIpfsHash);
+          }
+          if (ipfsHash) {
+            await this.#deleteFromIPFS(ipfsHash);
+          }
+        } else if (currentStep >= 1) {
+          // If we got to step 1 but failed before step 4, only delete the file
+          if (ipfsHash) {
+            await this.#deleteFromIPFS(ipfsHash);
+          }
+        }
+      } catch (cleanupError) {
+        console.error("Failed to cleanup IPFS files:", cleanupError);
+      }
+      throw error;
+    }
+  }
+
+  async #deleteFromIPFS(ipfsHash) {
+    try {
+      const response = await fetch(
+        `https://api.pinata.cloud/pinning/unpin/${ipfsHash}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${this.#pinata_ipfs_server_key}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`Failed to delete from IPFS: ${response.statusText}`);
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error deleting from IPFS:", error);
+      throw error;
+    }
   }
 
   async #uploadFileToIPFS(file) {
@@ -1463,18 +1528,20 @@ class AlgoMintX {
     return Buffer.from(boxName).toString("base64");
   }
 
-  #showLoadingOverlay() {
+  #showLoadingOverlay(message = "Processing...") {
     if (this.isMinimized) {
       // Show processing spinner on minimized button
       const minimizedBtn = document.getElementById("sdkMinimizedBtn");
       if (minimizedBtn) {
         minimizedBtn.classList.add("processing");
       }
+      // Store the current message
+      this.#currentLoadingMessage = message;
       return;
     }
 
     const overlay = document.getElementById("algomintx-loading-overlay");
-    const processingMessage = document.getElementById(
+    const messageElement = document.getElementById(
       "algomintx-processing-message"
     );
     if (!overlay) return;
@@ -1487,11 +1554,18 @@ class AlgoMintX {
     }
 
     // Update processing message
-    if (processingMessage && this.#selectedWalletType) {
-      processingMessage.innerHTML = `Processing... Open ${
-        this.#selectedWalletType
-      } wallet on your mobile to continue<br><br>Please do not reload the page or close the tab`;
+    if (messageElement) {
+      if (message === "Processing..." && this.#selectedWalletType) {
+        messageElement.innerHTML = `Processing... Open ${
+          this.#selectedWalletType
+        } wallet on your mobile to continue<br><br>Please do not reload the page or close the tab`;
+      } else {
+        messageElement.textContent = message;
+      }
     }
+
+    // Store the current message
+    this.#currentLoadingMessage = message;
 
     // Show overlay with animation
     requestAnimationFrame(() => {
@@ -1503,6 +1577,23 @@ class AlgoMintX {
     if (logoutBtn) {
       logoutBtn.disabled = true;
     }
+  }
+
+  #updateLoadingMessage(message) {
+    const messageElement = document.getElementById(
+      "algomintx-processing-message"
+    );
+    if (messageElement) {
+      if (message === "Processing..." && this.#selectedWalletType) {
+        messageElement.innerHTML = `Processing... Open ${
+          this.#selectedWalletType
+        } wallet on your mobile to continue<br><br>Please do not reload the page or close the tab`;
+      } else {
+        messageElement.textContent = message;
+      }
+    }
+    // Store the current message
+    this.#currentLoadingMessage = message;
   }
 
   #hideLoadingOverlay() {
@@ -1546,6 +1637,16 @@ class AlgoMintX {
     // Start minimizing animation
     container.classList.add("minimizing");
     minimizedBtn.style.display = "block";
+
+    // Store current loading message if processing
+    if (this.processing) {
+      const messageElement = document.getElementById(
+        "algomintx-processing-message"
+      );
+      if (messageElement) {
+        this.#currentLoadingMessage = messageElement.textContent;
+      }
+    }
 
     // Wait for the minimizing animation to complete
     setTimeout(() => {
@@ -1594,7 +1695,7 @@ class AlgoMintX {
         container.classList.remove("maximizing");
         // Show loading overlay if processing
         if (this.processing) {
-          this.#showLoadingOverlay();
+          this.#showLoadingOverlay(this.#currentLoadingMessage);
         }
       });
     }, 300);
@@ -1985,7 +2086,7 @@ class AlgoMintX {
   async listNFT({ assetId, nftPrice }) {
     try {
       this.processing = true;
-      this.#showLoadingOverlay();
+      this.#showLoadingOverlay("Processing...");
       eventBus.emit("sdk:processing:started", { processing: this.processing });
 
       if (!this.#walletConnected || !this.account) {
@@ -2108,7 +2209,7 @@ class AlgoMintX {
   async unlistNFT({ assetId }) {
     try {
       this.processing = true;
-      this.#showLoadingOverlay();
+      this.#showLoadingOverlay("Processing...");
       eventBus.emit("sdk:processing:started", { processing: this.processing });
 
       if (!this.#walletConnected || !this.account) {
@@ -2232,7 +2333,7 @@ class AlgoMintX {
   async buyNFT({ assetId }) {
     try {
       this.processing = true;
-      this.#showLoadingOverlay();
+      this.#showLoadingOverlay("Processing...");
       eventBus.emit("sdk:processing:started", { processing: this.processing });
 
       if (!this.#walletConnected || !this.account) {
