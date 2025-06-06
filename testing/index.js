@@ -10,6 +10,7 @@ window.algoMintXClient = new window.AlgoMintX({
   listingFee: 0.1, // in Algos
   unListingFee: 0.1, // in Algos
   buyingFee: 0.5, // in Algos
+  supportedMediaFormats: ["IMAGE", "VIDEO", "AUDIO"], // ["IMAGE", "VIDEO", "AUDIO"]
   disableToast: false, // disable toast notifications
   toastLocation: "TOP_RIGHT", // TOP_LEFT | TOP_RIGHT
   minimizeUILocation: "right", // left | right
@@ -132,16 +133,28 @@ window.renderNFTCards = function (nfts) {
     const walletAddress = nft.listing ? nft.listing.seller : nft.currentHolder;
     const walletLabel = nft.listing ? "Seller" : "Owner";
 
-    // Check if the NFT is a video using image_mimetype
+    // Check if the NFT is a video or audio using image_mimetype
     const isVideo = nft.metadata.image_mimetype?.startsWith("video/");
+    const isAudio = nft.metadata.image_mimetype?.startsWith("audio/");
 
     // Create media element based on type
-    const mediaElement = isVideo
-      ? `<video class="nft-image" loop muted playsinline>
-           <source src="${nft.metadata.image}" type="${nft.metadata.image_mimetype}">
-           Your browser does not support the video tag.
-         </video>`
-      : `<img src="${nft.metadata.image}" alt="${nft.name}" class="nft-image">`;
+    let mediaElement;
+    if (isVideo) {
+      mediaElement = `<video class="nft-image" loop playsinline>
+        <source src="${nft.metadata.image}" type="${nft.metadata.image_mimetype}">
+        Your browser does not support the video tag.
+      </video>`;
+    } else if (isAudio) {
+      mediaElement = `<div class="audio-preview">
+        <img src="https://img.icons8.com/ios-filled/50/ffffff/musical-notes.png" alt="Audio" class="audio-icon">
+        <audio class="nft-image" preload="metadata">
+          <source src="${nft.metadata.image}" type="${nft.metadata.image_mimetype}">
+          Your browser does not support the audio tag.
+        </audio>
+      </div>`;
+    } else {
+      mediaElement = `<img src="${nft.metadata.image}" alt="${nft.name}" class="nft-image">`;
+    }
 
     card.innerHTML = `
       ${mediaElement}
@@ -162,15 +175,28 @@ window.renderNFTCards = function (nfts) {
       </div>
     `;
 
-    // Add event listeners for video autoplay on hover
+    // Add event listeners for media autoplay on hover
     if (isVideo) {
       const video = card.querySelector("video");
       card.addEventListener("mouseenter", () => {
+        video.muted = false;
+        video.volume = 0.5; // Set volume to 10%
         video.play();
       });
       card.addEventListener("mouseleave", () => {
         video.pause();
         video.currentTime = 0;
+        video.muted = true;
+      });
+    } else if (isAudio) {
+      const audio = card.querySelector("audio");
+      card.addEventListener("mouseenter", () => {
+        audio.volume = 0.5; // Set volume to 10%
+        audio.play();
+      });
+      card.addEventListener("mouseleave", () => {
+        audio.pause();
+        audio.currentTime = 0;
       });
     }
 
@@ -245,16 +271,28 @@ window.openListNFTModal = function (assetId) {
 window.renderNFTDetailsPage = async (assetId) => {
   const nft = await algoMintXClient.getNFTMetadata({ assetId });
 
-  // Check if the NFT is a video using image_mimetype
+  // Check if the NFT is a video or audio using image_mimetype
   const isVideo = nft.metadata.image_mimetype?.startsWith("video/");
+  const isAudio = nft.metadata.image_mimetype?.startsWith("audio/");
 
   // Create media element based on type
-  const mediaElement = isVideo
-    ? `<video class="nft-details-media" controls autoplay loop>
-         <source src="${nft.metadata.image}" type="${nft.metadata.image_mimetype}">
-         Your browser does not support the video tag.
-       </video>`
-    : `<img src="${nft.metadata.image}" alt="NFT" class="nft-details-media" />`;
+  let mediaElement;
+  if (isVideo) {
+    mediaElement = `<video class="nft-details-media" controls autoplay loop>
+      <source src="${nft.metadata.image}" type="${nft.metadata.image_mimetype}">
+      Your browser does not support the video tag.
+    </video>`;
+  } else if (isAudio) {
+    mediaElement = `<div class="audio-player">
+      <img src="https://img.icons8.com/ios-filled/50/ffffff/musical-notes.png" alt="Audio" class="audio-icon">
+      <audio class="nft-details-media" controls autoplay>
+        <source src="${nft.metadata.image}" type="${nft.metadata.image_mimetype}">
+        Your browser does not support the audio tag.
+      </audio>
+    </div>`;
+  } else {
+    mediaElement = `<img src="${nft.metadata.image}" alt="NFT" class="nft-details-media" />`;
+  }
 
   const div = (document.getElementById("nft-details").innerHTML = `
     ${mediaElement}
@@ -267,10 +305,10 @@ window.renderNFTDetailsPage = async (assetId) => {
     <p><strong>Description:</strong> ${nft.metadata.description}</p>
   `);
 
-  // Ensure video starts playing after the element is added to the DOM
-  if (isVideo) {
-    const video = document.querySelector(".nft-details-media");
-    video.play().catch((error) => {
+  // Ensure media starts playing after the element is added to the DOM
+  if (isVideo || isAudio) {
+    const media = document.querySelector(".nft-details-media");
+    media.play().catch((error) => {
       console.log("Autoplay failed:", error);
       // Some browsers require user interaction before autoplay
       // We'll keep the controls visible so users can play manually
