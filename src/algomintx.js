@@ -1648,6 +1648,24 @@ class AlgoMintX {
           );
         }
 
+        // Get current holder's address
+        const holdersUrl = `${
+          this.#indexerUrl
+        }/v2/assets/${assetId}/balances?currency-greater-than=0`;
+        const holdersRes = await fetch(holdersUrl);
+        if (holdersRes.ok) {
+          const holdersData = await holdersRes.json();
+          if (holdersData.balances && holdersData.balances.length > 0) {
+            // The first balance entry with amount > 0 is the current holder
+            const currentHolder = holdersData.balances.find(
+              (balance) => balance.amount > 0
+            );
+            if (currentHolder) {
+              nft.currentHolder = currentHolder.address;
+            }
+          }
+        }
+
         nfts.push(nft);
       }
     } catch (error) {
@@ -1732,6 +1750,24 @@ class AlgoMintX {
               `IPFS metadata fetch failed for asset ${assetId}`,
               err
             );
+          }
+        }
+
+        // Get current holder's address
+        const holdersUrl = `${
+          this.#indexerUrl
+        }/v2/assets/${assetId}/balances?currency-greater-than=0`;
+        const holdersRes = await fetch(holdersUrl);
+        if (holdersRes.ok) {
+          const holdersData = await holdersRes.json();
+          if (holdersData.balances && holdersData.balances.length > 0) {
+            // The first balance entry with amount > 0 is the current holder
+            const currentHolder = holdersData.balances.find(
+              (balance) => balance.amount > 0
+            );
+            if (currentHolder) {
+              nft.currentHolder = currentHolder.address;
+            }
           }
         }
 
