@@ -161,32 +161,30 @@ main {
 }
 
 .btn-primary {
-  background-color: #4caf50;
+  background-color: #2196f3; /* Blue for primary actions */
   color: white;
 }
 
 .btn-primary:hover {
-  background-color: #45a049;
+  background-color: #1976d2;
 }
 
 .btn-secondary {
-  background-color: #2196f3;
+  background-color: #4caf50; /* Green for secondary actions */
   color: white;
 }
 
 .btn-secondary:hover {
-  background-color: #1976d2;
+  background-color: #45a049;
 }
 
 .btn-warning {
-  background-color: #ffc107;
-  color: #000;
-  border: 1px solid #ffc107;
+  background-color: #f44336; /* Red for warning/danger actions */
+  color: white;
 }
 
 .btn-warning:hover {
-  background-color: #ffb300;
-  border-color: #ffb300;
+  background-color: #d32f2f;
 }
 
 /* Modal */
@@ -400,7 +398,7 @@ footer {
 
 /* List NFT Button */
 .list-nft-btn {
-  background-color: #4caf50;
+  background-color: #2196f3; /* Blue for list actions */
   color: white;
   border: none;
   padding: 10px 20px;
@@ -411,12 +409,12 @@ footer {
 }
 
 .list-nft-btn:hover {
-  background-color: #45a049;
+  background-color: #1976d2;
 }
 
 /* Buy NFT Button */
 .buy-nft-btn {
-  background-color: #2196f3;
+  background-color: #4caf50; /* Green for buy actions */
   color: white;
   border: none;
   padding: 10px 20px;
@@ -428,7 +426,7 @@ footer {
 }
 
 .buy-nft-btn:hover {
-  background-color: #1976d2;
+  background-color: #45a049;
 }
 
 .walletBtn {
@@ -471,4 +469,44 @@ footer {
 #\#mintNFTBtn:disabled:hover {
   transform: none;
   box-shadow: none;
+}
+
+/* NFT Actions */
+.nft-actions {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.action-button {
+  padding: 12px 24px;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.buy-button {
+  background-color: #4caf50; /* Green for buy actions */
+  color: white;
+}
+
+.unlist-button {
+  background-color: #f44336; /* Red for unlist actions */
+  color: white;
+}
+
+.list-button {
+  background-color: #2196f3; /* Blue for list actions */
+  color: white;
+}
+
+.action-button:hover {
+  opacity: 0.9;
+  transform: translateY(-2px);
+}
+
+.action-button:active {
+  transform: translateY(0);
 }
