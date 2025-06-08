@@ -1850,19 +1850,26 @@ class AlgoMintX {
     return nfts;
   }
 
-  async getWalletNFTs() {
+  async getWalletNFTs({ accountId }) {
     const nfts = [];
 
     try {
-      if (!this.#walletConnected || !this.account) {
-        // Maximize SDK if minimized to show login screen
-        if (this.isMinimized) {
-          this.maximizeSDK(true);
+      if (!accountId) {
+        if (!this.#walletConnected || !this.account) {
+          // Maximize SDK if minimized to show login screen
+          if (this.isMinimized) {
+            this.maximizeSDK(true);
+          }
+          throw new Error("Wallet is not connected");
         }
-        throw new Error("Wallet is not connected");
+      } else {
+        this.#validateRevenueWalletAddress(accountId);
       }
 
-      const url = `${this.#indexerUrl}/v2/accounts/${this.account}`;
+      const url = `${this.#indexerUrl}/v2/accounts/${
+        accountId ? accountId : this.account
+      }`;
+
       const res = await fetch(url);
       if (!res.ok) throw new Error(`Indexer fetch error: ${res.status}`);
 

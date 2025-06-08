@@ -76,7 +76,7 @@
 
         async function loadUserNFTs() {
           try {
-            const nfts = await window.algoMintXClient.getWalletNFTs();
+            const nfts = await window.algoMintXClient.getWalletNFTs({});
             window.renderNFTCards(nfts);
             loadingContainer.style.display = "none";
             nftGrid.style.display = "grid";

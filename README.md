@@ -13,6 +13,9 @@
 - 🧭 **Minimal, user-friendly UI** with SDK minimization support
 - ⚡ **Real-time event emitter** for frontend event handling
 - ✅ Works on **Testnet** and **Mainnet**
+- 🎥 **Multi-media support** for NFTs (Images, Videos, Audio)
+- 🔔 **Customizable toast notifications**
+- 🎨 **Customizable UI** with logo support
 
 ## 💡 UI Highlights
 
@@ -55,13 +58,21 @@ http://127.0.0.1:8080/testing/index.html
 
 ```js
 window.algoMintXClient = new window.AlgoMintX({
+  // Required
   pinata_ipfs_server_key: "", // Your Pinata API key
   pinata_ipfs_gateway_url: "", // Your Pinata gateway URL
   env: "testnet", // "testnet" or "mainnet"
   namespace: "", // Unique 5-character uppercase string
   revenueWalletAddress: "", // Wallet to collect marketplace fees
+  // Optional
   listingFee: 0.1, // NFT listing fee (in Algos)
   buyingFee: 0.5, // NFT buying fee (in Algos)
+  unListingFee: 0.1, // NFT un-listing fee (in Algos)
+  disableToast: false, // Disable toast notifications
+  toastLocation: "TOP_RIGHT", // Toast notification location (TOP_LEFT | TOP_RIGHT)
+  minimizeUILocation: "right", // SDK minimize button location (left | right)
+  logo: "./logo.png", // Your website logo (URL / path to image)
+  supportedMediaFormats: ["IMAGE", "VIDEO", "AUDIO"], // Supported media formats for NFTs
 });
 ```
 
@@ -77,15 +88,19 @@ window.algoMintXClient = new window.AlgoMintX({
 | `isMinimized` | Boolean indicating if the SDK UI is currently minimized |
 | `network` | Current configured network (`"testnet"` or `"mainnet"`) |
 | `processing` | Boolean indicating if an operation (e.g., minting, listing, buying) is ongoing |
+| `theme` | Current theme of the SDK UI (`"light"` or `"dark"`) |
 
 🧠 Exposed Methods
 | Method | Description |
 | -------------------------------- | --------------------------------------------------- |
 | `listNFT({ assetId, nftPrice })` | List an existing NFT to the marketplace |
+| `unlistNFT({ assetId })` | Remove an NFT from the marketplace listing |
 | `buyNFT({ assetId })` | Buy a listed NFT from the marketplace |
 | `getListedNFTs()` | Fetch all NFTs currently listed for sale |
-| `getWalletNFTs()` | Retrieve NFTs owned by the connected wallet |
+| `getWalletNFTs({ accountId? })` | Retrieve NFTs owned by the specified account or connected wallet. Pass `{}` to get NFTs of connected wallet. |
 | `getNFTMetadata({ assetId })` | Fetch metadata of a specific NFT using its asset ID |
+| `minimizeSDK()` | Minimize the SDK UI to a floating button |
+| `maximizeSDK()` | Restore the SDK UI to its full size |
 
 ---
 
@@ -117,6 +132,8 @@ window.algoMintXClient.events.on(
 | `nft:mint:failed` | Fired if minting fails |
 | `nft:list:success` | Fired after NFT is successfully listed |
 | `nft:list:failed` | Fired if listing fails |
+| `nft:unlist:success` | Fired after NFT is successfully unlisted |
+| `nft:unlist:failed` | Fired if unlisting fails |
 | `nft:buy:success` | Fired after successful NFT purchase |
 | `nft:buy:failed` | Fired if buying fails |
 
@@ -155,8 +172,8 @@ window.algoMintXClient.events.on("sdk:processing:stopped", ({ processing }) => {
 
 window.algoMintXClient.events.on(
   "nft:mint:success",
-  ({ transactionId, assetId, address }) => {
-    console.log("NFT minted successfully:", transactionId, assetId, address);
+  ({ transactionId, nft }) => {
+    console.log("NFT minted successfully:", transactionId, nft);
   }
 );
 
@@ -166,8 +183,8 @@ window.algoMintXClient.events.on("nft:mint:failed", ({ error }) => {
 
 window.algoMintXClient.events.on(
   "nft:list:success",
-  ({ transactionId, assetId, price }) => {
-    console.log("NFT listed successfully:", transactionId, assetId, price);
+  ({ transactionId, nft }) => {
+    console.log("NFT listed successfully:", transactionId, nft);
   }
 );
 
@@ -176,9 +193,20 @@ window.algoMintXClient.events.on("nft:list:failed", ({ error }) => {
 });
 
 window.algoMintXClient.events.on(
+  "nft:unlist:success",
+  ({ transactionId, nft }) => {
+    console.log("NFT unlisted successfully:", transactionId, nft);
+  }
+);
+
+window.algoMintXClient.events.on("nft:unlist:failed", ({ error }) => {
+  console.log("NFT unlisting failed:", error);
+});
+
+window.algoMintXClient.events.on(
   "nft:buy:success",
-  ({ transactionId, assetId }) => {
-    console.log("NFT purchase successful:", transactionId, assetId);
+  ({ transactionId, nft }) => {
+    console.log("NFT purchase successful:", transactionId, nft);
   }
 );
 
@@ -198,7 +226,6 @@ Pull requests and feature suggestions are welcome! For major changes, please ope
 Thank you for checking out AlgoMintX! This project was crafted with care to simplify NFT marketplace development on Algorand and help developers ship faster.
 
 If you found this useful, feel free to ⭐️ star the repo and share it with others in the community.
-Pull requests and feature suggestions are welcome! For major changes, please open an issue first to discuss your idea
 
 ## 👨‍💻 About the Author
 
