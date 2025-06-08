@@ -215,6 +215,23 @@ window.algoMintXClient.events.on("nft:buy:failed", ({ error }) => {
 });
 ```
 
+## Event Unsubscription
+
+To unsubscribe from SDK events, use the `off` or `removeListener` methods:
+
+```js
+algoMintXClient.events.off("wallet:connection:connected", ({ address }) => {
+  console.log("Wallet connected:", address);
+});
+
+algoMintXClient.events.removeListener(
+  "wallet:connection:connected",
+  ({ address }) => {
+    console.log("Wallet connected:", address);
+  }
+);
+```
+
 ---
 
 ## 🤝 Contributing
