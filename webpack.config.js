@@ -10,6 +10,7 @@ module.exports = {
     libraryTarget: "window",
     libraryExport: "default",
     globalObject: "this",
+    chunkFormat: false,
   },
   module: {
     rules: [
