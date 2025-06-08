@@ -2,19 +2,21 @@
  * Initialize AlgoMintX
  */
 window.algoMintXClient = new window.AlgoMintX({
-  pinata_ipfs_server_key: "", // your pinata api key
-  pinata_ipfs_gateway_url: "", // your pinata gateway url
-  env: "testnet", // testnet | mainnet
-  namespace: "DEMOY", // unique 5 letter string
-  revenueWalletAddress: "", // where fees go
-  listingFee: 0.1, // in Algos
-  unListingFee: 0.1, // in Algos
-  buyingFee: 0.5, // in Algos
-  supportedMediaFormats: ["IMAGE", "VIDEO", "AUDIO"], // ["IMAGE", "VIDEO", "AUDIO"]
-  disableToast: false, // disable toast notifications
-  toastLocation: "TOP_RIGHT", // TOP_LEFT | TOP_RIGHT
-  minimizeUILocation: "right", // left | right
-  logo: "./logo.png", // your website logo (URL / path to image)
+  // Required
+  pinata_ipfs_server_key: "", // Your Pinata API key
+  pinata_ipfs_gateway_url: "", // Your Pinata gateway URL
+  env: "testnet", // "testnet" or "mainnet"
+  namespace: "", // Unique 5-character uppercase string
+  revenueWalletAddress: "", // Wallet to collect marketplace fees
+  // Optional
+  listingFee: 0.1, // NFT listing fee (in Algos)
+  buyingFee: 0.5, // NFT buying fee (in Algos)
+  unListingFee: 0.1, // NFT un-listing fee (in Algos)
+  disableToast: false, // Disable toast notifications
+  toastLocation: "TOP_RIGHT", // Toast notification location (TOP_LEFT | TOP_RIGHT)
+  minimizeUILocation: "right", // SDK minimize button location (left | right)
+  logo: "./logo.png", // Your website logo (URL / path to image)
+  supportedMediaFormats: ["IMAGE", "VIDEO", "AUDIO"], // Supported media formats for NFTs
 });
 
 /**
@@ -25,6 +27,7 @@ algoMintXClient.events.on(
   "wallet:connection:connected",
   async ({ address }) => {
     console.log("Wallet connected:", address);
+    updateProfileSection(address);
   }
 );
 
@@ -32,6 +35,7 @@ algoMintXClient.events.on(
   "wallet:connection:disconnected",
   async ({ address }) => {
     console.log("wallet:connection:disconnected:", address);
+    updateProfileSection(null);
   }
 );
 
@@ -317,3 +321,46 @@ window.renderNFTDetailsPage = async (assetId) => {
 
   return nft;
 };
+
+// Function to format wallet address
+function formatWalletAddress(address) {
+  if (!address) return "";
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+}
+
+// Function to get random avatar
+function getRandomAvatar() {
+  const styles = [
+    "adventurer",
+    "avataaars",
+    "bottts",
+    "fun-emoji",
+    "micah",
+    "miniavs",
+    "pixel-art",
+    "personas",
+  ];
+  const style = styles[Math.floor(Math.random() * styles.length)];
+  const seed = Math.random().toString(36).substring(7);
+  return `https://api.dicebear.com/7.x/${style}/svg?seed=${seed}`;
+}
+
+// Function to update profile section
+function updateProfileSection(address) {
+  const profileSection = document.getElementById("profile-section");
+  const walletAddress = document.getElementById("wallet-address");
+  const profileAvatar = document.querySelector(".profile-avatar img");
+
+  if (address) {
+    walletAddress.textContent = formatWalletAddress(address);
+    profileAvatar.src = getRandomAvatar();
+    profileSection.style.display = "flex";
+  } else {
+    profileSection.style.display = "none";
+  }
+}
+
+// Update profile section on initial load
+if (window.algoMintXClient.account) {
+  updateProfileSection(window.algoMintXClient.account);
+}
