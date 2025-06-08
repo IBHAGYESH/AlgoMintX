@@ -534,6 +534,17 @@ footer {
   color: #333;
 }
 
+.wallet-link {
+  color: #2196f3;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.wallet-link:hover {
+  color: #1976d2;
+  text-decoration: underline;
+}
+
 .audio-preview {
   position: relative;
   width: 100%;

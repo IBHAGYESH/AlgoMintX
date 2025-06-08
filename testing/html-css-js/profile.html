@@ -41,7 +41,7 @@
 
     <main>
       <div class="container">
-        <h2 class="page-title">Your NFTs</h2>
+        <h2 class="page-title" id="page-title">Your NFTs</h2>
         <div id="login-message" class="login-message" style="display: none">
           <h3>Connect Your Wallet</h3>
           <p>Please connect your wallet to view your NFTs</p>
@@ -51,7 +51,7 @@
         </div>
         <div id="loading" class="loading-container" style="display: none">
           <div class="loading-spinner"></div>
-          <p class="loading-text">Loading your NFTs...</p>
+          <p class="loading-text">Loading NFTs...</p>
         </div>
         <div id="nft-grid" class="nft-grid" style="display: none"></div>
       </div>
@@ -75,32 +75,165 @@
         const loginMessage = document.getElementById("login-message");
         const loadingContainer = document.getElementById("loading");
         const nftGrid = document.getElementById("nft-grid");
+        const profileSection = document.getElementById("profile-section");
+        const walletAddress = document.getElementById("wallet-address");
+        const pageTitle = document.getElementById("page-title");
 
-        // Check wallet connection status immediately
-        if (window.algoMintXClient.account) {
-          loadingContainer.style.display = "block";
-          await loadUserNFTs();
-        } else {
-          loginMessage.style.display = "block";
+        // Get wallet address from URL if present
+        const urlParams = new URLSearchParams(window.location.search);
+        const walletAddressParam = urlParams.get("wallet");
+
+        // Function to show NFT grid
+        async function showNFTGrid() {
+          try {
+            // Hide NFT grid and show loading
+            nftGrid.style.display = "none";
+            loadingContainer.style.display = "block";
+
+            // If viewing another wallet's NFTs
+            if (walletAddressParam) {
+              pageTitle.textContent = `Wallet NFTs`;
+              const nfts = await window.algoMintXClient.getWalletNFTs({
+                accountId: walletAddressParam,
+              });
+              // Only show buy button for listed NFTs
+              window.renderNFTCards(nfts, true);
+            } else {
+              // Viewing own NFTs
+              pageTitle.textContent = `Your NFTs`;
+              if (!window.algoMintXClient.account) {
+                throw new Error("Wallet not connected");
+              }
+              const nfts = await window.algoMintXClient.getWalletNFTs({});
+              window.renderNFTCards(nfts, false);
+            }
+
+            // Hide loading and show NFT grid
+            loadingContainer.style.display = "none";
+            nftGrid.style.display = "grid";
+            loginMessage.style.display = "none";
+          } catch (error) {
+            console.error("Error loading NFTs:", error);
+            loadingContainer.style.display = "none";
+            if (!walletAddressParam) {
+              showLoginMessage();
+            } else {
+              nftGrid.style.display = "none";
+              alert("Failed to load NFTs: " + error.message);
+            }
+          }
         }
 
+        // Function to show login message
+        function showLoginMessage() {
+          loginMessage.style.display = "block";
+          loadingContainer.style.display = "none";
+          nftGrid.style.display = "none";
+          profileSection.style.display = "none";
+        }
+
+        // Function to update profile section
+        function updateProfileSection(address) {
+          if (address) {
+            profileSection.style.display = "flex";
+            walletAddress.textContent = formatWalletAddress(address);
+          } else {
+            profileSection.style.display = "none";
+          }
+        }
+
+        // Format wallet address
+        function formatWalletAddress(address) {
+          return `${address.slice(0, 6)}...${address.slice(-4)}`;
+        }
+
+        // Check initial wallet connection status
+        if (walletAddressParam) {
+          // If viewing another wallet's NFTs, don't show login message
+          await showNFTGrid();
+        } else if (window.algoMintXClient.account) {
+          updateProfileSection(window.algoMintXClient.account);
+          await showNFTGrid();
+        } else {
+          showLoginMessage();
+        }
+
+        // Connect wallet button click handler
         connectWalletBtn.addEventListener("click", async () => {
           window.algoMintXClient.maximizeSDK();
         });
 
-        async function loadUserNFTs() {
-          try {
-            const nfts = await window.algoMintXClient.getWalletNFTs({});
-            window.renderNFTCards(nfts);
-            loadingContainer.style.display = "none";
-            nftGrid.style.display = "grid";
-          } catch (error) {
-            console.error("Error loading user NFTs:", error);
-            alert("Failed to load user NFTs: " + error.message);
-            loginMessage.style.display = "block";
-            loadingContainer.style.display = "none";
+        // Listen for wallet connection events
+        window.algoMintXClient.events.on(
+          "wallet:connection:connected",
+          async ({ address }) => {
+            // Hide login message immediately
+            loginMessage.style.display = "none";
+            // Show loading state
+            loadingContainer.style.display = "block";
+            // Update profile section
+            updateProfileSection(address);
+            // Load and show NFTs
+            await showNFTGrid();
           }
-        }
+        );
+
+        window.algoMintXClient.events.on(
+          "wallet:connection:disconnected",
+          () => {
+            if (!walletAddressParam) {
+              showLoginMessage();
+            }
+          }
+        );
+
+        // Listen for NFT listing success
+        window.algoMintXClient.events.on("nft:list:success", async () => {
+          // Only refresh if wallet is connected
+          if (window.algoMintXClient.account) {
+            try {
+              // Hide NFT grid and show loading
+              nftGrid.style.display = "none";
+              loadingContainer.style.display = "block";
+
+              // Fetch and display NFTs
+              const nfts = await window.algoMintXClient.getWalletNFTs({});
+              window.renderNFTCards(nfts, false);
+
+              // Hide loading and show NFT grid
+              loadingContainer.style.display = "none";
+              nftGrid.style.display = "grid";
+            } catch (error) {
+              console.error("Error refreshing NFTs after listing:", error);
+              loadingContainer.style.display = "none";
+              showLoginMessage();
+            }
+          }
+        });
+
+        // Listen for NFT mint success
+        window.algoMintXClient.events.on("nft:mint:success", async () => {
+          // Only refresh if wallet is connected and not viewing another wallet
+          if (window.algoMintXClient.account && !walletAddressParam) {
+            try {
+              // Hide NFT grid and show loading
+              nftGrid.style.display = "none";
+              loadingContainer.style.display = "block";
+
+              // Fetch and display NFTs
+              const nfts = await window.algoMintXClient.getWalletNFTs({});
+              window.renderNFTCards(nfts, false);
+
+              // Hide loading and show NFT grid
+              loadingContainer.style.display = "none";
+              nftGrid.style.display = "grid";
+            } catch (error) {
+              console.error("Error refreshing NFTs after mint:", error);
+              loadingContainer.style.display = "none";
+              showLoginMessage();
+            }
+          }
+        });
       });
     </script>
   </body>

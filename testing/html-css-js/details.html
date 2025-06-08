@@ -115,7 +115,6 @@
                   await window.algoMintXClient.unlistNFT({
                     assetId: Number(assetId),
                   });
-                  window.location.reload();
                 } catch (error) {
                   alert("Failed to unlist NFT: " + error.message);
                 }
@@ -163,6 +162,39 @@
           loadingContainer.style.display = "none";
           nftDetails.style.display = "block";
         }
+
+        // Function to refresh NFT details
+        async function refreshNFTDetails() {
+          try {
+            const loadingContainer = document.getElementById("loading");
+            const nftDetails = document.getElementById("nft-details");
+            const nftActions = document.getElementById("nft-actions");
+
+            // Show loading state
+            loadingContainer.style.display = "block";
+            nftDetails.style.display = "none";
+            nftActions.style.display = "none";
+
+            // Reload the page to get fresh data
+            window.location.reload();
+          } catch (error) {
+            console.error("Error refreshing NFT details:", error);
+            alert("Failed to refresh NFT details: " + error.message);
+          }
+        }
+
+        // Listen for NFT events
+        window.algoMintXClient.events.on("nft:buy:success", async () => {
+          await refreshNFTDetails();
+        });
+
+        window.algoMintXClient.events.on("nft:list:success", async () => {
+          await refreshNFTDetails();
+        });
+
+        window.algoMintXClient.events.on("nft:unlist:success", async () => {
+          await refreshNFTDetails();
+        });
       });
     </script>
   </body>

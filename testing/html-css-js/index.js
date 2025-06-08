@@ -101,7 +101,7 @@ algoMintXClient.events.on("nft:buy:failed", async ({ error }) => {
  */
 
 // Function to render NFT cards
-window.renderNFTCards = function (nfts) {
+window.renderNFTCards = function (nfts, isViewingOtherWallet = false) {
   const nftGrid = document.getElementById("nft-grid");
   nftGrid.innerHTML = "";
 
@@ -110,21 +110,39 @@ window.renderNFTCards = function (nfts) {
     return;
   }
 
+  // Function to truncate text
+  const truncateText = (text, maxLength) => {
+    if (!text) return "";
+    return text.length > maxLength ? text.slice(0, maxLength) + "..." : text;
+  };
+
   nfts.forEach((nft) => {
     const card = document.createElement("div");
     card.className = "nft-card";
 
     let buttonHtml = "";
-    if (nft.listing) {
-      if (nft.listing.seller === window.algoMintXClient.account) {
-        // Show unlist button if seller is the current user
-        buttonHtml = `<button class="btn btn-warning unlist-nft-btn" onclick="window.algoMintXClient.unlistNFT({ assetId: ${nft.assetId} })">Unlist NFT</button>`;
-      } else {
-        // Show buy button if seller is not the current user
+    if (isViewingOtherWallet) {
+      // When viewing another wallet's NFTs
+      if (nft.listing) {
+        // Show buy button for listed NFTs
         buttonHtml = `<button class="btn btn-primary buy-nft-btn" onclick="window.algoMintXClient.buyNFT({ assetId: ${nft.assetId} })">Buy Now</button>`;
+      } else if (nft.currentHolder === window.algoMintXClient.account) {
+        // If the NFT belongs to the connected wallet, show list button
+        buttonHtml = `<button class="btn btn-secondary list-nft-btn" onclick="openListNFTModal(${nft.assetId})">List NFT</button>`;
       }
     } else {
-      buttonHtml = `<button class="btn btn-secondary list-nft-btn" onclick="openListNFTModal(${nft.assetId})">List NFT</button>`;
+      // When viewing own NFTs, show all buttons
+      if (nft.listing) {
+        if (nft.listing.seller === window.algoMintXClient.account) {
+          // Show unlist button if seller is the current user
+          buttonHtml = `<button class="btn btn-warning unlist-nft-btn" onclick="window.algoMintXClient.unlistNFT({ assetId: ${nft.assetId} })">Unlist NFT</button>`;
+        } else {
+          // Show buy button if seller is not the current user
+          buttonHtml = `<button class="btn btn-primary buy-nft-btn" onclick="window.algoMintXClient.buyNFT({ assetId: ${nft.assetId} })">Buy Now</button>`;
+        }
+      } else {
+        buttonHtml = `<button class="btn btn-secondary list-nft-btn" onclick="openListNFTModal(${nft.assetId})">List NFT</button>`;
+      }
     }
 
     // Format wallet address to show first 6 and last 4 characters
@@ -163,18 +181,26 @@ window.renderNFTCards = function (nfts) {
     card.innerHTML = `
       ${mediaElement}
       <div class="nft-content">
-        <h3 class="nft-title">${nft.name || "Unnamed NFT"}</h3>
-        <p class="nft-description">${
+        <h3 class="nft-title" title="${
+          nft.name || "Unnamed NFT"
+        }">${truncateText(nft.name || "Unnamed NFT", 20)}</h3>
+        <p class="nft-description" title="${
           nft.metadata.description || "No description available"
-        }</p>
+        }">${truncateText(
+      nft.metadata.description || "No description available",
+      100
+    )}</p>
         ${
           nft.listing
             ? `<p class="nft-price">${nft.listing.price} ALGO</p>`
             : ""
         }
-        <p class="nft-wallet"><strong>${walletLabel}:</strong> ${formatWalletAddress(
-      walletAddress
-    )}</p>
+        <p class="nft-wallet">
+          <strong>${walletLabel}:</strong> 
+          <a href="profile.html?wallet=${walletAddress}" class="wallet-link">
+            ${formatWalletAddress(walletAddress)}
+          </a>
+        </p>
         ${buttonHtml}
       </div>
     `;
@@ -255,15 +281,15 @@ window.openListNFTModal = function (assetId) {
   form.onsubmit = async function (e) {
     e.preventDefault();
     const price = document.getElementById("price").value;
+
+    // Remove modal before starting the listing process
+    modal.remove();
+
     try {
       await window.algoMintXClient.listNFT({
         assetId: assetId,
         nftPrice: parseInt(price),
       });
-      modal.remove();
-      // Refresh the NFT list
-      const nfts = await window.algoMintXClient.getWalletNFTs();
-      window.renderNFTCards(nfts);
     } catch (error) {
       console.error("Error listing NFT:", error);
       alert("Failed to list NFT: " + error.message);
