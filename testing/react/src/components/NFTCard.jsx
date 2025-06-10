@@ -1,21 +1,20 @@
-import { useSDK } from '../hooks/useSDK';
-import { Link } from 'react-router-dom';
+import { useState } from "react";
+import { useSDK } from "../hooks/useSDK";
+import { Link } from "react-router-dom";
+import { truncateText } from "../utils";
+import ListNFTModal from "./ListNFTModal";
 
-function NFTCard({ nft, showActions = true }) {
-  const { account } = useSDK();
+function NFTCard({ nft }) {
+  const { algoMintXClient } = useSDK();
+  const [showListModal, setShowListModal] = useState(false);
 
   const renderMedia = () => {
-    const isVideo = nft.metadata.image_mimetype?.startsWith('video/');
-    const isAudio = nft.metadata.image_mimetype?.startsWith('audio/');
+    const isVideo = nft.metadata.image_mimetype?.startsWith("video/");
+    const isAudio = nft.metadata.image_mimetype?.startsWith("audio/");
 
     if (isVideo) {
       return (
-        <video 
-          className="nft-image" 
-          loop 
-          playsInline
-          muted
-        >
+        <video className="nft-image" loop playsInline muted>
           <source src={nft.metadata.image} type={nft.metadata.image_mimetype} />
           Your browser does not support the video tag.
         </video>
@@ -23,66 +22,65 @@ function NFTCard({ nft, showActions = true }) {
     } else if (isAudio) {
       return (
         <div className="audio-preview">
-          <img 
-            src="https://img.icons8.com/ios-filled/50/ffffff/musical-notes.png" 
-            alt="Audio" 
+          <img
+            src="https://img.icons8.com/ios-filled/50/ffffff/musical-notes.png"
+            alt="Audio"
             className="audio-icon"
           />
-          <audio 
-            className="nft-image" 
-            preload="metadata"
-            muted
-          >
-            <source src={nft.metadata.image} type={nft.metadata.image_mimetype} />
+          <audio className="nft-image" preload="metadata" muted>
+            <source
+              src={nft.metadata.image}
+              type={nft.metadata.image_mimetype}
+            />
             Your browser does not support the audio tag.
           </audio>
         </div>
       );
     } else {
       return (
-        <img 
-          src={nft.metadata.image} 
-          alt={nft.metadata.name} 
-          className="nft-image" 
+        <img
+          src={nft.metadata.image}
+          alt={nft.metadata.name}
+          className="nft-image"
         />
       );
     }
   };
 
   const handleMediaHover = (e) => {
-    const isVideo = nft.metadata.image_mimetype?.startsWith('video/');
-    const isAudio = nft.metadata.image_mimetype?.startsWith('audio/');
-    
+    const isVideo = nft.metadata.image_mimetype?.startsWith("video/");
+    const isAudio = nft.metadata.image_mimetype?.startsWith("audio/");
+
     if (isVideo) {
-      const video = e.currentTarget.querySelector('video');
+      const video = e.currentTarget.querySelector("video");
       if (video) {
         video.muted = false;
         video.volume = 0.5;
-        video.play().catch(err => console.log('Video play failed:', err));
+        video.play().catch((err) => console.log("Video play failed:", err));
       }
     } else if (isAudio) {
-      const audio = e.currentTarget.querySelector('audio');
+      const audio = e.currentTarget.querySelector("audio");
       if (audio) {
         audio.muted = false;
         audio.volume = 0.5;
-        audio.play().catch(err => console.log('Audio play failed:', err));
+        audio.play().catch((err) => console.log("Audio play failed:", err));
       }
     }
   };
 
   const handleMediaLeave = (e) => {
-    const isVideo = nft.metadata.image_mimetype?.startsWith('video/');
-    const isAudio = nft.metadata.image_mimetype?.startsWith('audio/');
-    
+    const isVideo = nft.metadata.image_mimetype?.startsWith("video/");
+    const isAudio = nft.metadata.image_mimetype?.startsWith("audio/");
+
     if (isVideo) {
-      const video = e.currentTarget.querySelector('video');
+      const video = e.currentTarget.querySelector("video");
       if (video) {
         video.pause();
         video.currentTime = 0;
         video.muted = true;
       }
     } else if (isAudio) {
-      const audio = e.currentTarget.querySelector('audio');
+      const audio = e.currentTarget.querySelector("audio");
       if (audio) {
         audio.pause();
         audio.currentTime = 0;
@@ -94,16 +92,16 @@ function NFTCard({ nft, showActions = true }) {
   const handleAction = (e, action) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     switch (action) {
-      case 'buy':
-        window.algoMintXClient.buyNFT({ assetId: nft.assetId });
+      case "buy":
+        algoMintXClient.buyNFT({ assetId: nft.assetId });
         break;
-      case 'unlist':
-        window.algoMintXClient.unlistNFT({ assetId: nft.assetId });
+      case "unlist":
+        algoMintXClient.unlistNFT({ assetId: nft.assetId });
         break;
-      case 'list':
-        window.openListNFTModal(nft.assetId);
+      case "list":
+        setShowListModal(true);
         break;
       default:
         break;
@@ -116,14 +114,12 @@ function NFTCard({ nft, showActions = true }) {
   };
 
   const renderActionButton = () => {
-    if (!showActions) return null;
-
     if (nft.listing) {
-      if (nft.listing.seller === account) {
+      if (nft.listing.seller === algoMintXClient?.account) {
         return (
           <button
-            className="btn btn-warning"
-            onClick={(e) => handleAction(e, 'unlist')}
+            className="unlist-nft-btn"
+            onClick={(e) => handleAction(e, "unlist")}
           >
             Unlist NFT
           </button>
@@ -131,18 +127,18 @@ function NFTCard({ nft, showActions = true }) {
       } else {
         return (
           <button
-            className="btn btn-primary"
-            onClick={(e) => handleAction(e, 'buy')}
+            className="buy-nft-btn"
+            onClick={(e) => handleAction(e, "buy")}
           >
             Buy Now
           </button>
         );
       }
-    } else if (nft.currentHolder === account) {
+    } else if (nft.currentHolder === algoMintXClient?.account) {
       return (
         <button
-          className="btn btn-secondary"
-          onClick={(e) => handleAction(e, 'list')}
+          className="list-nft-btn"
+          onClick={(e) => handleAction(e, "list")}
         >
           List NFT
         </button>
@@ -152,28 +148,50 @@ function NFTCard({ nft, showActions = true }) {
   };
 
   return (
-    <div 
-      className="nft-card"
-      onMouseEnter={handleMediaHover}
-      onMouseLeave={handleMediaLeave}
-    >
-      <Link to={`/nft/${nft.assetId}`}>
+    <>
+      <div
+        className="nft-card"
+        onMouseEnter={handleMediaHover}
+        onMouseLeave={handleMediaLeave}
+        onClick={() => (window.location.href = `/nft/${nft.assetId}`)}
+      >
         {renderMedia()}
         <div className="nft-content">
-          <h3 className="nft-title">{nft.metadata.name}</h3>
-          <p className="nft-description">{nft.metadata.description}</p>
-          {nft.listing && (
-            <p className="nft-price">{nft.listing.price} ALGO</p>
-          )}
+          <h3 className="nft-title">
+            {truncateText(nft.metadata.name || "Unnamed NFT", 20)}
+          </h3>
+          <p className="nft-description">
+            {truncateText(
+              nft.metadata.description || "No description available",
+              100
+            )}
+          </p>
+          {nft.listing && <p className="nft-price">{nft.listing.price} ALGO</p>}
           <p className="nft-wallet">
-            <strong>{nft.listing ? 'Seller' : 'Owner'}:</strong>{' '}
-            {formatWalletAddress(nft.listing ? nft.listing.seller : nft.currentHolder)}
+            <strong>{nft.listing ? "Seller" : "Owner"}:</strong>{" "}
+            <Link
+              to={`/profile?wallet=${
+                nft.listing ? nft.listing.seller : nft.currentHolder
+              }`}
+              className="wallet-link"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {formatWalletAddress(
+                nft.listing ? nft.listing.seller : nft.currentHolder
+              )}
+            </Link>
           </p>
           {renderActionButton()}
         </div>
-      </Link>
-    </div>
+      </div>
+      {showListModal && (
+        <ListNFTModal
+          assetId={nft.assetId}
+          onClose={() => setShowListModal(false)}
+        />
+      )}
+    </>
   );
 }
 
-export default NFTCard; 
+export default NFTCard;

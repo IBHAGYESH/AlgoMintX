@@ -7,15 +7,15 @@ function Home() {
   const [nfts, setNfts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const { account } = useSDK();
+  const { algoMintXClient } = useSDK();
 
   useEffect(() => {
     const fetchNFTs = async () => {
-      if (!window.algoMintXClient) return;
+      if (!algoMintXClient) return;
       
       try {
         setLoading(true);
-        const data = await window.algoMintXClient.getListedNFTs();
+        const data = await algoMintXClient.getListedNFTs();
         setNfts(data);
         setError(null);
       } catch (err) {
@@ -28,7 +28,7 @@ function Home() {
     };
 
     fetchNFTs();
-  }, [window.algoMintXClient]);
+  }, [algoMintXClient]);
 
   if (loading) {
     return (
@@ -56,11 +56,14 @@ function Home() {
   }
 
   return (
-    <div className="nft-grid">
-      {nfts.map((nft) => (
-        <NFTCard key={nft.assetId} nft={nft} />
-      ))}
-    </div>
+    <>
+      <h2 className="page-title">Featured NFTs</h2>
+      <div className="nft-grid">
+        {nfts.map((nft) => (
+          <NFTCard key={nft.assetId} nft={nft} />
+        ))}
+      </div>
+    </>
   );
 }
 

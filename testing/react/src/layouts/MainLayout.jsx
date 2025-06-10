@@ -1,9 +1,10 @@
 import { Outlet, Link } from 'react-router-dom';
 import { useSDK } from '../hooks/useSDK';
 import logo from '../assets/logo.png';
+import {formatWalletAddress, getRandomAvatar} from "../utils"
 
 function MainLayout() {
-  const { account } = useSDK();
+  const { algoMintXClient } = useSDK();
 
   return (
     <>
@@ -11,17 +12,17 @@ function MainLayout() {
         <div className="container header-content">
           <div className="logo">
             <img src={logo} alt="AlgoMintX Logo" />
-            <h1>AlgoMintX NFT Marketplace</h1>
+            <h1>QuickMInt</h1>
           </div>
-          {account && (
+          {algoMintXClient?.account && (
             <div className="profile-section">
               <div className="wallet-info">
-                <span>{account}</span>
+                <span>{formatWalletAddress(algoMintXClient.account)}</span>
               </div>
               <div className="profile-avatar">
                 <img
-                  src="https://img.icons8.com/ios-filled/50/ffffff/user-male-circle.png"
-                  alt="Profile"
+                 src={getRandomAvatar()}
+              alt="Profile"
                 />
               </div>
             </div>
@@ -47,7 +48,7 @@ function MainLayout() {
 
       <footer>
         <div className="container footer-content">
-          <p>&copy; {new Date().getFullYear()} AlgoMintX NFT Marketplace. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} QuickMInt. All rights reserved.</p>
         </div>
       </footer>
     </>

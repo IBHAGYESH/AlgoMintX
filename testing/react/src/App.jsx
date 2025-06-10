@@ -9,21 +9,9 @@ import About from './pages/About';
 import NFTDetails from './pages/NFTDetails';
 import { useSDK } from './hooks/useSDK';
 
-function App() {
-  console.log("+++");
-  
-  const { sdkReady, sdkError } = useSDK();
-
-  if (sdkError) {
-    return (
-      <div style={{ padding: '20px', textAlign: 'center' }}>
-        <h2>Error Initializing SDK</h2>
-        <p>{sdkError}</p>
-      </div>
-    );
-  }
-
-  if (!sdkReady) {
+function App() {  
+  const { algoMintXClient } = useSDK();
+  if (!algoMintXClient) {
     return (
       <div style={{ padding: '20px', textAlign: 'center' }}>
         <h2>Loading SDK...</h2>

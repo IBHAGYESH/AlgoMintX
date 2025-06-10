@@ -1,30 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
-import { toast } from "react-toastify";
 
 export function useSDK() {
-  const [sdkReady, setSdkReady] = useState(false);
-  const [sdkError, setSdkError] = useState(null);
-  const [account, setAccount] = useState(null);
-
-  // Define event handlers using useCallback to maintain reference stability
-  const handleWalletConnected = useCallback(async ({ account }) => {
-    setAccount(account);
-    toast.success("Wallet connected successfully!");
-  }, []);
-
-  const handleWalletDisconnected = useCallback(async () => {
-    setAccount(null);
-    toast.info("Wallet disconnected");
-  }, []);
+  const [algoMintXClient, setAlgoMintXClient] = useState(null);
 
   const initializeSDK = useCallback(() => {
     if (window.AlgoMintX) {
       try {
-        // Set higher max listeners limit
-        window.AlgoMintX.defaultMaxListeners = 50;
-
         // Initialize SDK with required parameters
-        window.algoMintXClient = new window.AlgoMintX({
+        const algoMintX = new window.AlgoMintX({
           // Required
           pinata_ipfs_server_key: "", // Your Pinata API key
           pinata_ipfs_gateway_url: "", // Your Pinata gateway URL
@@ -42,67 +25,33 @@ export function useSDK() {
           supportedMediaFormats: ["IMAGE", "VIDEO", "AUDIO"], // Supported media formats for NFTs
         });
 
-        // Check if wallet is already connected
-        if (window.algoMintXClient?.account) {
-          setAccount(window.algoMintXClient.account);
-        }
-
-        // Add event listeners
-        window.algoMintXClient.events.on(
-          "wallet:connection:connected",
-          handleWalletConnected
-        );
-        window.algoMintXClient.events.on(
-          "wallet:connection:disconnected",
-          handleWalletDisconnected
-        );
-
-        setSdkReady(true);
-        setSdkError(null);
-
-        return true;
+        setAlgoMintXClient(algoMintX);
       } catch (error) {
         console.error("SDK initialization error:", error);
-        setSdkError(error);
-        setSdkReady(false);
-        return false;
       }
     }
-    return false;
-  }, [handleWalletConnected, handleWalletDisconnected]);
+  }, []);
 
   useEffect(() => {
-    let retryCount = 0;
-    const maxRetries = 5;
-    const retryInterval = 1000; // 1 second
+    let intervalId;
 
-    const tryInitialize = () => {
-      const success = initializeSDK();
-      if (!success && retryCount < maxRetries) {
-        retryCount++;
-        setTimeout(tryInitialize, retryInterval);
-      } else if (!success) {
-        setSdkError(new Error("SDK not found after maximum retries"));
-        setSdkReady(false);
+    const checkAndInitializeSDK = () => {
+      if (window.AlgoMintX) {
+        initializeSDK();
+        clearInterval(intervalId);
       }
     };
 
-    tryInitialize();
+    // Start checking every 100ms
+    intervalId = setInterval(checkAndInitializeSDK, 100);
 
-    // Cleanup function
+    // Cleanup interval on component unmount
     return () => {
-      if (window.algoMintXClient?.events) {
-        window.algoMintXClient.events.removeListener(
-          "wallet:connection:connected",
-          handleWalletConnected
-        );
-        window.algoMintXClient.events.removeListener(
-          "wallet:connection:disconnected",
-          handleWalletDisconnected
-        );
+      if (intervalId) {
+        clearInterval(intervalId);
       }
     };
-  }, [initializeSDK, handleWalletConnected, handleWalletDisconnected]);
+  }, [initializeSDK]);
 
-  return { sdkReady, sdkError, account };
+  return { algoMintXClient };
 }

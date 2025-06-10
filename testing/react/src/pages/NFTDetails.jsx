@@ -1,56 +1,60 @@
-import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { useSDK } from '../hooks/useSDK';
-import { toast } from 'react-toastify';
+import { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { useSDK } from "../hooks/useSDK";
+import { toast } from "react-toastify";
+import ListNFTModal from "../components/ListNFTModal";
 
 function NFTDetails() {
   const { assetId } = useParams();
-  const { account, sdkReady } = useSDK();
   const [nftData, setNftData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showListModal, setShowListModal] = useState(false);
+  const { algoMintXClient } = useSDK();
 
   useEffect(() => {
-    if (!sdkReady || !assetId) return;
+    if (!algoMintXClient || !assetId) return;
 
     const fetchNFTDetails = async () => {
       try {
         setLoading(true);
         setError(null);
-        const data = await window.algoMintXClient.getNFTMetadata({ assetId: Number(assetId) });
+        const data = await algoMintXClient.getNFTMetadata({
+          assetId: Number(assetId),
+        });
         setNftData(data);
       } catch (err) {
-        console.error('Error fetching NFT details:', err);
-        setError(err.message || 'Failed to load NFT details');
-        toast.error('Failed to load NFT details');
+        console.error("Error fetching NFT details:", err);
+        setError(err.message || "Failed to load NFT details");
+        toast.error("Failed to load NFT details");
       } finally {
         setLoading(false);
       }
     };
 
     fetchNFTDetails();
-  }, [sdkReady, assetId]);
+  }, [algoMintXClient, assetId]);
 
   const handleAction = async (action) => {
     try {
       switch (action) {
-        case 'buy':
-          await window.algoMintXClient.buyNFT({ assetId: Number(assetId) });
-          toast.success('NFT purchased successfully!');
+        case "buy":
+          await algoMintXClient.buyNFT({ assetId: Number(assetId) });
+          toast.success("NFT purchased successfully!");
           break;
-        case 'unlist':
-          await window.algoMintXClient.unlistNFT({ assetId: Number(assetId) });
-          toast.success('NFT unlisted successfully!');
+        case "unlist":
+          await algoMintXClient.unlistNFT({ assetId: Number(assetId) });
+          toast.success("NFT unlisted successfully!");
           break;
-        case 'list':
-          window.openListNFTModal(Number(assetId));
+        case "list":
+          setShowListModal(true);
           break;
         default:
           break;
       }
     } catch (err) {
-      console.error('Error performing NFT action:', err);
-      toast.error(err.message || 'Failed to perform action');
+      console.error("Error performing NFT action:", err);
+      toast.error(err.message || "Failed to perform action");
     }
   };
 
@@ -79,22 +83,22 @@ function NFTDetails() {
     );
   }
 
-  const walletConnected = account !== null;
-  const isOwner = nftData.currentHolder === account;
-  const isSeller = nftData.listing?.seller === account;
+  const walletConnected = algoMintXClient.account !== null;
+  const isOwner = nftData.currentHolder === algoMintXClient.account;
+  const isSeller = nftData.listing?.seller === algoMintXClient.account;
 
   // Determine the media type based on image_mimetype
   const renderMedia = () => {
-    const isVideo = nftData.metadata.image_mimetype?.startsWith('video/');
-    const isAudio = nftData.metadata.image_mimetype?.startsWith('audio/');
+    const isVideo = nftData.metadata.image_mimetype?.startsWith("video/");
+    const isAudio = nftData.metadata.image_mimetype?.startsWith("audio/");
 
     if (isVideo) {
       return (
         <div className="nft-details-media-container">
-          <video 
-            className="nft-details-media" 
-            controls 
-            autoPlay 
+          <video
+            className="nft-details-media"
+            controls
+            autoPlay
             loop
             src={nftData.metadata.image}
             type={nftData.metadata.image_mimetype}
@@ -107,14 +111,14 @@ function NFTDetails() {
       return (
         <div className="nft-details-media-container">
           <div className="audio-player">
-            <img 
-              src="https://img.icons8.com/ios-filled/50/ffffff/musical-notes.png" 
-              alt="Audio" 
+            <img
+              src="https://img.icons8.com/ios-filled/50/ffffff/musical-notes.png"
+              alt="Audio"
               className="audio-icon"
             />
-            <audio 
-              className="nft-details-media" 
-              controls 
+            <audio
+              className="nft-details-media"
+              controls
               autoPlay
               src={nftData.metadata.image}
               type={nftData.metadata.image_mimetype}
@@ -127,10 +131,10 @@ function NFTDetails() {
     } else {
       return (
         <div className="nft-details-media-container">
-          <img 
-            src={nftData.metadata.image} 
-            alt={nftData.metadata.name} 
-            className="nft-details-media" 
+          <img
+            src={nftData.metadata.image}
+            alt={nftData.metadata.name}
+            className="nft-details-media"
           />
         </div>
       );
@@ -154,6 +158,20 @@ function NFTDetails() {
                 <strong>Price:</strong> {nftData.listing.price} Algo
               </p>
             )}
+            <p className="nft-wallet">
+              <strong>Asset ID:</strong> {assetId}
+            </p>
+            <p className="nft-wallet">
+              <strong>Transaction:</strong> {nftData.transactionId}
+            </p>
+            <p className="nft-wallet">
+              <strong>Creator:</strong> {nftData.creator}
+            </p>
+            {nftData.listing && (
+              <p className="nft-wallet">
+                <strong>Listed by:</strong> {nftData.listing.seller}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -163,21 +181,21 @@ function NFTDetails() {
           !walletConnected ? (
             <button
               className="action-button buy-button"
-              onClick={() => handleAction('buy')}
+              onClick={() => handleAction("buy")}
             >
               Buy NFT for {nftData.listing.price} Algo
             </button>
           ) : isSeller ? (
             <button
               className="action-button unlist-button"
-              onClick={() => handleAction('unlist')}
+              onClick={() => handleAction("unlist")}
             >
               Unlist NFT
             </button>
           ) : (
             <button
               className="action-button buy-button"
-              onClick={() => handleAction('buy')}
+              onClick={() => handleAction("buy")}
             >
               Buy NFT for {nftData.listing.price} Algo
             </button>
@@ -187,15 +205,21 @@ function NFTDetails() {
           isOwner && (
             <button
               className="action-button list-button"
-              onClick={() => handleAction('list')}
+              onClick={() => handleAction("list")}
             >
               List NFT
             </button>
           )
         )}
       </div>
+      {showListModal && (
+        <ListNFTModal
+          assetId={Number(assetId)}
+          onClose={() => setShowListModal(false)}
+        />
+      )}
     </div>
   );
 }
 
-export default NFTDetails; 
+export default NFTDetails;

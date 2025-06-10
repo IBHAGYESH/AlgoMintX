@@ -202,7 +202,7 @@ main {
 }
 
 .btn-primary {
-  background-color: #2196f3;
+  background-color: #2196f3; /* Blue for primary actions */
   color: white;
 }
 
@@ -211,7 +211,7 @@ main {
 }
 
 .btn-secondary {
-  background-color: #4caf50;
+  background-color: #4caf50; /* Green for secondary actions */
   color: white;
 }
 
@@ -220,7 +220,7 @@ main {
 }
 
 .btn-warning {
-  background-color: #f44336;
+  background-color: #f44336; /* Red for warning/danger actions */
   color: white;
 }
 
@@ -432,4 +432,285 @@ footer .footer-content p {
   left: 0;
   width: 100%;
   opacity: 0;
+}
+
+/* NFT Actions */
+.nft-actions {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+}
+
+.action-button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.buy-button {
+  background-color: #4caf50;
+  color: white;
+}
+
+.unlist-button {
+  background-color: #f44336;
+  color: white;
+}
+
+.list-button {
+  background-color: #2196f3;
+  color: white;
+}
+
+.action-button:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+.action-button:active {
+  transform: translateY(0);
+}
+
+/* List NFT Button */
+.list-nft-btn {
+  background-color: #2196f3; /* Blue for list actions */
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  width: 100%;
+}
+
+.list-nft-btn:hover {
+  background-color: #1976d2;
+}
+
+/* Buy NFT Button */
+.buy-nft-btn {
+  background-color: #4caf50; /* Green for buy actions */
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  width: 100%;
+  margin-top: 20px;
+}
+
+.buy-nft-btn:hover {
+  background-color: #45a049;
+}
+
+/* Unlist NFT Button */
+.unlist-nft-btn {
+  background-color: #f44336; /* Red for unlist actions */
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  width: 100%;
+}
+
+.unlist-nft-btn:hover {
+  background-color: #d32f2f;
+}
+
+/* Login Message */
+.login-message {
+  text-align: center;
+  padding: 3rem;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin: 2rem auto;
+  max-width: 500px;
+}
+
+.login-message h3 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #1a1a1a;
+}
+
+.login-message p {
+  color: #666;
+  margin-bottom: 1.5rem;
+}
+
+.login-message .btn {
+  width: auto;
+  min-width: 200px;
+  background-color: #2196f3;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.login-message .btn:hover {
+  background-color: #1976d2;
+}
+
+.wallet-link {
+  color: #2196f3;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.wallet-link:hover {
+  color: #1976d2;
+  text-decoration: underline;
+}
+
+/* About Page */
+.about-content {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.about-content h3 {
+  font-size: 2rem;
+  color: #1a1a1a;
+  margin-bottom: 1.5rem;
+}
+
+.about-content p {
+  color: #666;
+  line-height: 1.8;
+  margin-bottom: 1.5rem;
+  font-size: 1.1rem;
+}
+
+.about-content ul {
+  list-style-position: inside;
+  margin-bottom: 1.5rem;
+}
+
+.about-content li {
+  color: #666;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+/* Modal */
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: #ffffff;
+  margin: 10% auto;
+  padding: 2rem;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  position: relative;
+}
+
+.close {
+  position: absolute;
+  right: 1.5rem;
+  top: 1.5rem;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+}
+
+/* Forms */
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: #333;
+}
+
+.form-control {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+/* NFT Details */
+.nft-details {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.nft-details img {
+  width: 100%;
+  max-height: 500px;
+  object-fit: contain;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.nft-details h3 {
+  font-size: 2rem;
+  color: #1a1a1a;
+  margin-bottom: 1rem;
+}
+
+.nft-details .price {
+  font-size: 1.5rem;
+  color: #4caf50;
+  font-weight: 600;
+  margin: 1.5rem 0;
+}
+
+/* Audio Player */
+.audio-player {
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 20px;
+  background: #1a1a1a;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.audio-player .audio-icon {
+  width: 80px;
+  height: 80px;
+  opacity: 0.8;
+}
+
+.audio-player audio {
+  width: 100%;
+  height: 40px;
+}
+
+/* Dark Theme */
+.dark-theme .audio-preview,
+.dark-theme .audio-player {
+  background: #2a2a2a;
 }
