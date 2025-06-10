@@ -1,13 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
 
+// Create a singleton instance outside the hook
+let sdkInstance = null;
+
 export function useSDK() {
   const [algoMintXClient, setAlgoMintXClient] = useState(null);
 
   const initializeSDK = useCallback(() => {
-    if (window.AlgoMintX) {
+    if (window.AlgoMintX && !sdkInstance) {
       try {
         // Initialize SDK with required parameters
-        const algoMintX = new window.AlgoMintX({
+        sdkInstance = new window.AlgoMintX({
           // Required
           pinata_ipfs_server_key: "", // Your Pinata API key
           pinata_ipfs_gateway_url: "", // Your Pinata gateway URL
@@ -25,10 +28,13 @@ export function useSDK() {
           supportedMediaFormats: ["IMAGE", "VIDEO", "AUDIO"], // Supported media formats for NFTs
         });
 
-        setAlgoMintXClient(algoMintX);
+        setAlgoMintXClient(sdkInstance);
       } catch (error) {
         console.error("SDK initialization error:", error);
       }
+    } else if (sdkInstance) {
+      // If SDK is already initialized, use the existing instance
+      setAlgoMintXClient(sdkInstance);
     }
   }, []);
 
