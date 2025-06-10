@@ -1,10 +1,22 @@
-import { Outlet, Link } from 'react-router-dom';
-import { useSDK } from '../hooks/useSDK';
-import logo from '../assets/logo.png';
-import {formatWalletAddress, getRandomAvatar} from "../utils"
+import { Outlet, Link } from "react-router-dom";
+import { useSDK } from "../hooks/useSDK";
+import { useSDKEvents } from "../hooks/useSDKEvents";
+import logo from "../assets/logo.png";
+import { formatWalletAddress, getRandomAvatar } from "../utils";
+import { useState, useCallback } from "react";
 
 function MainLayout() {
   const { algoMintXClient } = useSDK();
+  const [, forceUpdate] = useState({});
+
+  const refreshHeader = useCallback(() => {
+    forceUpdate({});
+  }, []);
+
+  useSDKEvents({
+    onWalletConnect: refreshHeader,
+    onWalletDisconnect: refreshHeader,
+  });
 
   return (
     <>
@@ -20,10 +32,7 @@ function MainLayout() {
                 <span>{formatWalletAddress(algoMintXClient.account)}</span>
               </div>
               <div className="profile-avatar">
-                <img
-                 src={getRandomAvatar()}
-              alt="Profile"
-                />
+                <img src={getRandomAvatar()} alt="Profile" />
               </div>
             </div>
           )}
@@ -48,11 +57,13 @@ function MainLayout() {
 
       <footer>
         <div className="container footer-content">
-          <p>&copy; {new Date().getFullYear()} QuickMInt. All rights reserved.</p>
+          <p>
+            &copy; {new Date().getFullYear()} QuickMInt. All rights reserved.
+          </p>
         </div>
       </footer>
     </>
   );
 }
 
-export default MainLayout; 
+export default MainLayout;

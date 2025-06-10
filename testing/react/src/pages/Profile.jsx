@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
-import { useSDK } from '../hooks/useSDK';
-import { toast } from 'react-toastify';
-import NFTCard from '../components/NFTCard';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useCallback } from "react";
+import { useSDK } from "../hooks/useSDK";
+import { useSDKEvents } from "../hooks/useSDKEvents";
+import { toast } from "react-toastify";
+import NFTCard from "../components/NFTCard";
+import { useSearchParams } from "react-router-dom";
 
 function Profile() {
   const [nfts, setNfts] = useState([]);
@@ -10,39 +11,45 @@ function Profile() {
   const [error, setError] = useState(null);
   const { algoMintXClient } = useSDK();
   const [searchParams] = useSearchParams();
-  const walletAddressParam = searchParams.get('wallet');
+  const walletAddressParam = searchParams.get("wallet");
+
+  const fetchNFTs = useCallback(async () => {
+    if (!algoMintXClient) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // If viewing another wallet's NFTs
+      if (walletAddressParam) {
+        const data = await algoMintXClient.getWalletNFTs({
+          accountId: walletAddressParam,
+        });
+        setNfts(data);
+      }
+      // If viewing own NFTs
+      else if (algoMintXClient?.account) {
+        const data = await algoMintXClient.getWalletNFTs({});
+        setNfts(data);
+      }
+    } catch (err) {
+      console.error("Error fetching NFTs:", err);
+      setError("Failed to load NFTs. Please try again later.");
+      toast.error("Failed to load NFTs");
+    } finally {
+      setLoading(false);
+    }
+  }, [algoMintXClient, algoMintXClient?.account, walletAddressParam]);
 
   useEffect(() => {
-    const fetchNFTs = async () => {
-      if (!algoMintXClient) return;
-      
-      try {
-        setLoading(true);
-        setError(null);
-
-        // If viewing another wallet's NFTs
-        if (walletAddressParam) {
-          const data = await algoMintXClient.getWalletNFTs({
-            accountId: walletAddressParam
-          });
-          setNfts(data);
-        } 
-        // If viewing own NFTs
-        else if (algoMintXClient?.account) {
-          const data = await algoMintXClient.getWalletNFTs({});
-          setNfts(data);
-        }
-      } catch (err) {
-        console.error('Error fetching NFTs:', err);
-        setError('Failed to load NFTs. Please try again later.');
-        toast.error('Failed to load NFTs');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchNFTs();
-  }, [algoMintXClient, algoMintXClient?.account, walletAddressParam]);
+  }, [fetchNFTs]);
+
+  useSDKEvents({
+    onWalletConnect: fetchNFTs,
+    onWalletDisconnect: fetchNFTs,
+    onNFTList: fetchNFTs,
+  });
 
   const handleConnectWallet = () => {
     algoMintXClient.maximizeSDK();
@@ -52,7 +59,9 @@ function Profile() {
     return (
       <div className="loading-container">
         <div className="loading-spinner"></div>
-        <p className="loading-text">{walletAddressParam ? "Loading NFTs..." : "Loading Your NFTs..."}</p>
+        <p className="loading-text">
+          {walletAddressParam ? "Loading NFTs..." : "Loading Your NFTs..."}
+        </p>
       </div>
     );
   }
@@ -71,10 +80,7 @@ function Profile() {
       <div className="login-message">
         <h3>Connect Your Wallet</h3>
         <p>Please connect your wallet to view your NFTs</p>
-        <button 
-          className="btn btn-primary" 
-          onClick={handleConnectWallet}
-        >
+        <button className="btn btn-primary" onClick={handleConnectWallet}>
           Connect Wallet
         </button>
       </div>
@@ -85,7 +91,9 @@ function Profile() {
     return (
       <div className="no-nfts-container">
         <p className="no-nfts-text">
-          {walletAddressParam ? 'This wallet has no NFTs' : 'You don\'t have any NFTs yet'}
+          {walletAddressParam
+            ? "This wallet has no NFTs"
+            : "You don't have any NFTs yet"}
         </p>
       </div>
     );
@@ -94,18 +102,15 @@ function Profile() {
   return (
     <>
       <h2 className="page-title">
-        {walletAddressParam ? 'Wallet NFTs' : 'Your NFTs'}
+        {walletAddressParam ? "Wallet NFTs" : "Your NFTs"}
       </h2>
       <div className="nft-grid">
         {nfts.map((nft) => (
-          <NFTCard 
-            key={nft.assetId} 
-            nft={nft} 
-          />
+          <NFTCard key={nft.assetId} nft={nft} />
         ))}
       </div>
     </>
   );
 }
 
-export default Profile; 
+export default Profile;

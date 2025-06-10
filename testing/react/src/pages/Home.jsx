@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
-import { useSDK } from '../hooks/useSDK';
-import { toast } from 'react-toastify';
-import NFTCard from '../components/NFTCard';
+import { useState, useEffect, useCallback } from "react";
+import { useSDK } from "../hooks/useSDK";
+import { useSDKEvents } from "../hooks/useSDKEvents";
+import { toast } from "react-toastify";
+import NFTCard from "../components/NFTCard";
 
 function Home() {
   const [nfts, setNfts] = useState([]);
@@ -9,26 +10,33 @@ function Home() {
   const [error, setError] = useState(null);
   const { algoMintXClient } = useSDK();
 
-  useEffect(() => {
-    const fetchNFTs = async () => {
-      if (!algoMintXClient) return;
-      
-      try {
-        setLoading(true);
-        const data = await algoMintXClient.getListedNFTs();
-        setNfts(data);
-        setError(null);
-      } catch (err) {
-        console.error('Error fetching NFTs:', err);
-        setError('Failed to load NFTs. Please try again later.');
-        toast.error('Failed to load NFTs');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchNFTs = useCallback(async () => {
+    if (!algoMintXClient) return;
 
-    fetchNFTs();
+    try {
+      setLoading(true);
+      const data = await algoMintXClient.getListedNFTs();
+      setNfts(data);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching NFTs:", err);
+      setError("Failed to load NFTs. Please try again later.");
+      toast.error("Failed to load NFTs");
+    } finally {
+      setLoading(false);
+    }
   }, [algoMintXClient]);
+
+  useEffect(() => {
+    fetchNFTs();
+  }, [fetchNFTs]);
+
+  useSDKEvents({
+    onWalletConnect: fetchNFTs,
+    onWalletDisconnect: fetchNFTs,
+    onNFTBuy: fetchNFTs,
+    onNFTUnlist: fetchNFTs,
+  });
 
   if (loading) {
     return (
@@ -67,4 +75,4 @@ function Home() {
   );
 }
 
-export default Home; 
+export default Home;

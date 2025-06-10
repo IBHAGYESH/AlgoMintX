@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { useSDK } from "../hooks/useSDK";
+import { useSDKEvents } from "../hooks/useSDKEvents";
 import { toast } from "react-toastify";
 import ListNFTModal from "../components/ListNFTModal";
 
@@ -12,28 +13,36 @@ function NFTDetails() {
   const [showListModal, setShowListModal] = useState(false);
   const { algoMintXClient } = useSDK();
 
-  useEffect(() => {
+  const fetchNFTDetails = useCallback(async () => {
     if (!algoMintXClient || !assetId) return;
 
-    const fetchNFTDetails = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        const data = await algoMintXClient.getNFTMetadata({
-          assetId: Number(assetId),
-        });
-        setNftData(data);
-      } catch (err) {
-        console.error("Error fetching NFT details:", err);
-        setError(err.message || "Failed to load NFT details");
-        toast.error("Failed to load NFT details");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchNFTDetails();
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await algoMintXClient.getNFTMetadata({
+        assetId: Number(assetId),
+      });
+      setNftData(data);
+    } catch (err) {
+      console.error("Error fetching NFT details:", err);
+      setError(err.message || "Failed to load NFT details");
+      toast.error("Failed to load NFT details");
+    } finally {
+      setLoading(false);
+    }
   }, [algoMintXClient, assetId]);
+
+  useEffect(() => {
+    fetchNFTDetails();
+  }, [fetchNFTDetails]);
+
+  useSDKEvents({
+    onWalletConnect: fetchNFTDetails,
+    onWalletDisconnect: fetchNFTDetails,
+    onNFTList: fetchNFTDetails,
+    onNFTUnlist: fetchNFTDetails,
+    onNFTBuy: fetchNFTDetails,
+  });
 
   const handleAction = async (action) => {
     try {
