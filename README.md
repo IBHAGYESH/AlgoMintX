@@ -57,7 +57,7 @@ http://127.0.0.1:8080/testing/html-css-js/index.html
 #### React Demo
 
 ```bash
-cd testing/react-demo
+cd testing/react
 npm install
 npm run build
 npm run preview
