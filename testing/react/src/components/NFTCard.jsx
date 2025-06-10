@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { useSDK } from "../hooks/useSDK";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { truncateText } from "../utils";
 import ListNFTModal from "./ListNFTModal";
 
 function NFTCard({ nft }) {
   const { algoMintXClient } = useSDK();
   const [showListModal, setShowListModal] = useState(false);
+  const navigate = useNavigate();
 
   const renderMedia = () => {
     const isVideo = nft.metadata.image_mimetype?.startsWith("video/");
@@ -153,7 +154,7 @@ function NFTCard({ nft }) {
         className="nft-card"
         onMouseEnter={handleMediaHover}
         onMouseLeave={handleMediaLeave}
-        onClick={() => (window.location.href = `/nft/${nft.assetId}`)}
+        onClick={() => navigate(`/nft/${nft.assetId}`)}
       >
         {renderMedia()}
         <div className="nft-content">

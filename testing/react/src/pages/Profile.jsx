@@ -48,6 +48,7 @@ function Profile() {
   useSDKEvents({
     onWalletConnect: fetchNFTs,
     onWalletDisconnect: fetchNFTs,
+    onNFTMint: fetchNFTs,
     onNFTList: fetchNFTs,
   });
 
