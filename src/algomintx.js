@@ -485,6 +485,8 @@ class AlgoMintX {
   async #initUI() {
     try {
       // Inject the entire SDK container directly into document.body with highest z-index
+
+      // check if sdk container already exists
       const existingSdk = document.getElementById("algomintx-sdk-container");
       if (existingSdk) existingSdk.remove(); // remove if existing to avoid duplicates
 
@@ -545,6 +547,10 @@ class AlgoMintX {
     `;
 
       document.body.appendChild(container);
+
+      // check if sdk minimized button already exists
+      const existingSdkMinimizeBtn = document.getElementById("sdkMinimizedBtn");
+      if (existingSdkMinimizeBtn) existingSdkMinimizeBtn.remove(); // remove if existing to avoid duplicates
 
       // Create minimized circle button but hide initially
       const minimizedBtn = document.createElement("button");
