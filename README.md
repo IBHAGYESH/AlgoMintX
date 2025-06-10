@@ -44,11 +44,25 @@ npm run build
 
 #### HTML/CSS/JS Demo
 
+1. Configure the SDK in `testing/html-css-js/index.js`:
+
+```js
+window.algoMintXClient = new window.AlgoMintX({
+  pinata_ipfs_server_key: "", // Your Pinata API key
+  pinata_ipfs_gateway_url: "", // Your Pinata gateway URL
+  env: "testnet", // "testnet" or "mainnet"
+  namespace: "", // Unique 5-character uppercase string
+  revenueWalletAddress: "", // Wallet to collect marketplace fees
+});
+```
+
+2. Start the server:
+
 ```bash
 npx http-server .
 ```
 
-Then open:
+3. Open the demo:
 
 ```bash
 http://127.0.0.1:8080/testing/html-css-js/index.html
@@ -56,14 +70,38 @@ http://127.0.0.1:8080/testing/html-css-js/index.html
 
 #### React Demo
 
+1. Navigate to the React demo directory:
+
 ```bash
 cd testing/react
+```
+
+2. Configure the SDK in `src/hooks/useSDK.js`:
+
+```js
+sdkInstance = new window.AlgoMintX({
+  pinata_ipfs_server_key: "", // Your Pinata API key
+  pinata_ipfs_gateway_url: "", // Your Pinata gateway URL
+  env: "testnet", // "testnet" or "mainnet"
+  namespace: "", // Unique 5-character uppercase string
+  revenueWalletAddress: "", // Wallet to collect marketplace fees
+});
+```
+
+3. Install dependencies:
+
+```bash
 npm install
+```
+
+4. Build and run the demo:
+
+```bash
 npm run build
 npm run preview
 ```
 
-Then open:
+5. Open the demo:
 
 ```bash
 http://localhost:4173
