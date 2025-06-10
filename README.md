@@ -40,16 +40,33 @@ npm install
 npm run build
 ```
 
-### 3. Run a local server
+### 3. Run the demos
+
+#### HTML/CSS/JS Demo
 
 ```bash
 npx http-server .
 ```
 
-### 4. Open the demo
+Then open:
 
 ```bash
-http://127.0.0.1:8080/testing/index.html
+http://127.0.0.1:8080/testing/html-css-js/index.html
+```
+
+#### React Demo
+
+```bash
+cd testing/react-demo
+npm install
+npm run build
+npm run preview
+```
+
+Then open:
+
+```bash
+http://localhost:4173
 ```
 
 ---
