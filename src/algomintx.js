@@ -103,11 +103,11 @@ class AlgoMintX {
 
       // Initialize contract details
       this.#contractApplicationId =
-        this.network === "mainnet" ? 740618565 : 740618565;
+        this.network === "mainnet" ? 741003115 : 741003115;
       this.#contractWalletAddress =
         this.network === "mainnet"
-          ? "WT4FYX3TGHMB65WUBQFZEXQPAIDQ4R7FILXN3UP62KKAIWXTJKW6XONOSI"
-          : "WT4FYX3TGHMB65WUBQFZEXQPAIDQ4R7FILXN3UP62KKAIWXTJKW6XONOSI";
+          ? "G6FBCN7OZTTHBSPU6RGYEFW6I7F5UAEUD7DLS7J66JU2FJEAKPZDWBUHNQ"
+          : "G6FBCN7OZTTHBSPU6RGYEFW6I7F5UAEUD7DLS7J66JU2FJEAKPZDWBUHNQ";
 
       // Initialize SDK variables
       this.#indexerUrl =
@@ -445,8 +445,8 @@ class AlgoMintX {
               this.#saveUIState();
               this.#applyTheme();
             }
-          } catch (e) {
-            console.error("Failed to parse saved state:", e);
+          } catch (error) {
+            console.error("Failed to parse saved state:", error);
           }
         }
       });
@@ -720,7 +720,7 @@ class AlgoMintX {
         this.#resetToLoginUI();
       }
     } catch (error) {
-      // console.error("Failed to restore connection", error);
+      console.error("Failed to restore connection", error);
       this.#showToast("Failed to restore connection!", "error");
       eventBus.emit("wallet:connection:failed", {
         error: "Failed to restore connection",
@@ -783,7 +783,7 @@ class AlgoMintX {
         }
         window.location.reload();
       } else {
-        // console.error("Failed to connect wallet!", error);
+        console.error("Failed to connect wallet!", error);
         this.#connectionInProgress = false;
         this.#showToast("Failed to connect wallet!", "error");
         eventBus.emit("wallet:connection:failed", {
@@ -843,7 +843,7 @@ class AlgoMintX {
         localStorage.removeItem("DeflyWallet.Wallet");
         localStorage.removeItem("PeraWallet.Wallet");
       } catch (error) {
-        // console.error("Failed to disconnect wallet session:", error);
+        console.error("Failed to disconnect wallet session:", error);
       }
 
       eventBus.emit("wallet:connection:disconnected", {
@@ -1446,6 +1446,7 @@ class AlgoMintX {
     const assetIdBytes = boxNameBytes.slice(8); // skip 'listing_' prefix
     const assetId = algosdk.decodeUint64(assetIdBytes, "safe");
 
+    // Get the box value
     const boxValueResponse = await this.#algodClient
       .getApplicationBoxByName(this.#contractApplicationId, boxNameBytes)
       .do();
@@ -1456,43 +1457,54 @@ class AlgoMintX {
     // Use DataView to decode the values
     const view = new DataView(raw.buffer);
 
-    // Read struct type ID (uint16 BE)
-    const structTypeId = view.getUint16(0, false);
+    // skip the following bytes
+    // (bytes 0-1) struct type ID (2 bytes)
+    // (bytes 2-3) seller length (2 bytes)
+    // (bytes 4-5) price length (2 bytes)
+    // (bytes 6-7) marketplace length (2 bytes)
 
-    // Read seller length (uint16 BE)
-    const sellerLen = view.getUint16(4, false); // Changed back to offset 4
-
-    // Read seller string
-    const sellerStart = 6; // Changed offset to 6
-    const sellerEnd = sellerStart + sellerLen;
+    // Read seller string (bytes 8-65)
+    const sellerStart = 8; // Skip struct type ID (2) + seller length (2) + price length (2) + marketplace length (2)
+    const sellerEnd = sellerStart + 58; // Algorand addresses are always 58 bytes
     const sellerBytes = raw.slice(sellerStart, sellerEnd);
 
+    // Decode seller string
     const seller = new TextDecoder().decode(sellerBytes);
+    // console.log("seller:", seller);
 
-    // --- Read price length (uint16 BE)
-    const priceLen = view.getUint16(sellerEnd, false);
+    // Read price length (uint16 BE) (bytes 66-73)
+    const priceLen = view.getUint16(sellerEnd, false); // Read price length at position 66
 
-    // --- Read price bytes
-    const priceStart = sellerEnd + 2;
-    const priceEnd = priceStart + priceLen;
-
-    if (raw.length < priceEnd) {
-      throw new Error("Box value too short for price string");
-    }
-
+    // Read price string (bytes 66-67): price length (2 bytes) (bytes 68-73): price value
+    const priceStart = sellerEnd + 2; // Start after seller (66) + 2 bytes for price length
+    const priceEnd = priceStart + priceLen; // End after reading price length bytes
     const priceBytes = raw.slice(priceStart, priceEnd);
 
-    // ✅ Decode price as a UTF-8 string (not number)
+    // Decode price as a UTF-8 string (not number)
     const nftPrice = this.#microAlgosToAlgos(
       Number(new TextDecoder().decode(priceBytes))
     );
+    // console.log("nftPrice:", nftPrice);
+
+    // Read marketplace length (uint16 BE) (bytes 74-84)
+    const marketplaceLen = view.getUint16(priceEnd, false); // Read marketplace length at position 74
+
+    // Read marketplace string (bytes 74-75): marketplace length (2 bytes) (bytes 76-84): marketplace value
+    const marketplaceStart = priceEnd + 2; // Start after price (74) + 2 bytes for marketplace length
+    const marketplaceEnd = marketplaceStart + marketplaceLen; // End after reading marketplace length bytes
+    const marketplaceBytes = raw.slice(marketplaceStart, marketplaceEnd);
+
+    // Decode marketplace string
+    const marketplace = new TextDecoder().decode(marketplaceBytes);
+    // console.log("marketplace:", marketplace);
 
     // Return result
     return {
       key: `listing_${assetId}`,
       value: {
         seller,
-        nftPrice, // Keep the price as a string
+        nftPrice,
+        marketplace,
       },
     };
   }
@@ -1715,141 +1727,115 @@ class AlgoMintX {
     const nfts = [];
 
     try {
-      const url = `${this.#indexerUrl}/v2/accounts/${
-        this.#contractWalletAddress
-      }`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`Indexer fetch error: ${res.status}`);
+      const boxUrl = `${this.#indexerUrl}/v2/applications/${
+        this.#contractApplicationId
+      }/boxes`;
+      const boxRes = await fetch(boxUrl);
 
-      const accountData = await res.json();
-      const assets = accountData.account.assets || [];
+      if (boxRes.ok) {
+        const boxData = await boxRes.json();
+        if (boxData.boxes && boxData.boxes.length > 0) {
+          for (const box of boxData.boxes) {
+            let nft = {};
+            let decodedBox;
+            try {
+              decodedBox = await this.#decodeListingBoxFromAlgod(box.name);
 
-      for (const holding of assets) {
-        // Check if the wallet actually holds this NFT (amount > 0)
-        if (holding.amount === 0) continue;
+              nft.listing = {
+                seller: decodedBox.value.seller,
+                price: decodedBox.value.nftPrice,
+                marketplace: decodedBox.value.marketplace,
+              };
+            } catch (error) {
+              console.warn(`Failed to decode box for NFT ${assetId}:`, error);
+            }
 
-        const assetId = holding["asset-id"];
-        const assetUrl = `${this.#indexerUrl}/v2/assets/${assetId}`;
-        const assetRes = await fetch(assetUrl);
-        if (!assetRes.ok) continue;
+            if (
+              nft.listing.marketplace !== this.#unitName // only show current marketplce nfts
+            )
+              continue;
 
-        const assetData = await assetRes.json();
-        const params = assetData.asset.params;
+            const assetId = decodedBox.key.replace("listing_", "");
+            const assetUrl = `${this.#indexerUrl}/v2/assets/${assetId}`;
+            const assetRes = await fetch(assetUrl);
+            if (!assetRes.ok) continue;
 
-        if (
-          params.total !== 1 ||
-          params.decimals !== 0 ||
-          (params.clawback &&
-            params.clawback !== this.#contractWalletAddress) || // filter out NFTs that are not owned by the contract or not set to clawback
-          params["unit-name"] !== this.#unitName // only show current marketplce nfts
-        )
-          continue;
+            const assetData = await assetRes.json();
+            const params = assetData.asset.params;
 
-        const nft = {
-          ...params,
-          assetId,
-        };
+            nft = {
+              ...nft,
+              ...params,
+              assetId,
+            };
 
-        // Handle IPFS metadata
-        const metadataUrl = params.url;
-        if (metadataUrl?.startsWith("ipfs://")) {
-          const ipfsUrl = this.#convertIpfsToHttp(
-            metadataUrl,
-            this.#pinata_ipfs_gateway_url
-          );
-          try {
-            const metadataRes = await fetch(ipfsUrl);
-            if (metadataRes.ok) {
-              const metadata = await metadataRes.json();
-              if (
-                metadata.decimals === 0 &&
-                metadata.image_integrity &&
-                metadata.image_mimetype &&
-                metadata.standard &&
-                metadata.image &&
-                metadata.image.startsWith("ipfs://") &&
-                metadata.minted_by === this.#metadataMark
-              ) {
-                metadata.image = this.#convertIpfsToHttp(
-                  metadata.image,
-                  this.#pinata_ipfs_gateway_url
+            if (
+              params.total !== 1 ||
+              params.decimals !== 0 ||
+              !params.clawback ||
+              (params.clawback &&
+                params.clawback !== this.#contractWalletAddress) // filter out NFTs that are not owned by the contract or not set to clawback
+            )
+              continue;
+
+            // Handle IPFS metadata
+            const metadataUrl = params.url;
+            if (metadataUrl?.startsWith("ipfs://")) {
+              const ipfsUrl = this.#convertIpfsToHttp(
+                metadataUrl,
+                this.#pinata_ipfs_gateway_url
+              );
+              try {
+                const metadataRes = await fetch(ipfsUrl);
+                if (metadataRes.ok) {
+                  const metadata = await metadataRes.json();
+                  if (
+                    metadata.decimals === 0 &&
+                    metadata.image_integrity &&
+                    metadata.image_mimetype &&
+                    metadata.standard &&
+                    metadata.image &&
+                    metadata.image.startsWith("ipfs://")
+                  ) {
+                    metadata.image = this.#convertIpfsToHttp(
+                      metadata.image,
+                      this.#pinata_ipfs_gateway_url
+                    );
+                    nft.metadata = metadata;
+                  }
+                }
+              } catch (error) {
+                console.warn(
+                  `IPFS metadata fetch failed for asset ${assetId}`,
+                  error
                 );
-                nft.metadata = metadata;
               }
             }
-          } catch (err) {
-            console.warn(
-              `IPFS metadata fetch failed for asset ${assetId}`,
-              err
-            );
-          }
-        }
 
-        // Fetch box data for this NFT
-        try {
-          const boxRef = this.#getListingBoxReference(
-            this.#contractApplicationId,
-            assetId
-          );
-          const boxUrl = `${this.#indexerUrl}/v2/applications/${
-            this.#contractApplicationId
-          }/boxes?name=${Buffer.from(boxRef.name).toString("base64")}`;
-          const boxRes = await fetch(boxUrl);
-
-          if (boxRes.ok) {
-            const boxData = await boxRes.json();
-            if (boxData.boxes && boxData.boxes.length > 0) {
-              // Find the box that matches our asset ID
-              for (const box of boxData.boxes) {
-                try {
-                  const decodedBox = await this.#decodeListingBoxFromAlgod(
-                    box.name
-                  );
-                  if (decodedBox.key === `listing_${assetId}`) {
-                    nft.listing = {
-                      seller: decodedBox.value.seller,
-                      price: decodedBox.value.nftPrice,
-                    };
-                    break; // Found and processed the matching box
-                  }
-                } catch (decodeError) {
-                  console.warn(
-                    `Failed to decode box for NFT ${assetId}:`,
-                    decodeError
-                  );
+            // Get current holder's address
+            const holdersUrl = `${
+              this.#indexerUrl
+            }/v2/assets/${assetId}/balances?currency-greater-than=0`;
+            const holdersRes = await fetch(holdersUrl);
+            if (holdersRes.ok) {
+              const holdersData = await holdersRes.json();
+              if (holdersData.balances && holdersData.balances.length > 0) {
+                // The first balance entry with amount > 0 is the current holder
+                const currentHolder = holdersData.balances.find(
+                  (balance) => balance.amount > 0
+                );
+                if (currentHolder) {
+                  nft.currentHolder = currentHolder.address;
                 }
               }
             }
-          }
-        } catch (boxError) {
-          console.warn(
-            `Failed to fetch box data for NFT ${assetId}:`,
-            boxError
-          );
-        }
 
-        // Get current holder's address
-        const holdersUrl = `${
-          this.#indexerUrl
-        }/v2/assets/${assetId}/balances?currency-greater-than=0`;
-        const holdersRes = await fetch(holdersUrl);
-        if (holdersRes.ok) {
-          const holdersData = await holdersRes.json();
-          if (holdersData.balances && holdersData.balances.length > 0) {
-            // The first balance entry with amount > 0 is the current holder
-            const currentHolder = holdersData.balances.find(
-              (balance) => balance.amount > 0
-            );
-            if (currentHolder) {
-              nft.currentHolder = currentHolder.address;
-            }
+            nfts.push(nft);
           }
         }
-
-        nfts.push(nft);
       }
     } catch (error) {
-      console.error("Error fetching NFTs by wallet:", error.message);
+      console.error(`Error fetching listed NFTS`, error.message);
       throw error;
     }
 
@@ -1894,17 +1880,18 @@ class AlgoMintX {
         const assetData = await assetRes.json();
         const params = assetData.asset.params;
 
-        if (
-          params.total !== 1 ||
-          params.decimals !== 0 ||
-          (params.clawback && params.clawback !== this.#contractWalletAddress) // filter out NFTs that are not owned by the contract or not set to clawback
-        )
-          continue;
-
         const nft = {
           ...params,
           assetId,
         };
+
+        if (
+          params.total !== 1 ||
+          params.decimals !== 0 ||
+          !params.clawback ||
+          (params.clawback && params.clawback !== this.#contractWalletAddress) // filter out NFTs that are not owned by the contract or not set to clawback
+        )
+          continue;
 
         // Handle IPFS metadata
         const metadataUrl = params.url;
@@ -1932,10 +1919,10 @@ class AlgoMintX {
                 nft.metadata = metadata;
               }
             }
-          } catch (err) {
+          } catch (error) {
             console.warn(
               `IPFS metadata fetch failed for asset ${assetId}`,
-              err
+              error
             );
           }
         }
@@ -1983,6 +1970,36 @@ class AlgoMintX {
         assetId,
       };
 
+      // Fetch box data for this NFT
+      const boxUrl = `${this.#indexerUrl}/v2/applications/${
+        this.#contractApplicationId
+      }/boxes`;
+      const boxRes = await fetch(boxUrl);
+
+      if (boxRes.ok) {
+        const boxData = await boxRes.json();
+        if (boxData.boxes && boxData.boxes.length > 0) {
+          // Find the box that matches our asset ID
+          for (const box of boxData.boxes) {
+            try {
+              const decodedBox = await this.#decodeListingBoxFromAlgod(
+                box.name
+              );
+              if (decodedBox.key === `listing_${assetId}`) {
+                nft.listing = {
+                  seller: decodedBox.value.seller,
+                  price: decodedBox.value.nftPrice,
+                  marketplace: decodedBox.value.marketplace,
+                };
+                break;
+              }
+            } catch (error) {
+              console.warn(`Failed to decode box for NFT ${assetId}:`, error);
+            }
+          }
+        }
+      }
+
       // Handle IPFS metadata
       const metadataUrl = params.url;
       if (metadataUrl?.startsWith("ipfs://")) {
@@ -2012,64 +2029,13 @@ class AlgoMintX {
             );
             nft.metadata = metadata;
           }
-        } catch (err) {
-          console.warn(`IPFS metadata fetch failed for asset ${assetId}`, err);
+        } catch (error) {
+          console.warn(
+            `IPFS metadata fetch failed for asset ${assetId}`,
+            error
+          );
         }
       }
-
-      // Fetch box data for this NFT
-      try {
-        const boxRef = this.#getListingBoxReference(
-          this.#contractApplicationId,
-          assetId
-        );
-        const boxUrl = `${this.#indexerUrl}/v2/applications/${
-          this.#contractApplicationId
-        }/boxes?name=${Buffer.from(boxRef.name).toString("base64")}`;
-        const boxRes = await fetch(boxUrl);
-
-        if (boxRes.ok) {
-          const boxData = await boxRes.json();
-          if (boxData.boxes && boxData.boxes.length > 0) {
-            // Find the box that matches our asset ID
-            for (const box of boxData.boxes) {
-              try {
-                const decodedBox = await this.#decodeListingBoxFromAlgod(
-                  box.name
-                );
-                if (decodedBox.key === `listing_${assetId}`) {
-                  nft.listing = {
-                    seller: decodedBox.value.seller,
-                    price: decodedBox.value.nftPrice,
-                  };
-                  break;
-                }
-              } catch (decodeError) {
-                console.warn(
-                  `Failed to decode box for NFT ${assetId}:`,
-                  decodeError
-                );
-              }
-            }
-          }
-        }
-      } catch (error) {
-        // If error occurs, NFT is not listed
-        console.error(`NFT ${assetId} is not listed: ${error.message}`);
-      }
-
-      // Fetch transaction id for this NFT
-      const txUrl = `${
-        this.#indexerUrl
-      }/v2/transactions?asset-id=${assetId}&tx-type=acfg`;
-      const txRes = await fetch(txUrl);
-      if (!txRes.ok) {
-        throw new Error(
-          `Failed to fetch asset config transaction: ${txRes.status}`
-        );
-      }
-      const txData = await txRes.json();
-      nft.transactionId = txData.transactions?.[0]?.id;
 
       // Get current holder's address
       const holdersUrl = `${
@@ -2089,9 +2055,22 @@ class AlgoMintX {
         }
       }
 
+      // Fetch transaction id for this NFT
+      const txUrl = `${
+        this.#indexerUrl
+      }/v2/transactions?asset-id=${assetId}&tx-type=acfg`;
+      const txRes = await fetch(txUrl);
+      if (!txRes.ok) {
+        throw new Error(
+          `Failed to fetch asset config transaction: ${txRes.status}`
+        );
+      }
+      const txData = await txRes.json();
+      nft.transactionId = txData.transactions?.[0]?.id;
+
       return nft;
     } catch (error) {
-      console.error("Failed to fetch NFT metadata:", error);
+      console.error("Error fetching NFT metadata:", error.message);
       throw error; // Re-throw to allow caller to handle the error
     }
   }
@@ -2160,6 +2139,7 @@ class AlgoMintX {
             algosdk.ABIType.from("string").encode(
               this.#algosToMicroAlgos(nftPrice).toString()
             ),
+            algosdk.ABIType.from("string").encode(this.#unitName),
           ],
           boxes: [boxRef],
           foreignAssets: [assetId],
@@ -2173,6 +2153,7 @@ class AlgoMintX {
         suggestedParams,
       });
 
+      // opt-in, asset transfer is done inside contract
       const listingGroup = [
         fundContractTxn,
         transferNFTToContractAndAddListingTxn,
@@ -2211,6 +2192,7 @@ class AlgoMintX {
         transactionId: listingTxId,
       };
     } catch (error) {
+      console.error("Error listing NFT:", error.message);
       this.processing = false;
       this.#hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
@@ -2242,6 +2224,10 @@ class AlgoMintX {
       }
 
       const nftData = await this.getNFTMetadata({ assetId });
+
+      if (nftData.listing.marketplace !== this.#unitName) {
+        throw new Error("Cannot un-list nft from other marketplace.");
+      }
 
       // Get suggested parameters
       const suggestedParams = await this.#algodClient
@@ -2283,7 +2269,10 @@ class AlgoMintX {
           appArgs: [
             transferNFTToSellerAndRemoveListingMethod.getSelector(),
             algosdk.ABIType.from("uint64").encode(BigInt(assetId)),
+            // for preventing false asset transfer to unauthorised seller
             algosdk.ABIType.from("string").encode(this.account),
+            // for preventing un-listing from other marketplace [false revenue prevention]
+            algosdk.ABIType.from("string").encode(this.#unitName),
           ],
           boxes: [boxRef],
           foreignAssets: [assetId],
@@ -2297,6 +2286,7 @@ class AlgoMintX {
         suggestedParams,
       });
 
+      // asset transfer is done inside contract
       const unlistingGroup = [
         receiverOptInToNFTTxn,
         transferNFTToSellerAndRemoveListingTxn,
@@ -2335,6 +2325,7 @@ class AlgoMintX {
         transactionId: unlistingTxId,
       };
     } catch (error) {
+      console.error("Error un-listing NFT:", error.message);
       this.processing = false;
       this.#hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
@@ -2370,6 +2361,10 @@ class AlgoMintX {
 
       if (nftData.listing.seller === this.account) {
         throw new Error("Seller cannot buy the listed nft.");
+      }
+
+      if (nftData.listing.marketplace !== this.#unitName) {
+        throw new Error("Cannot buy nft from other marketplace.");
       }
 
       // Get suggested parameters
@@ -2412,13 +2407,17 @@ class AlgoMintX {
           appArgs: [
             transferNFTToReceiverAndRemoveListingMethod.getSelector(),
             algosdk.ABIType.from("uint64").encode(BigInt(assetId)),
+            // for preventing false payment to unauthorised seller [false revenue prevention]
             algosdk.ABIType.from("string").encode(nftData.listing.seller),
+            // for preventing buying from other marketplace [false revenue prevention]
+            algosdk.ABIType.from("string").encode(this.#unitName),
           ],
           boxes: [boxRef],
           foreignAssets: [assetId],
           suggestedParams: threeMicroAlgo,
         });
 
+      // tempering the following transaction will still be failed (asset wont be transferred)
       const transferNFTPriceToSellerTxn =
         algosdk.makePaymentTxnWithSuggestedParamsFromObject({
           sender: this.account,
@@ -2434,6 +2433,7 @@ class AlgoMintX {
         suggestedParams,
       });
 
+      // asset transfer is done inside contract
       const buyingGroup = [
         receiverOptInToNFTTxn,
         transferNFTToReceiverAndRemoveListingTxn,
@@ -2473,6 +2473,7 @@ class AlgoMintX {
         transactionId: buyingTxId,
       };
     } catch (error) {
+      console.error("Error buying NFT:", error.message);
       this.processing = false;
       this.#hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
