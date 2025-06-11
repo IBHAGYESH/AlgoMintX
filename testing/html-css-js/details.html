@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="styles.css" />
     <script
       defer
-      src="https://cdn.jsdelivr.net/gh/IBHAGYESH/AlgoMintX@v1.0.1/dist/algomintx.js"
+      src="https://cdn.jsdelivr.net/gh/IBHAGYESH/AlgoMintX@v1.0.2/dist/algomintx.js"
     ></script>
     <script defer src="./index.js"></script>
   </head>
@@ -108,7 +108,7 @@
               };
               nftActions.appendChild(buyButton);
             }
-            // Case 2: NFT is listed and current wallet is the seller
+            // Case 2: NFT is listed and wallet is connected and current wallet is the seller
             else if (nftData.listing.seller === currentWallet) {
               const unlistButton = document.createElement("button");
               unlistButton.className = "action-button unlist-button";
@@ -130,9 +130,13 @@
               buyButton.className = "action-button buy-button";
               buyButton.textContent = `Buy NFT for ${nftData.listing.price} Algo`;
               buyButton.onclick = async () => {
-                await window.algoMintXClient.buyNFT({
-                  assetId: Number(assetId),
-                });
+                try {
+                  await window.algoMintXClient.buyNFT({
+                    assetId: Number(assetId),
+                  });
+                } catch (error) {
+                  alert("Failed to buy NFT: " + error.message);
+                }
               };
               nftActions.appendChild(buyButton);
             }
