@@ -103,10 +103,10 @@ class AlgoMintX {
 
       // Initialize contract details
       this.#contractApplicationId =
-        this.network === "mainnet" ? 741003115 : 741003115;
+        this.network === "mainnet" ? 3127816536 : 741003115;
       this.#contractWalletAddress =
         this.network === "mainnet"
-          ? "G6FBCN7OZTTHBSPU6RGYEFW6I7F5UAEUD7DLS7J66JU2FJEAKPZDWBUHNQ"
+          ? "57U43PN2WYSYFQZAJ2WBGSHT2RG3GJF2B4JJZYBOGUZ5ZDR6K7WCFLQNHU"
           : "G6FBCN7OZTTHBSPU6RGYEFW6I7F5UAEUD7DLS7J66JU2FJEAKPZDWBUHNQ";
 
       // Initialize SDK variables
