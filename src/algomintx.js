@@ -31,6 +31,7 @@ class AlgoMintX {
   #listingFee;
   #buyingFee;
   #unListingFee;
+  #mintFee;
   #disableToast;
   #minimizeUILocation;
   #logo;
@@ -49,6 +50,7 @@ class AlgoMintX {
     listingFee = 0,
     buyingFee = 0,
     unListingFee = 0,
+    mintFee = 0,
     disableToast = false,
     minimizeUILocation = "right",
     logo = null,
@@ -70,6 +72,7 @@ class AlgoMintX {
       this.#listingFee = this.#validateFee(listingFee, "Listing fee");
       this.#buyingFee = this.#validateFee(buyingFee, "Buying fee");
       this.#unListingFee = this.#validateFee(unListingFee, "unListingFee fee");
+      this.#mintFee = this.#validateFee(mintFee, "Mint fee");
       this.#disableToast = this.#validateDisableToast(disableToast);
       this.#minimizeUILocation =
         this.#validateMinimizeUILocation(minimizeUILocation);
@@ -1141,6 +1144,7 @@ class AlgoMintX {
       return;
     }
 
+    // Validate file
     if (!fileInput.files.length) {
       this.#showToast("Please upload a file.", "error");
       return;
@@ -1177,9 +1181,11 @@ class AlgoMintX {
         "success"
       );
 
+      // show resetNFTBtn and hide mintNFTBtn
       document.getElementById("#mintNFTBtn").style.display = "none";
       document.getElementById("resetNFTBtn").style.display = "block";
 
+      // enable mintNFTBtn and logout button
       document.getElementById("#mintNFTBtn").disabled = false;
       document.getElementById("logoutBtn").disabled = false;
 
@@ -1376,7 +1382,7 @@ class AlgoMintX {
   }
 
   async #createAlgorandAsset(metadataIpfsHash, assetName, metadataHashBuffer) {
-    const params = await this.#algodClient.getTransactionParams().do();
+    const suggestedParams = await this.#algodClient.getTransactionParams().do();
 
     /**
      * To access the ipfs files
@@ -1391,39 +1397,45 @@ class AlgoMintX {
         ? assetName.substring(0, 32).replace(/[^a-zA-Z0-9 _-]/g, "") // Allow spaces, hyphens, underscores
         : "Unnamed Asset";
 
-    const txn = algosdk.makeAssetCreateTxnWithSuggestedParamsFromObject({
-      sender: this.account,
-      total: 1,
-      decimals: 0,
-      defaultFrozen: false,
-      unitName: this.#unitName,
-      assetName: safeAssetName,
-      assetURL: metadataURL,
-      assetMetadataHash: metadataHashBuffer,
-      suggestedParams: params,
-      clawback: this.#contractWalletAddress,
-    });
+    const assetCreateTxn =
+      algosdk.makeAssetCreateTxnWithSuggestedParamsFromObject({
+        sender: this.account,
+        total: 1,
+        decimals: 0,
+        defaultFrozen: false,
+        unitName: this.#unitName,
+        assetName: safeAssetName,
+        assetURL: metadataURL,
+        assetMetadataHash: metadataHashBuffer,
+        suggestedParams,
+        clawback: this.#contractWalletAddress,
+      });
+
+    // Prepare group transaction array
+    const mintingGroup = [assetCreateTxn];
+
+    // If mintFee > 0, add payment txn to revenueWalletAddress
+    if (this.#mintFee > 0) {
+      const revenueTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        sender: this.account,
+        receiver: this.#revenueWalletAddress,
+        amount: this.#algosToMicroAlgos(this.#mintFee),
+        suggestedParams,
+      });
+      mintingGroup.push(revenueTxn);
+    }
+
+    // Assign group id if more than one txn
+    if (mintingGroup.length > 1) {
+      algosdk.assignGroupID(mintingGroup);
+    }
 
     const walletConnector = this.#walletConnectors[this.#selectedWalletType];
-
-    // Ask user to sign the transaction
-
-    // If you are NOT setting custom signers, you can pass a flat array:
-    // const signedTxn = await walletConnector.signTransaction([{ txn: txnToSign }]);
-
-    // but if you use signers field, you MUST group it like:
-    const signedTxn = await walletConnector.signTransaction([
-      [
-        {
-          txn: txn,
-          signers: [this.account],
-        },
-      ],
+    const signedMinting = await walletConnector.signTransaction([
+      mintingGroup.map((txn) => ({ txn, signers: [this.account] })),
     ]);
-
-    // Submit the signed transaction
     const { txid } = await this.#algodClient
-      .sendRawTransaction(signedTxn[0])
+      .sendRawTransaction(signedMinting)
       .do();
 
     // Wait for confirmation
@@ -2146,13 +2158,6 @@ class AlgoMintX {
           suggestedParams: fourMicroAlgo,
         });
 
-      const revenueTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-        sender: this.account,
-        receiver: this.#revenueWalletAddress,
-        amount: this.#algosToMicroAlgos(this.#listingFee),
-        suggestedParams,
-      });
-
       // opt-in, asset transfer is done inside contract
       const listingGroup = [
         fundContractTxn,
@@ -2161,6 +2166,12 @@ class AlgoMintX {
 
       // if listing fee is greater than 0, add revenue transaction to the listing group
       if (this.#listingFee > 0) {
+        const revenueTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+          sender: this.account,
+          receiver: this.#revenueWalletAddress,
+          amount: this.#algosToMicroAlgos(this.#listingFee),
+          suggestedParams,
+        });
         listingGroup.push(revenueTxn);
       }
 
@@ -2279,13 +2290,6 @@ class AlgoMintX {
           suggestedParams: threeMicroAlgo,
         });
 
-      const revenueTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-        sender: this.account,
-        receiver: this.#revenueWalletAddress,
-        amount: this.#algosToMicroAlgos(this.#unListingFee),
-        suggestedParams,
-      });
-
       // asset transfer is done inside contract
       const unlistingGroup = [
         receiverOptInToNFTTxn,
@@ -2294,6 +2298,12 @@ class AlgoMintX {
 
       // if unlisting fee is greater than 0, add revenue transaction to the unlisting group
       if (this.#unListingFee > 0) {
+        const revenueTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+          sender: this.account,
+          receiver: this.#revenueWalletAddress,
+          amount: this.#algosToMicroAlgos(this.#unListingFee),
+          suggestedParams,
+        });
         unlistingGroup.push(revenueTxn);
       }
 
@@ -2426,13 +2436,6 @@ class AlgoMintX {
           suggestedParams,
         });
 
-      const revenueTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-        sender: this.account,
-        receiver: this.#revenueWalletAddress,
-        amount: this.#algosToMicroAlgos(this.#buyingFee),
-        suggestedParams,
-      });
-
       // asset transfer is done inside contract
       const buyingGroup = [
         receiverOptInToNFTTxn,
@@ -2442,6 +2445,12 @@ class AlgoMintX {
 
       // if buying fee is greater than 0, add revenue transaction to the buying group
       if (this.#buyingFee > 0) {
+        const revenueTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+          sender: this.account,
+          receiver: this.#revenueWalletAddress,
+          amount: this.#algosToMicroAlgos(this.#buyingFee),
+          suggestedParams,
+        });
         buyingGroup.push(revenueTxn);
       }
 
