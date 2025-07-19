@@ -3,20 +3,21 @@
  */
 window.algoMintXClient = new window.AlgoMintX({
   // Required
-  pinata_ipfs_server_key: "", // Your Pinata API key
-  pinata_ipfs_gateway_url: "", // Your Pinata gateway URL
-  env: "testnet", // "testnet" or "mainnet"
-  namespace: "", // Unique 5-character uppercase string
-  revenueWalletAddress: "", // Wallet to collect marketplace fees
+  pinata_ipfs_server_key: "", // your pinata api key
+  pinata_ipfs_gateway_url: "xxx.mypinata.cloud", // your pinata gateway url
+  env: "testnet", // testnet | mainnet
+  namespace: "", // unique 5 letter string
+  revenueWalletAddress: "", // where fees go
   // Optional
-  listingFee: 0.1, // NFT listing fee (in Algos)
-  buyingFee: 0.5, // NFT buying fee (in Algos)
-  unListingFee: 0.1, // NFT un-listing fee (in Algos)
-  disableToast: false, // Disable toast notifications
-  toastLocation: "TOP_RIGHT", // Toast notification location (TOP_LEFT | TOP_RIGHT)
-  minimizeUILocation: "right", // SDK minimize button location (left | right)
-  logo: "./logo.png", // Your website logo (URL / path to image)
-  supportedMediaFormats: ["IMAGE", "VIDEO", "AUDIO"], // Supported media formats for NFTs
+  mintFee: 0.1, // in Algos
+  listingFee: 0.1, // in Algos
+  unListingFee: 0.1, // in Algos
+  buyingFee: 0.5, // in Algos
+  disableToast: false, // disable toast notifications
+  toastLocation: "TOP_RIGHT", // TOP_LEFT | TOP_RIGHT
+  minimizeUILocation: "right", // left | right
+  logo: "./logo.png", // your website logo (URL / path to image)
+  supportedMediaFormats: ["IMAGE", "VIDEO", "AUDIO"], // ["IMAGE", "VIDEO", "AUDIO"]
 });
 
 /**
