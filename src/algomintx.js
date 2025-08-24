@@ -33,6 +33,7 @@ class AlgoMintX {
   #unListingFee;
   #mintFee;
   #disableToast;
+  #disableUi;
   #minimizeUILocation;
   #logo;
   #supportedNetworks;
@@ -40,6 +41,7 @@ class AlgoMintX {
   #toastLocation;
   #supportedMediaFormats;
   #currentLoadingMessage;
+  #tempWalletOverlay;
 
   constructor({
     pinata_ipfs_server_key,
@@ -52,6 +54,7 @@ class AlgoMintX {
     unListingFee = 0,
     mintFee = 0,
     disableToast = false,
+    disableUi = false,
     minimizeUILocation = "right",
     logo = null,
     toastLocation = "TOP_RIGHT",
@@ -74,6 +77,7 @@ class AlgoMintX {
       this.#unListingFee = this.#validateFee(unListingFee, "unListingFee fee");
       this.#mintFee = this.#validateFee(mintFee, "Mint fee");
       this.#disableToast = this.#validateDisableToast(disableToast);
+      this.#disableUi = this.#validateDisableUi(disableUi);
       this.#minimizeUILocation =
         this.#validateMinimizeUILocation(minimizeUILocation);
       this.#logo = this.#validateLogo(logo);
@@ -125,25 +129,27 @@ class AlgoMintX {
       this.#messageElement = null;
       this.processing = false;
 
-      // Load saved UI state
-      const savedState = localStorage.getItem("amx");
-      if (savedState) {
-        try {
-          const parsedState = JSON.parse(savedState);
-          this.isMinimized = parsedState.minimized || false;
-          this.theme = parsedState.theme || this.#getSystemTheme();
-        } catch (e) {
+      // Load saved UI state (only if UI is not disabled)
+      if (!this.#disableUi) {
+        const savedState = localStorage.getItem("amx");
+        if (savedState) {
+          try {
+            const parsedState = JSON.parse(savedState);
+            this.isMinimized = parsedState.minimized || false;
+            this.theme = parsedState.theme || this.#getSystemTheme();
+          } catch (e) {
+            this.isMinimized = false;
+            this.theme = this.#getSystemTheme();
+          }
+        } else {
           this.isMinimized = false;
           this.theme = this.#getSystemTheme();
         }
-      } else {
-        this.isMinimized = false;
-        this.theme = this.#getSystemTheme();
-      }
 
-      // Save initial state and initialize UI
-      this.#saveUIState();
-      this.#initUI();
+        // Save initial state and initialize UI
+        this.#saveUIState();
+        this.#initUI();
+      }
     } catch (error) {
       this.#sdkValidationFailed(error.message);
     }
@@ -291,6 +297,191 @@ class AlgoMintX {
     return this.#validateBoolean(disableToast, "disableToast", false);
   }
 
+  #validateDisableUi(disableUi) {
+    return this.#validateBoolean(disableUi, "disableUi", false);
+  }
+
+  async #showTemporaryWalletConnectionUI(walletType) {
+    // Create a temporary overlay for wallet connection
+    const overlay = document.createElement("div");
+    overlay.id = "algomintx-temp-wallet-overlay";
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 999999;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    `;
+
+    const container = document.createElement("div");
+    container.style.cssText = `
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      text-align: center;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+      margin: 1rem;
+    `;
+
+    const title = document.createElement("h2");
+    title.textContent = "Connect Wallet";
+    title.style.cssText = `
+      margin: 0 0 1rem 0;
+      color: #1f2937;
+      font-size: 1.5rem;
+      font-weight: 600;
+    `;
+
+    const message = document.createElement("p");
+    message.textContent = `Please open your ${walletType} wallet to complete the connection.`;
+    message.style.cssText = `
+      margin: 0 0 1.5rem 0;
+      color: #6b7280;
+      font-size: 1rem;
+      line-height: 1.5;
+    `;
+
+    const spinner = document.createElement("div");
+    spinner.style.cssText = `
+      width: 40px;
+      height: 40px;
+      border: 4px solid #e5e7eb;
+      border-top: 4px solid #3b82f6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem auto;
+    `;
+
+    // Add CSS animation
+    const style = document.createElement("style");
+    style.setAttribute("data-algomintx-temp", "true");
+    style.textContent = `
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.textContent = "Cancel";
+    cancelBtn.style.cssText = `
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    `;
+    cancelBtn.onmouseover = () => (cancelBtn.style.background = "#dc2626");
+    cancelBtn.onmouseout = () => (cancelBtn.style.background = "#ef4444");
+
+    cancelBtn.onclick = async () => {
+      // Cancel the connection
+      this.#connectionInProgress = false;
+      if (this.#walletConnectors[walletType]) {
+        try {
+          await this.#walletConnectors[walletType].disconnect();
+          if (this.#walletConnectors[walletType].killSession) {
+            await this.#walletConnectors[walletType].killSession();
+          }
+        } catch (error) {
+          console.error("Failed to disconnect wallet:", error);
+        }
+      }
+      this.#hideTemporaryWalletConnectionUI();
+      eventBus.emit("wallet:connection:cancelled", { walletType });
+    };
+
+    container.appendChild(title);
+    container.appendChild(message);
+    container.appendChild(spinner);
+    container.appendChild(cancelBtn);
+    overlay.appendChild(container);
+    document.body.appendChild(overlay);
+
+    // Store reference to overlay for later removal
+    this.#tempWalletOverlay = overlay;
+
+    // Add a safety timeout to auto-hide the UI after 5 minutes
+    setTimeout(() => {
+      if (this.#tempWalletOverlay && this.#connectionInProgress) {
+        this.#hideTemporaryWalletConnectionUI();
+        this.#connectionInProgress = false;
+        eventBus.emit("wallet:connection:timeout", { walletType });
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+  }
+
+  #hideTemporaryWalletConnectionUI() {
+    if (this.#tempWalletOverlay) {
+      this.#tempWalletOverlay.remove();
+      this.#tempWalletOverlay = null;
+    }
+  }
+
+  // Force cleanup of any temporary UI elements (useful for headless mode)
+  forceCleanup() {
+    this.#hideTemporaryWalletConnectionUI();
+    // Also remove any temporary styles that might have been added
+    const tempStyles = document.querySelectorAll("style[data-algomintx-temp]");
+    tempStyles.forEach((style) => style.remove());
+  }
+
+  // Force disconnect and clear all wallet sessions
+  async forceDisconnect() {
+    try {
+      // Disconnect from all supported wallets
+      for (const [walletType, connector] of Object.entries(
+        this.#walletConnectors
+      )) {
+        try {
+          if (connector.disconnect) {
+            await connector.disconnect();
+          }
+          if (connector.killSession) {
+            await connector.killSession();
+          }
+        } catch (error) {
+          console.error(`Error disconnecting from ${walletType}:`, error);
+        }
+      }
+
+      // Clear localStorage
+      localStorage.removeItem("walletconnect");
+      localStorage.removeItem("DeflyWallet.Wallet");
+      localStorage.removeItem("PeraWallet.Wallet");
+
+      // Reset internal state
+      this.#walletConnected = false;
+      this.account = null;
+      this.#connectionInfo = null;
+      this.#selectedWalletType = null;
+      this.#connectionInProgress = false;
+
+      // Emit disconnect event
+      eventBus.emit("wallet:connection:disconnected", {
+        address: this.account,
+      });
+
+      return true;
+    } catch (error) {
+      console.error("Error during force disconnect:", error);
+      return false;
+    }
+  }
+
   #validateMinimizeUILocation(location) {
     return (
       this.#validateEnum(location, "minimizeUILocation", ["left", "right"]) ||
@@ -418,6 +609,12 @@ class AlgoMintX {
     localStorage.removeItem("DeflyWallet.Wallet");
     localStorage.removeItem("PeraWallet.Wallet");
 
+    // If UI is disabled, don't show alert or reload
+    if (this.#disableUi) {
+      console.error("SDK validation failed:", message);
+      return;
+    }
+
     alert(message);
     window.location.reload();
   }
@@ -433,6 +630,11 @@ class AlgoMintX {
   }
 
   #setupThemeListener() {
+    // If UI is disabled, don't set up theme listener
+    if (this.#disableUi) {
+      return;
+    }
+
     // Listen for system theme changes
     window
       .matchMedia("(prefers-color-scheme: dark)")
@@ -456,6 +658,11 @@ class AlgoMintX {
   }
 
   #applyTheme() {
+    // If UI is disabled, don't manipulate DOM elements
+    if (this.#disableUi) {
+      return;
+    }
+
     const container = document.getElementById("algomintx-sdk-container");
     const minimizedBtn = document.getElementById("sdkMinimizedBtn");
 
@@ -476,6 +683,11 @@ class AlgoMintX {
   }
 
   #saveUIState() {
+    // If UI is disabled, don't save UI state
+    if (this.#disableUi) {
+      return;
+    }
+
     localStorage.setItem(
       "amx",
       JSON.stringify({
@@ -487,6 +699,11 @@ class AlgoMintX {
 
   async #initUI() {
     try {
+      // If UI is disabled, don't create any UI elements
+      if (this.#disableUi) {
+        return;
+      }
+
       // Inject the entire SDK container directly into document.body with highest z-index
 
       // check if sdk container already exists
@@ -674,6 +891,11 @@ class AlgoMintX {
     this.#connectionInfo = null;
     this.#selectedWalletType = null;
 
+    // If UI is disabled, don't manipulate DOM elements
+    if (this.#disableUi) {
+      return;
+    }
+
     this.#clearMessage();
     this.#updateWalletAddressBar();
 
@@ -692,35 +914,62 @@ class AlgoMintX {
 
   async #loadConnectionFromStorage() {
     try {
-      const saved = localStorage.getItem("walletconnect");
-      if (saved) {
-        this.#connectionInfo = JSON.parse(saved);
+      // Check for wallet connection data in localStorage
+      const walletconnect = localStorage.getItem("walletconnect");
+      const peraWallet = localStorage.getItem("PeraWallet.Wallet");
+      const deflyWallet = localStorage.getItem("DeflyWallet.Wallet");
 
-        this.#walletConnected = true;
-        this.account = this.#connectionInfo.accounts[0];
+      let walletType = null;
+      let accounts = null;
 
-        this.#selectedWalletType = this.#connectionInfo.peerMeta.name
-          .split(" ")[0]
-          .toLowerCase();
-
-        const walletConnector =
-          this.#walletConnectors[this.#selectedWalletType];
-
-        const accounts = await walletConnector.reconnectSession();
-
-        if (!accounts || accounts.length === 0) {
-          throw new Error("Reconnection failed");
+      // Try to reconnect to existing sessions
+      if (peraWallet) {
+        try {
+          const peraAccounts =
+            await this.#walletConnectors.pera.reconnectSession();
+          if (peraAccounts && peraAccounts.length > 0) {
+            walletType = "pera";
+            accounts = peraAccounts;
+          }
+        } catch (error) {
+          console.log("Failed to reconnect to Pera wallet:", error.message);
         }
+      }
+
+      if (!accounts && deflyWallet) {
+        try {
+          const deflyAccounts =
+            await this.#walletConnectors.defly.reconnectSession();
+          if (deflyAccounts && deflyAccounts.length > 0) {
+            walletType = "defly";
+            accounts = deflyAccounts;
+          }
+        } catch (error) {
+          console.log("Failed to reconnect to Defly wallet:", error.message);
+        }
+      }
+
+      // If we found a valid session, restore the connection
+      if (accounts && accounts.length > 0 && walletType) {
+        this.#walletConnected = true;
+        this.account = accounts[0];
+        this.#selectedWalletType = walletType;
+        this.#connectionInfo = { address: this.account, walletType };
 
         this.#showToast(
-          `Restored connection to ${this.#connectionInfo.peerMeta.name}`,
+          `Restored connection to ${walletType} wallet`,
           "success"
         );
 
-        this.#showSDKUI();
+        if (!this.#disableUi) {
+          this.#showSDKUI();
+        }
         eventBus.emit("wallet:connection:connected", { address: this.account });
       } else {
-        this.#resetToLoginUI();
+        // No valid session found, reset to login UI
+        if (!this.#disableUi) {
+          this.#resetToLoginUI();
+        }
       }
     } catch (error) {
       console.error("Failed to restore connection", error);
@@ -728,7 +977,9 @@ class AlgoMintX {
       eventBus.emit("wallet:connection:failed", {
         error: "Failed to restore connection",
       });
-      this.#resetToLoginUI();
+      if (!this.#disableUi) {
+        this.#resetToLoginUI();
+      }
     }
   }
 
@@ -746,7 +997,14 @@ class AlgoMintX {
     this.#clearMessage();
     this.#selectedWalletType = walletType;
 
-    document.getElementById("algomintx-sdk-container").style.display = "none";
+    // If UI is disabled, we need to temporarily show wallet connection UI
+    if (this.#disableUi) {
+      // Create temporary wallet connection UI
+      await this.#showTemporaryWalletConnectionUI(walletType);
+    } else {
+      // Only manipulate DOM if UI is not disabled
+      document.getElementById("algomintx-sdk-container").style.display = "none";
+    }
 
     const walletConnector = this.#walletConnectors[walletType];
 
@@ -773,9 +1031,14 @@ class AlgoMintX {
       this.account = accounts[0];
       this.#connectionInfo = { address: this.account, walletType };
 
-      this.#showSDKUI();
+      if (!this.#disableUi) {
+        this.#showSDKUI();
+        this.#updateWalletAddressBar();
+      } else {
+        // Hide the temporary wallet connection UI
+        this.#hideTemporaryWalletConnectionUI();
+      }
       this.#showToast(`Connected to ${walletType} wallet`, "success");
-      this.#updateWalletAddressBar();
       eventBus.emit("wallet:connection:connected", { address: this.account });
       this.#connectionInProgress = false;
     } catch (error) {
@@ -784,20 +1047,73 @@ class AlgoMintX {
         if (walletConnector.killSession) {
           await walletConnector.killSession(); // Extra hard-kill if supported
         }
-        window.location.reload();
+        if (this.#disableUi) {
+          this.#hideTemporaryWalletConnectionUI();
+        } else {
+          window.location.reload();
+        }
       } else {
         console.error("Failed to connect wallet!", error);
         this.#connectionInProgress = false;
+
+        // Handle specific error cases
+        if (
+          error.message &&
+          error.message.includes("Session currently connected")
+        ) {
+          // Wallet is already connected, try to get the current session
+          try {
+            const accounts = await walletConnector.reconnectSession();
+            if (accounts && accounts.length > 0) {
+              // Successfully got the current session
+              this.#walletConnected = true;
+              this.account = accounts[0];
+              this.#selectedWalletType = walletType;
+              this.#connectionInfo = { address: this.account, walletType };
+
+              if (!this.#disableUi) {
+                this.#showSDKUI();
+                this.#updateWalletAddressBar();
+              } else {
+                this.#hideTemporaryWalletConnectionUI();
+              }
+
+              this.#showToast(
+                `Connected to existing ${walletType} session`,
+                "success"
+              );
+              eventBus.emit("wallet:connection:connected", {
+                address: this.account,
+              });
+              return; // Exit successfully
+            }
+          } catch (reconnectError) {
+            console.error(
+              "Failed to reconnect to existing session:",
+              reconnectError
+            );
+          }
+        }
+
         this.#showToast("Failed to connect wallet!", "error");
         eventBus.emit("wallet:connection:failed", {
           error: "Failed to connect wallet!",
         });
-        this.#resetToLoginUI();
+        if (this.#disableUi) {
+          this.#hideTemporaryWalletConnectionUI();
+        } else {
+          this.#resetToLoginUI();
+        }
       }
     }
   }
 
   #showSDKUI() {
+    // If UI is disabled, don't manipulate DOM elements
+    if (this.#disableUi) {
+      return;
+    }
+
     document.getElementById("algomintx-sdk-container").style.display = "flex";
     document.getElementById("sdk-header").style.display = "flex";
     document.getElementById("logoutBtn").style.display = "contents";
@@ -813,6 +1129,11 @@ class AlgoMintX {
   }
 
   #updateWalletAddressBar() {
+    // If UI is disabled, don't manipulate DOM elements
+    if (this.#disableUi) {
+      return;
+    }
+
     const bar = document.getElementById("walletAddressBar");
     if (!bar) return;
 
@@ -853,7 +1174,15 @@ class AlgoMintX {
         address: this.account,
       });
       this.#showToast("Logged out successfully.", "success");
-      this.#resetToLoginUI();
+      if (!this.#disableUi) {
+        this.#resetToLoginUI();
+      } else {
+        // Reset internal state when UI is disabled
+        this.#walletConnected = false;
+        this.account = null;
+        this.#connectionInfo = null;
+        this.#selectedWalletType = null;
+      }
     }
   }
 
@@ -862,7 +1191,7 @@ class AlgoMintX {
     eventBus.emit("toast:show", { message, type });
 
     // Only show toast UI if not disabled
-    if (this.#disableToast) return;
+    if (this.#disableToast || this.#disableUi) return;
 
     // Remove existing toast if any
     const existingToast = document.getElementById("algomintx-toast");
@@ -929,6 +1258,11 @@ class AlgoMintX {
   }
 
   #clearMessage() {
+    // If UI is disabled, don't manipulate DOM elements
+    if (this.#disableUi) {
+      return;
+    }
+
     if (this.#messageElement) {
       this.#messageElement.innerText = "";
       this.#messageElement.style.display = "none";
@@ -937,6 +1271,11 @@ class AlgoMintX {
 
   #resetNFTDetails() {
     if (this.processing) {
+      return;
+    }
+
+    // If UI is disabled, don't manipulate DOM elements
+    if (this.#disableUi) {
       return;
     }
 
@@ -962,6 +1301,11 @@ class AlgoMintX {
   }
 
   #validateMintButton() {
+    // If UI is disabled, don't manipulate DOM elements
+    if (this.#disableUi) {
+      return;
+    }
+
     const mintBtn = document.getElementById("#mintNFTBtn");
     const nftName = document.getElementById("nftName");
     const nftDescription = document.getElementById("nftDescription");
@@ -1014,6 +1358,11 @@ class AlgoMintX {
   }
 
   #setupNFTInputValidation() {
+    // If UI is disabled, don't manipulate DOM elements
+    if (this.#disableUi) {
+      return;
+    }
+
     const nftName = document.getElementById("nftName");
     const nftDescription = document.getElementById("nftDescription");
     const nftFile = document.getElementById("nftFile");
@@ -1150,12 +1499,14 @@ class AlgoMintX {
       return;
     }
 
-    // Disable UI elements
-    this.#messageElement.style.display = "block";
-    this.#messageElement.style.cursor = "default";
-    this.#messageElement.innerText = "Minting NFT... Please wait.";
-    document.getElementById("#mintNFTBtn").disabled = true;
-    document.getElementById("logoutBtn").disabled = true;
+    // Disable UI elements (only if UI is not disabled)
+    if (!this.#disableUi) {
+      this.#messageElement.style.display = "block";
+      this.#messageElement.style.cursor = "default";
+      this.#messageElement.innerText = "Minting NFT... Please wait.";
+      document.getElementById("#mintNFTBtn").disabled = true;
+      document.getElementById("logoutBtn").disabled = true;
+    }
 
     // show loading overlay after validation
     this.processing = true;
@@ -1169,8 +1520,10 @@ class AlgoMintX {
         file: fileInput.files[0],
       });
 
-      this.#messageElement.style.cursor = "pointer";
-      this.#messageElement.innerText = `NFT Minted! Transaction ID: ${transactionId}`;
+      if (!this.#disableUi) {
+        this.#messageElement.style.cursor = "pointer";
+        this.#messageElement.innerText = `NFT Minted! Transaction ID: ${transactionId}`;
+      }
 
       this.processing = false;
       this.#hideLoadingOverlay();
@@ -1181,13 +1534,15 @@ class AlgoMintX {
         "success"
       );
 
-      // show resetNFTBtn and hide mintNFTBtn
-      document.getElementById("#mintNFTBtn").style.display = "none";
-      document.getElementById("resetNFTBtn").style.display = "block";
+      // show resetNFTBtn and hide mintNFTBtn (only if UI is not disabled)
+      if (!this.#disableUi) {
+        document.getElementById("#mintNFTBtn").style.display = "none";
+        document.getElementById("resetNFTBtn").style.display = "block";
 
-      // enable mintNFTBtn and logout button
-      document.getElementById("#mintNFTBtn").disabled = false;
-      document.getElementById("logoutBtn").disabled = false;
+        // enable mintNFTBtn and logout button
+        document.getElementById("#mintNFTBtn").disabled = false;
+        document.getElementById("logoutBtn").disabled = false;
+      }
 
       const nftData = await this.getNFTMetadata({ assetId });
 
@@ -1200,8 +1555,10 @@ class AlgoMintX {
       this.#hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
 
-      // Reset form on error
-      this.#resetNFTDetails();
+      // Reset form on error (only if UI is not disabled)
+      if (!this.#disableUi) {
+        this.#resetNFTDetails();
+      }
 
       this.#showToast("Failed to mint NFT!", "error");
       eventBus.emit("nft:mint:failed", { error: "Failed to mint NFT!" });
@@ -1559,6 +1916,11 @@ class AlgoMintX {
   }
 
   #showLoadingOverlay(message = "Processing...") {
+    // If UI is disabled, don't show loading overlay
+    if (this.#disableUi) {
+      return;
+    }
+
     if (this.isMinimized) {
       // Show processing spinner on minimized button
       const minimizedBtn = document.getElementById("sdkMinimizedBtn");
@@ -1610,6 +1972,11 @@ class AlgoMintX {
   }
 
   #updateLoadingMessage(message) {
+    // If UI is disabled, don't manipulate DOM elements
+    if (this.#disableUi) {
+      return;
+    }
+
     const messageElement = document.getElementById(
       "algomintx-processing-message"
     );
@@ -1627,6 +1994,11 @@ class AlgoMintX {
   }
 
   #hideLoadingOverlay() {
+    // If UI is disabled, don't manipulate DOM elements
+    if (this.#disableUi) {
+      return;
+    }
+
     // Remove processing spinner from minimized button
     const minimizedBtn = document.getElementById("sdkMinimizedBtn");
     if (minimizedBtn) {
@@ -1652,7 +2024,164 @@ class AlgoMintX {
    * SDK public methods
    */
 
+  async connectWallet(walletType) {
+    if (!this.#supportedWallets.includes(walletType)) {
+      throw new Error(
+        `Unsupported wallet type. Supported types: ${this.#supportedWallets.join(
+          ", "
+        )}`
+      );
+    }
+
+    if (this.#walletConnected) {
+      throw new Error("Wallet is already connected");
+    }
+
+    if (this.#connectionInProgress) {
+      throw new Error("A wallet connection is already in progress");
+    }
+
+    // Check if there's an existing session that needs to be handled
+    try {
+      const walletConnector = this.#walletConnectors[walletType];
+
+      // Try to reconnect to existing session first
+      if (walletConnector.reconnectSession) {
+        try {
+          const accounts = await walletConnector.reconnectSession();
+          if (accounts && accounts.length > 0) {
+            // Successfully reconnected to existing session
+            this.#walletConnected = true;
+            this.account = accounts[0];
+            this.#selectedWalletType = walletType;
+            this.#connectionInfo = { address: this.account, walletType };
+
+            // Emit connection event
+            eventBus.emit("wallet:connection:connected", {
+              address: this.account,
+            });
+
+            // Show toast notification
+            this.#showToast(`Reconnected to ${walletType} wallet`, "success");
+
+            return; // Exit early since we successfully reconnected
+          }
+        } catch (reconnectError) {
+          console.log(
+            `No existing session to reconnect to: ${reconnectError.message}`
+          );
+          // Continue with normal connection flow
+        }
+      }
+    } catch (error) {
+      console.log("Error checking for existing session:", error.message);
+      // Continue with normal connection flow
+    }
+
+    // Check if there are any conflicting sessions from other wallets
+    try {
+      for (const [otherWalletType, connector] of Object.entries(
+        this.#walletConnectors
+      )) {
+        if (otherWalletType !== walletType && connector.reconnectSession) {
+          try {
+            const accounts = await connector.reconnectSession();
+            if (accounts && accounts.length > 0) {
+              console.log(
+                `Found existing session from ${otherWalletType}, clearing it first`
+              );
+              // Clear the conflicting session
+              await connector.disconnect();
+              if (connector.killSession) {
+                await connector.killSession();
+              }
+            }
+          } catch (error) {
+            // Ignore errors when checking other wallet sessions
+          }
+        }
+      }
+    } catch (error) {
+      console.log("Error checking for conflicting sessions:", error.message);
+    }
+
+    // Start wallet connection process
+    await this.#startWalletConnection(walletType);
+  }
+
+  isWalletSupported(walletType) {
+    return this.#supportedWallets.includes(walletType);
+  }
+
+  getSupportedWallets() {
+    return [...this.#supportedWallets];
+  }
+
+  isHeadlessMode() {
+    return this.#disableUi;
+  }
+
+  async disconnectWallet() {
+    if (!this.#walletConnected) {
+      throw new Error("No wallet is currently connected");
+    }
+
+    // Handle logout process
+    await this.#handleLogout();
+  }
+
+  getConnectionStatus() {
+    return {
+      connected: this.#walletConnected,
+      account: this.account,
+      walletType: this.#selectedWalletType,
+      connectionInProgress: this.#connectionInProgress,
+      network: this.network,
+      namespace: this.#namespace,
+    };
+  }
+
+  // Get detailed wallet session information
+  async getWalletSessionInfo() {
+    const sessionInfo = {};
+
+    for (const [walletType, connector] of Object.entries(
+      this.#walletConnectors
+    )) {
+      try {
+        if (connector.reconnectSession) {
+          const accounts = await connector.reconnectSession();
+          sessionInfo[walletType] = {
+            hasSession: accounts && accounts.length > 0,
+            accountCount: accounts ? accounts.length : 0,
+            firstAccount: accounts && accounts.length > 0 ? accounts[0] : null,
+          };
+        } else {
+          sessionInfo[walletType] = {
+            hasSession: false,
+            accountCount: 0,
+            firstAccount: null,
+          };
+        }
+      } catch (error) {
+        sessionInfo[walletType] = {
+          hasSession: false,
+          accountCount: 0,
+          firstAccount: null,
+          error: error.message,
+        };
+      }
+    }
+
+    return sessionInfo;
+  }
+
   minimizeSDK(initialLoad) {
+    // If UI is disabled, don't manipulate DOM elements
+    if (this.#disableUi) {
+      return;
+    }
+
     if (!initialLoad && this.isMinimized) return;
 
     const container = document.getElementById("algomintx-sdk-container");
@@ -1699,6 +2228,11 @@ class AlgoMintX {
   }
 
   maximizeSDK(initialLoad) {
+    // If UI is disabled, don't manipulate DOM elements
+    if (this.#disableUi) {
+      return;
+    }
+
     if (!initialLoad && !this.isMinimized) return;
 
     const container = document.getElementById("algomintx-sdk-container");
