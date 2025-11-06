@@ -157,26 +157,26 @@ window.renderNFTCards = function (nfts, isViewingOtherWallet = false) {
     const walletLabel = nft.listing ? "Seller" : "Owner";
 
     // Check if the NFT is a video or audio using image_mimetype
-    const isVideo = nft.metadata.image_mimetype?.startsWith("video/");
-    const isAudio = nft.metadata.image_mimetype?.startsWith("audio/");
+    const isVideo = nft.metadata?.image_mimetype?.startsWith("video/");
+    const isAudio = nft.metadata?.image_mimetype?.startsWith("audio/");
 
     // Create media element based on type
     let mediaElement;
     if (isVideo) {
       mediaElement = `<video class="nft-image" loop playsinline>
-        <source src="${nft.metadata.image}" type="${nft.metadata.image_mimetype}">
+        <source src="${nft.metadata?.image}" type="${nft.metadata?.image_mimetype}">
         Your browser does not support the video tag.
       </video>`;
     } else if (isAudio) {
       mediaElement = `<div class="audio-preview">
         <img src="https://img.icons8.com/ios-filled/50/ffffff/musical-notes.png" alt="Audio" class="audio-icon">
         <audio class="nft-image" preload="metadata">
-          <source src="${nft.metadata.image}" type="${nft.metadata.image_mimetype}">
+          <source src="${nft.metadata?.image}" type="${nft.metadata?.image_mimetype}">
           Your browser does not support the audio tag.
         </audio>
       </div>`;
     } else {
-      mediaElement = `<img src="${nft.metadata.image}" alt="${nft.name}" class="nft-image">`;
+      mediaElement = `<img src="${nft.metadata?.image}" alt="${nft.name}" class="nft-image">`;
     }
 
     card.innerHTML = `
@@ -186,9 +186,9 @@ window.renderNFTCards = function (nfts, isViewingOtherWallet = false) {
           nft.name || "Unnamed NFT"
         }">${truncateText(nft.name || "Unnamed NFT", 20)}</h3>
         <p class="nft-description" title="${
-          nft.metadata.description || "No description available"
+          nft.metadata?.description || "No description available"
         }">${truncateText(
-      nft.metadata.description || "No description available",
+      nft.metadata?.description || "No description available",
       100
     )}</p>
         ${

@@ -1,0 +1,1327 @@
+#pragma version 11
+#pragma typetrack false
+
+// @algorandfoundation/algorand-typescript/arc4/index.d.ts::Contract.approvalProgram() -> uint64:
+main:
+    intcblock 0 1 2 8
+    bytecblock "listing_" 0x151f7c750020 0x0006
+    // smart_contracts/AlgoMintX/contract.algo.ts:26
+    // export class AlgoMintX extends Contract {
+    txn NumAppArgs
+    bz main___algots__.defaultCreate@19
+    txn OnCompletion
+    !
+    assert // OnCompletion must be NoOp
+    txn ApplicationID
+    assert
+    pushbytess 0x59bdc200 0x0534147a 0x6817548a 0x91e6cb2f 0xff2de894 0xd613733a 0x6b475645 0x5d2ad2a0 0x98bf906d 0xaeff040b 0x55d9525b 0x14ee8afb // method "addNFTListing(uint64,string,string,string)byte[]", method "getNFTListing(uint64)(string,string,string)", method "removeNFTListing(uint64)byte[]", method "contractOptInToNFT(uint64)byte[]", method "transferNFTToContract(uint64)byte[]", method "transferNFTToReceiver(uint64,string)byte[]", method "transferNFTToSeller(uint64,string)byte[]", method "transferNFTToContractAndAddListing(uint64,string,string,string)byte[]", method "transferNFTToReceiverAndRemoveListing(uint64,string,string)byte[]", method "transferNFTToSellerAndRemoveListing(uint64,string,string)byte[]", method "fundContract(uint64)void", method "withdrawExcessFunds()void"
+    txna ApplicationArgs 0
+    match addNFTListing getNFTListing removeNFTListing contractOptInToNFT transferNFTToContract transferNFTToReceiver transferNFTToSeller transferNFTToContractAndAddListing transferNFTToReceiverAndRemoveListing transferNFTToSellerAndRemoveListing fundContract withdrawExcessFunds
+    err
+
+main___algots__.defaultCreate@19:
+    // smart_contracts/AlgoMintX/contract.algo.ts:26
+    // export class AlgoMintX extends Contract {
+    txn OnCompletion
+    !
+    txn ApplicationID
+    !
+    &&
+    assert // OnCompletion must be NoOp && can only call when creating
+    intc_1 // 1
+    return
+
+
+// smart_contracts/AlgoMintX/contract.algo.ts::AlgoMintX.addNFTListing[routing]() -> void:
+addNFTListing:
+    // smart_contracts/AlgoMintX/contract.algo.ts:34
+    // @abimethod()
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_3 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    txna ApplicationArgs 2
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_2 // 2
+    +
+    dig 1
+    len
+    dup
+    uncover 2
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 3
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_2 // 2
+    +
+    dig 1
+    len
+    dup
+    uncover 2
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 4
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_2 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // smart_contracts/AlgoMintX/contract.algo.ts:43
+    // !this.listings(assetId).exists,
+    uncover 5
+    itob
+    // smart_contracts/AlgoMintX/contract.algo.ts:28
+    // private listings = BoxMap<uint64, Listing>({ keyPrefix: "listing_" });
+    bytec_0 // "listing_"
+    swap
+    concat
+    // smart_contracts/AlgoMintX/contract.algo.ts:43
+    // !this.listings(assetId).exists,
+    dup
+    box_len
+    bury 1
+    !
+    // smart_contracts/AlgoMintX/contract.algo.ts:42-45
+    // assert(
+    //   !this.listings(assetId).exists,
+    //   "A listing already exists for this NFT"
+    // );
+    assert // A listing already exists for this NFT
+    // smart_contracts/AlgoMintX/contract.algo.ts:48-52
+    // const value = new Listing({
+    //   seller: new arc4.Str(senderWalletAddress),
+    //   nftPrice: new arc4.Str(nftPrice),
+    //   marketplace: new arc4.Str(marketplace),
+    // });
+    pushint 6 // 6
+    uncover 5
+    +
+    dup
+    itob
+    extract 6 2
+    bytec_2 // 0x0006
+    swap
+    concat
+    swap
+    uncover 4
+    +
+    itob
+    extract 6 2
+    concat
+    uncover 4
+    concat
+    uncover 3
+    concat
+    uncover 2
+    concat
+    // smart_contracts/AlgoMintX/contract.algo.ts:55
+    // this.listings(assetId).value = clone(value);
+    dig 1
+    box_del
+    pop
+    box_put
+    // smart_contracts/AlgoMintX/contract.algo.ts:34
+    // @abimethod()
+    bytec_1 // 0x151f7c750020
+    // smart_contracts/AlgoMintX/contract.algo.ts:57
+    // return Txn.txId;
+    txn TxID
+    // smart_contracts/AlgoMintX/contract.algo.ts:34
+    // @abimethod()
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// smart_contracts/AlgoMintX/contract.algo.ts::AlgoMintX.getNFTListing[routing]() -> void:
+getNFTListing:
+    // smart_contracts/AlgoMintX/contract.algo.ts:60
+    // @abimethod()
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_3 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    // smart_contracts/AlgoMintX/contract.algo.ts:64
+    // this.listings(assetId).exists,
+    itob
+    // smart_contracts/AlgoMintX/contract.algo.ts:28
+    // private listings = BoxMap<uint64, Listing>({ keyPrefix: "listing_" });
+    bytec_0 // "listing_"
+    swap
+    concat
+    // smart_contracts/AlgoMintX/contract.algo.ts:64
+    // this.listings(assetId).exists,
+    dup
+    box_len
+    bury 1
+    // smart_contracts/AlgoMintX/contract.algo.ts:63-66
+    // assert(
+    //   this.listings(assetId).exists,
+    //   "No active listing found for this NFT"
+    // );
+    assert // No active listing found for this NFT
+    // smart_contracts/AlgoMintX/contract.algo.ts:69
+    // return clone(this.listings(assetId).value);
+    box_get
+    pop
+    // smart_contracts/AlgoMintX/contract.algo.ts:60
+    // @abimethod()
+    pushbytes 0x151f7c75
+    swap
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// smart_contracts/AlgoMintX/contract.algo.ts::AlgoMintX.removeNFTListing[routing]() -> void:
+removeNFTListing:
+    // smart_contracts/AlgoMintX/contract.algo.ts:72
+    // @abimethod()
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_3 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    // smart_contracts/AlgoMintX/contract.algo.ts:76
+    // this.listings(assetId).exists,
+    itob
+    // smart_contracts/AlgoMintX/contract.algo.ts:28
+    // private listings = BoxMap<uint64, Listing>({ keyPrefix: "listing_" });
+    bytec_0 // "listing_"
+    swap
+    concat
+    // smart_contracts/AlgoMintX/contract.algo.ts:76
+    // this.listings(assetId).exists,
+    dup
+    box_len
+    bury 1
+    // smart_contracts/AlgoMintX/contract.algo.ts:75-78
+    // assert(
+    //   this.listings(assetId).exists,
+    //   "No active listing found for this NFT"
+    // );
+    assert // No active listing found for this NFT
+    // smart_contracts/AlgoMintX/contract.algo.ts:81
+    // this.listings(assetId).delete();
+    box_del
+    pop
+    // smart_contracts/AlgoMintX/contract.algo.ts:72
+    // @abimethod()
+    bytec_1 // 0x151f7c750020
+    // smart_contracts/AlgoMintX/contract.algo.ts:83
+    // return Txn.txId;
+    txn TxID
+    // smart_contracts/AlgoMintX/contract.algo.ts:72
+    // @abimethod()
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// smart_contracts/AlgoMintX/contract.algo.ts::AlgoMintX.contractOptInToNFT[routing]() -> void:
+contractOptInToNFT:
+    // smart_contracts/AlgoMintX/contract.algo.ts:91
+    // @abimethod()
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_3 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    // smart_contracts/AlgoMintX/contract.algo.ts:95
+    // !this.listings(assetId).exists,
+    dup
+    itob
+    // smart_contracts/AlgoMintX/contract.algo.ts:28
+    // private listings = BoxMap<uint64, Listing>({ keyPrefix: "listing_" });
+    bytec_0 // "listing_"
+    swap
+    concat
+    // smart_contracts/AlgoMintX/contract.algo.ts:95
+    // !this.listings(assetId).exists,
+    box_len
+    bury 1
+    !
+    // smart_contracts/AlgoMintX/contract.algo.ts:94-97
+    // assert(
+    //   !this.listings(assetId).exists,
+    //   "A listing already exists for this NFT"
+    // );
+    assert // A listing already exists for this NFT
+    // smart_contracts/AlgoMintX/contract.algo.ts:100-107
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Global.currentApplicationAddress,
+    //     xferAsset: assetId,
+    //     assetAmount: 0,
+    //     fee: 0,
+    //   })
+    //   .submit();
+    itxn_begin
+    // smart_contracts/AlgoMintX/contract.algo.ts:102
+    // assetReceiver: Global.currentApplicationAddress,
+    global CurrentApplicationAddress
+    // smart_contracts/AlgoMintX/contract.algo.ts:104
+    // assetAmount: 0,
+    intc_0 // 0
+    itxn_field AssetAmount
+    itxn_field AssetReceiver
+    itxn_field XferAsset
+    // smart_contracts/AlgoMintX/contract.algo.ts:100-106
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Global.currentApplicationAddress,
+    //     xferAsset: assetId,
+    //     assetAmount: 0,
+    //     fee: 0,
+    //   })
+    pushint 4 // 4
+    itxn_field TypeEnum
+    // smart_contracts/AlgoMintX/contract.algo.ts:105
+    // fee: 0,
+    intc_0 // 0
+    itxn_field Fee
+    // smart_contracts/AlgoMintX/contract.algo.ts:100-107
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Global.currentApplicationAddress,
+    //     xferAsset: assetId,
+    //     assetAmount: 0,
+    //     fee: 0,
+    //   })
+    //   .submit();
+    itxn_submit
+    // smart_contracts/AlgoMintX/contract.algo.ts:91
+    // @abimethod()
+    bytec_1 // 0x151f7c750020
+    // smart_contracts/AlgoMintX/contract.algo.ts:109
+    // return Txn.txId;
+    txn TxID
+    // smart_contracts/AlgoMintX/contract.algo.ts:91
+    // @abimethod()
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// smart_contracts/AlgoMintX/contract.algo.ts::AlgoMintX.transferNFTToContract[routing]() -> void:
+transferNFTToContract:
+    // smart_contracts/AlgoMintX/contract.algo.ts:112
+    // @abimethod()
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_3 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    // smart_contracts/AlgoMintX/contract.algo.ts:116
+    // !this.listings(assetId).exists,
+    dup
+    itob
+    // smart_contracts/AlgoMintX/contract.algo.ts:28
+    // private listings = BoxMap<uint64, Listing>({ keyPrefix: "listing_" });
+    bytec_0 // "listing_"
+    swap
+    concat
+    // smart_contracts/AlgoMintX/contract.algo.ts:116
+    // !this.listings(assetId).exists,
+    box_len
+    bury 1
+    !
+    // smart_contracts/AlgoMintX/contract.algo.ts:115-118
+    // assert(
+    //   !this.listings(assetId).exists,
+    //   "A listing already exists for this NFT"
+    // );
+    assert // A listing already exists for this NFT
+    // smart_contracts/AlgoMintX/contract.algo.ts:121-129
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Global.currentApplicationAddress,
+    //     assetSender: Txn.sender,
+    //     xferAsset: assetId,
+    //     assetAmount: 1,
+    //     fee: 0,
+    //   })
+    //   .submit();
+    itxn_begin
+    // smart_contracts/AlgoMintX/contract.algo.ts:123
+    // assetReceiver: Global.currentApplicationAddress,
+    global CurrentApplicationAddress
+    // smart_contracts/AlgoMintX/contract.algo.ts:124
+    // assetSender: Txn.sender,
+    txn Sender
+    // smart_contracts/AlgoMintX/contract.algo.ts:126
+    // assetAmount: 1,
+    intc_1 // 1
+    itxn_field AssetAmount
+    uncover 2
+    itxn_field XferAsset
+    itxn_field AssetSender
+    itxn_field AssetReceiver
+    // smart_contracts/AlgoMintX/contract.algo.ts:121-128
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Global.currentApplicationAddress,
+    //     assetSender: Txn.sender,
+    //     xferAsset: assetId,
+    //     assetAmount: 1,
+    //     fee: 0,
+    //   })
+    pushint 4 // 4
+    itxn_field TypeEnum
+    // smart_contracts/AlgoMintX/contract.algo.ts:127
+    // fee: 0,
+    intc_0 // 0
+    itxn_field Fee
+    // smart_contracts/AlgoMintX/contract.algo.ts:121-129
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Global.currentApplicationAddress,
+    //     assetSender: Txn.sender,
+    //     xferAsset: assetId,
+    //     assetAmount: 1,
+    //     fee: 0,
+    //   })
+    //   .submit();
+    itxn_submit
+    // smart_contracts/AlgoMintX/contract.algo.ts:112
+    // @abimethod()
+    bytec_1 // 0x151f7c750020
+    // smart_contracts/AlgoMintX/contract.algo.ts:131
+    // return Txn.txId;
+    txn TxID
+    // smart_contracts/AlgoMintX/contract.algo.ts:112
+    // @abimethod()
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// smart_contracts/AlgoMintX/contract.algo.ts::AlgoMintX.transferNFTToReceiver[routing]() -> void:
+transferNFTToReceiver:
+    // smart_contracts/AlgoMintX/contract.algo.ts:134
+    // @abimethod()
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_3 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    txna ApplicationArgs 2
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_2 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // smart_contracts/AlgoMintX/contract.algo.ts:141
+    // this.listings(assetId).exists,
+    dig 1
+    itob
+    // smart_contracts/AlgoMintX/contract.algo.ts:28
+    // private listings = BoxMap<uint64, Listing>({ keyPrefix: "listing_" });
+    bytec_0 // "listing_"
+    swap
+    concat
+    // smart_contracts/AlgoMintX/contract.algo.ts:141
+    // this.listings(assetId).exists,
+    dup
+    box_len
+    bury 1
+    // smart_contracts/AlgoMintX/contract.algo.ts:140-143
+    // assert(
+    //   this.listings(assetId).exists,
+    //   "No active listing found for this NFT"
+    // );
+    assert // No active listing found for this NFT
+    // smart_contracts/AlgoMintX/contract.algo.ts:146
+    // const listing = clone(this.listings(assetId).value);
+    box_get
+    pop
+    // smart_contracts/AlgoMintX/contract.algo.ts:150
+    // listing.seller === new arc4.Str(sellerWalletAddress),
+    dup
+    intc_0 // 0
+    extract_uint16
+    dig 1
+    intc_2 // 2
+    extract_uint16
+    substring3
+    ==
+    // smart_contracts/AlgoMintX/contract.algo.ts:149-152
+    // assert(
+    //   listing.seller === new arc4.Str(sellerWalletAddress),
+    //   "Seller wallet address does not match"
+    // );
+    assert // Seller wallet address does not match
+    // smart_contracts/AlgoMintX/contract.algo.ts:155-163
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Txn.sender,
+    //     assetSender: Global.currentApplicationAddress,
+    //     xferAsset: assetId,
+    //     assetAmount: 1,
+    //     fee: 0,
+    //   })
+    //   .submit();
+    itxn_begin
+    // smart_contracts/AlgoMintX/contract.algo.ts:157
+    // assetReceiver: Txn.sender,
+    txn Sender
+    // smart_contracts/AlgoMintX/contract.algo.ts:158
+    // assetSender: Global.currentApplicationAddress,
+    global CurrentApplicationAddress
+    // smart_contracts/AlgoMintX/contract.algo.ts:160
+    // assetAmount: 1,
+    intc_1 // 1
+    itxn_field AssetAmount
+    uncover 2
+    itxn_field XferAsset
+    itxn_field AssetSender
+    itxn_field AssetReceiver
+    // smart_contracts/AlgoMintX/contract.algo.ts:155-162
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Txn.sender,
+    //     assetSender: Global.currentApplicationAddress,
+    //     xferAsset: assetId,
+    //     assetAmount: 1,
+    //     fee: 0,
+    //   })
+    pushint 4 // 4
+    itxn_field TypeEnum
+    // smart_contracts/AlgoMintX/contract.algo.ts:161
+    // fee: 0,
+    intc_0 // 0
+    itxn_field Fee
+    // smart_contracts/AlgoMintX/contract.algo.ts:155-163
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Txn.sender,
+    //     assetSender: Global.currentApplicationAddress,
+    //     xferAsset: assetId,
+    //     assetAmount: 1,
+    //     fee: 0,
+    //   })
+    //   .submit();
+    itxn_submit
+    // smart_contracts/AlgoMintX/contract.algo.ts:134
+    // @abimethod()
+    bytec_1 // 0x151f7c750020
+    // smart_contracts/AlgoMintX/contract.algo.ts:165
+    // return Txn.txId;
+    txn TxID
+    // smart_contracts/AlgoMintX/contract.algo.ts:134
+    // @abimethod()
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// smart_contracts/AlgoMintX/contract.algo.ts::AlgoMintX.transferNFTToSeller[routing]() -> void:
+transferNFTToSeller:
+    // smart_contracts/AlgoMintX/contract.algo.ts:168
+    // @abimethod()
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_3 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    txna ApplicationArgs 2
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_2 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // smart_contracts/AlgoMintX/contract.algo.ts:175
+    // this.listings(assetId).exists,
+    dig 1
+    itob
+    // smart_contracts/AlgoMintX/contract.algo.ts:28
+    // private listings = BoxMap<uint64, Listing>({ keyPrefix: "listing_" });
+    bytec_0 // "listing_"
+    swap
+    concat
+    // smart_contracts/AlgoMintX/contract.algo.ts:175
+    // this.listings(assetId).exists,
+    dup
+    box_len
+    bury 1
+    // smart_contracts/AlgoMintX/contract.algo.ts:174-177
+    // assert(
+    //   this.listings(assetId).exists,
+    //   "No active listing found for this NFT"
+    // );
+    assert // No active listing found for this NFT
+    // smart_contracts/AlgoMintX/contract.algo.ts:180
+    // const listing = clone(this.listings(assetId).value);
+    box_get
+    pop
+    // smart_contracts/AlgoMintX/contract.algo.ts:184
+    // listing.seller === new arc4.Str(sellerWalletAddress),
+    dup
+    intc_0 // 0
+    extract_uint16
+    dig 1
+    intc_2 // 2
+    extract_uint16
+    substring3
+    ==
+    // smart_contracts/AlgoMintX/contract.algo.ts:183-186
+    // assert(
+    //   listing.seller === new arc4.Str(sellerWalletAddress),
+    //   "Seller wallet address does not match"
+    // );
+    assert // Seller wallet address does not match
+    // smart_contracts/AlgoMintX/contract.algo.ts:189-197
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Txn.sender,
+    //     assetSender: Global.currentApplicationAddress,
+    //     xferAsset: assetId,
+    //     assetAmount: 1,
+    //     fee: 0,
+    //   })
+    //   .submit();
+    itxn_begin
+    // smart_contracts/AlgoMintX/contract.algo.ts:191
+    // assetReceiver: Txn.sender,
+    txn Sender
+    // smart_contracts/AlgoMintX/contract.algo.ts:192
+    // assetSender: Global.currentApplicationAddress,
+    global CurrentApplicationAddress
+    // smart_contracts/AlgoMintX/contract.algo.ts:194
+    // assetAmount: 1,
+    intc_1 // 1
+    itxn_field AssetAmount
+    uncover 2
+    itxn_field XferAsset
+    itxn_field AssetSender
+    itxn_field AssetReceiver
+    // smart_contracts/AlgoMintX/contract.algo.ts:189-196
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Txn.sender,
+    //     assetSender: Global.currentApplicationAddress,
+    //     xferAsset: assetId,
+    //     assetAmount: 1,
+    //     fee: 0,
+    //   })
+    pushint 4 // 4
+    itxn_field TypeEnum
+    // smart_contracts/AlgoMintX/contract.algo.ts:195
+    // fee: 0,
+    intc_0 // 0
+    itxn_field Fee
+    // smart_contracts/AlgoMintX/contract.algo.ts:189-197
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Txn.sender,
+    //     assetSender: Global.currentApplicationAddress,
+    //     xferAsset: assetId,
+    //     assetAmount: 1,
+    //     fee: 0,
+    //   })
+    //   .submit();
+    itxn_submit
+    // smart_contracts/AlgoMintX/contract.algo.ts:168
+    // @abimethod()
+    bytec_1 // 0x151f7c750020
+    // smart_contracts/AlgoMintX/contract.algo.ts:199
+    // return Txn.txId;
+    txn TxID
+    // smart_contracts/AlgoMintX/contract.algo.ts:168
+    // @abimethod()
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// smart_contracts/AlgoMintX/contract.algo.ts::AlgoMintX.transferNFTToContractAndAddListing[routing]() -> void:
+transferNFTToContractAndAddListing:
+    // smart_contracts/AlgoMintX/contract.algo.ts:206
+    // @abimethod()
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_3 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    txna ApplicationArgs 2
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_2 // 2
+    +
+    dig 1
+    len
+    dup
+    uncover 2
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 3
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_2 // 2
+    +
+    dig 1
+    len
+    dup
+    uncover 2
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 4
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_2 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // smart_contracts/AlgoMintX/contract.algo.ts:215
+    // !this.listings(assetId).exists,
+    dig 5
+    itob
+    // smart_contracts/AlgoMintX/contract.algo.ts:28
+    // private listings = BoxMap<uint64, Listing>({ keyPrefix: "listing_" });
+    bytec_0 // "listing_"
+    swap
+    concat
+    // smart_contracts/AlgoMintX/contract.algo.ts:215
+    // !this.listings(assetId).exists,
+    dup
+    box_len
+    bury 1
+    !
+    // smart_contracts/AlgoMintX/contract.algo.ts:214-217
+    // assert(
+    //   !this.listings(assetId).exists,
+    //   "A listing already exists for this NFT"
+    // );
+    assert // A listing already exists for this NFT
+    // smart_contracts/AlgoMintX/contract.algo.ts:220-227
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Global.currentApplicationAddress,
+    //     xferAsset: assetId,
+    //     assetAmount: 0,
+    //     fee: 0,
+    //   })
+    //   .submit();
+    itxn_begin
+    // smart_contracts/AlgoMintX/contract.algo.ts:222
+    // assetReceiver: Global.currentApplicationAddress,
+    global CurrentApplicationAddress
+    // smart_contracts/AlgoMintX/contract.algo.ts:224
+    // assetAmount: 0,
+    intc_0 // 0
+    itxn_field AssetAmount
+    dig 7
+    itxn_field XferAsset
+    itxn_field AssetReceiver
+    // smart_contracts/AlgoMintX/contract.algo.ts:220-226
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Global.currentApplicationAddress,
+    //     xferAsset: assetId,
+    //     assetAmount: 0,
+    //     fee: 0,
+    //   })
+    pushint 4 // 4
+    itxn_field TypeEnum
+    // smart_contracts/AlgoMintX/contract.algo.ts:225
+    // fee: 0,
+    intc_0 // 0
+    itxn_field Fee
+    // smart_contracts/AlgoMintX/contract.algo.ts:220-227
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Global.currentApplicationAddress,
+    //     xferAsset: assetId,
+    //     assetAmount: 0,
+    //     fee: 0,
+    //   })
+    //   .submit();
+    itxn_submit
+    // smart_contracts/AlgoMintX/contract.algo.ts:230-238
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Global.currentApplicationAddress,
+    //     assetSender: Txn.sender,
+    //     xferAsset: assetId,
+    //     assetAmount: 1,
+    //     fee: 0,
+    //   })
+    //   .submit();
+    itxn_begin
+    // smart_contracts/AlgoMintX/contract.algo.ts:232
+    // assetReceiver: Global.currentApplicationAddress,
+    global CurrentApplicationAddress
+    // smart_contracts/AlgoMintX/contract.algo.ts:233
+    // assetSender: Txn.sender,
+    txn Sender
+    // smart_contracts/AlgoMintX/contract.algo.ts:235
+    // assetAmount: 1,
+    intc_1 // 1
+    itxn_field AssetAmount
+    uncover 8
+    itxn_field XferAsset
+    itxn_field AssetSender
+    itxn_field AssetReceiver
+    // smart_contracts/AlgoMintX/contract.algo.ts:230-237
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Global.currentApplicationAddress,
+    //     assetSender: Txn.sender,
+    //     xferAsset: assetId,
+    //     assetAmount: 1,
+    //     fee: 0,
+    //   })
+    pushint 4 // 4
+    itxn_field TypeEnum
+    // smart_contracts/AlgoMintX/contract.algo.ts:236
+    // fee: 0,
+    intc_0 // 0
+    itxn_field Fee
+    // smart_contracts/AlgoMintX/contract.algo.ts:230-238
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Global.currentApplicationAddress,
+    //     assetSender: Txn.sender,
+    //     xferAsset: assetId,
+    //     assetAmount: 1,
+    //     fee: 0,
+    //   })
+    //   .submit();
+    itxn_submit
+    // smart_contracts/AlgoMintX/contract.algo.ts:241-245
+    // const value = new Listing({
+    //   seller: new arc4.Str(senderWalletAddress),
+    //   nftPrice: new arc4.Str(nftPrice),
+    //   marketplace: new arc4.Str(marketplace),
+    // });
+    pushint 6 // 6
+    uncover 5
+    +
+    dup
+    itob
+    extract 6 2
+    bytec_2 // 0x0006
+    swap
+    concat
+    swap
+    uncover 4
+    +
+    itob
+    extract 6 2
+    concat
+    uncover 4
+    concat
+    uncover 3
+    concat
+    uncover 2
+    concat
+    // smart_contracts/AlgoMintX/contract.algo.ts:248
+    // this.listings(assetId).value = clone(value);
+    dig 1
+    box_del
+    pop
+    box_put
+    // smart_contracts/AlgoMintX/contract.algo.ts:206
+    // @abimethod()
+    bytec_1 // 0x151f7c750020
+    // smart_contracts/AlgoMintX/contract.algo.ts:250
+    // return Txn.txId;
+    txn TxID
+    // smart_contracts/AlgoMintX/contract.algo.ts:206
+    // @abimethod()
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// smart_contracts/AlgoMintX/contract.algo.ts::AlgoMintX.transferNFTToReceiverAndRemoveListing[routing]() -> void:
+transferNFTToReceiverAndRemoveListing:
+    // smart_contracts/AlgoMintX/contract.algo.ts:253
+    // @abimethod()
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_3 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    txna ApplicationArgs 2
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_2 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 3
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_2 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // smart_contracts/AlgoMintX/contract.algo.ts:261
+    // this.listings(assetId).exists,
+    dig 2
+    itob
+    // smart_contracts/AlgoMintX/contract.algo.ts:28
+    // private listings = BoxMap<uint64, Listing>({ keyPrefix: "listing_" });
+    bytec_0 // "listing_"
+    swap
+    concat
+    // smart_contracts/AlgoMintX/contract.algo.ts:261
+    // this.listings(assetId).exists,
+    dup
+    box_len
+    bury 1
+    // smart_contracts/AlgoMintX/contract.algo.ts:260-263
+    // assert(
+    //   this.listings(assetId).exists,
+    //   "No active listing found for this NFT"
+    // );
+    assert // No active listing found for this NFT
+    // smart_contracts/AlgoMintX/contract.algo.ts:266
+    // const listing = clone(this.listings(assetId).value);
+    dup
+    box_get
+    pop
+    // smart_contracts/AlgoMintX/contract.algo.ts:270
+    // listing.seller === new arc4.Str(sellerWalletAddress),
+    dup
+    intc_0 // 0
+    extract_uint16
+    dig 1
+    intc_2 // 2
+    extract_uint16
+    dig 2
+    cover 2
+    substring3
+    uncover 4
+    ==
+    // smart_contracts/AlgoMintX/contract.algo.ts:269-272
+    // assert(
+    //   listing.seller === new arc4.Str(sellerWalletAddress),
+    //   "Seller wallet address does not match"
+    // );
+    assert // Seller wallet address does not match
+    // smart_contracts/AlgoMintX/contract.algo.ts:276
+    // listing.marketplace === new arc4.Str(marketplace),
+    dup
+    pushint 4 // 4
+    extract_uint16
+    dig 1
+    len
+    substring3
+    uncover 2
+    ==
+    // smart_contracts/AlgoMintX/contract.algo.ts:275-278
+    // assert(
+    //   listing.marketplace === new arc4.Str(marketplace),
+    //   "Marketplace does not match"
+    // );
+    assert // Marketplace does not match
+    // smart_contracts/AlgoMintX/contract.algo.ts:281-289
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Txn.sender,
+    //     assetSender: Global.currentApplicationAddress,
+    //     xferAsset: assetId,
+    //     assetAmount: 1,
+    //     fee: 0,
+    //   })
+    //   .submit();
+    itxn_begin
+    // smart_contracts/AlgoMintX/contract.algo.ts:283
+    // assetReceiver: Txn.sender,
+    txn Sender
+    // smart_contracts/AlgoMintX/contract.algo.ts:284
+    // assetSender: Global.currentApplicationAddress,
+    global CurrentApplicationAddress
+    // smart_contracts/AlgoMintX/contract.algo.ts:286
+    // assetAmount: 1,
+    intc_1 // 1
+    itxn_field AssetAmount
+    uncover 3
+    itxn_field XferAsset
+    itxn_field AssetSender
+    itxn_field AssetReceiver
+    // smart_contracts/AlgoMintX/contract.algo.ts:281-288
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Txn.sender,
+    //     assetSender: Global.currentApplicationAddress,
+    //     xferAsset: assetId,
+    //     assetAmount: 1,
+    //     fee: 0,
+    //   })
+    pushint 4 // 4
+    itxn_field TypeEnum
+    // smart_contracts/AlgoMintX/contract.algo.ts:287
+    // fee: 0,
+    intc_0 // 0
+    itxn_field Fee
+    // smart_contracts/AlgoMintX/contract.algo.ts:281-289
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Txn.sender,
+    //     assetSender: Global.currentApplicationAddress,
+    //     xferAsset: assetId,
+    //     assetAmount: 1,
+    //     fee: 0,
+    //   })
+    //   .submit();
+    itxn_submit
+    // smart_contracts/AlgoMintX/contract.algo.ts:292
+    // this.listings(assetId).delete();
+    box_del
+    pop
+    // smart_contracts/AlgoMintX/contract.algo.ts:253
+    // @abimethod()
+    bytec_1 // 0x151f7c750020
+    // smart_contracts/AlgoMintX/contract.algo.ts:294
+    // return Txn.txId;
+    txn TxID
+    // smart_contracts/AlgoMintX/contract.algo.ts:253
+    // @abimethod()
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// smart_contracts/AlgoMintX/contract.algo.ts::AlgoMintX.transferNFTToSellerAndRemoveListing[routing]() -> void:
+transferNFTToSellerAndRemoveListing:
+    // smart_contracts/AlgoMintX/contract.algo.ts:297
+    // @abimethod()
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_3 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    txna ApplicationArgs 2
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_2 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    txna ApplicationArgs 3
+    dup
+    intc_0 // 0
+    extract_uint16 // on error: invalid array length header
+    intc_2 // 2
+    +
+    dig 1
+    len
+    ==
+    assert // invalid number of bytes for arc4.dynamic_array<arc4.uint8>
+    // smart_contracts/AlgoMintX/contract.algo.ts:305
+    // this.listings(assetId).exists,
+    dig 2
+    itob
+    // smart_contracts/AlgoMintX/contract.algo.ts:28
+    // private listings = BoxMap<uint64, Listing>({ keyPrefix: "listing_" });
+    bytec_0 // "listing_"
+    swap
+    concat
+    // smart_contracts/AlgoMintX/contract.algo.ts:305
+    // this.listings(assetId).exists,
+    dup
+    box_len
+    bury 1
+    // smart_contracts/AlgoMintX/contract.algo.ts:304-307
+    // assert(
+    //   this.listings(assetId).exists,
+    //   "No active listing found for this NFT"
+    // );
+    assert // No active listing found for this NFT
+    // smart_contracts/AlgoMintX/contract.algo.ts:310
+    // const listing = clone(this.listings(assetId).value);
+    dup
+    box_get
+    pop
+    // smart_contracts/AlgoMintX/contract.algo.ts:314
+    // listing.seller === new arc4.Str(sellerWalletAddress),
+    dup
+    intc_0 // 0
+    extract_uint16
+    dig 1
+    intc_2 // 2
+    extract_uint16
+    dig 2
+    cover 2
+    substring3
+    uncover 4
+    ==
+    // smart_contracts/AlgoMintX/contract.algo.ts:313-316
+    // assert(
+    //   listing.seller === new arc4.Str(sellerWalletAddress),
+    //   "Seller wallet address does not match"
+    // );
+    assert // Seller wallet address does not match
+    // smart_contracts/AlgoMintX/contract.algo.ts:320
+    // listing.marketplace === new arc4.Str(marketplace),
+    dup
+    pushint 4 // 4
+    extract_uint16
+    dig 1
+    len
+    substring3
+    uncover 2
+    ==
+    // smart_contracts/AlgoMintX/contract.algo.ts:319-322
+    // assert(
+    //   listing.marketplace === new arc4.Str(marketplace),
+    //   "Marketplace does not match"
+    // );
+    assert // Marketplace does not match
+    // smart_contracts/AlgoMintX/contract.algo.ts:325-333
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Txn.sender,
+    //     assetSender: Global.currentApplicationAddress,
+    //     xferAsset: assetId,
+    //     assetAmount: 1,
+    //     fee: 0,
+    //   })
+    //   .submit();
+    itxn_begin
+    // smart_contracts/AlgoMintX/contract.algo.ts:327
+    // assetReceiver: Txn.sender,
+    txn Sender
+    // smart_contracts/AlgoMintX/contract.algo.ts:328
+    // assetSender: Global.currentApplicationAddress,
+    global CurrentApplicationAddress
+    // smart_contracts/AlgoMintX/contract.algo.ts:330
+    // assetAmount: 1,
+    intc_1 // 1
+    itxn_field AssetAmount
+    uncover 3
+    itxn_field XferAsset
+    itxn_field AssetSender
+    itxn_field AssetReceiver
+    // smart_contracts/AlgoMintX/contract.algo.ts:325-332
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Txn.sender,
+    //     assetSender: Global.currentApplicationAddress,
+    //     xferAsset: assetId,
+    //     assetAmount: 1,
+    //     fee: 0,
+    //   })
+    pushint 4 // 4
+    itxn_field TypeEnum
+    // smart_contracts/AlgoMintX/contract.algo.ts:331
+    // fee: 0,
+    intc_0 // 0
+    itxn_field Fee
+    // smart_contracts/AlgoMintX/contract.algo.ts:325-333
+    // itxn
+    //   .assetTransfer({
+    //     assetReceiver: Txn.sender,
+    //     assetSender: Global.currentApplicationAddress,
+    //     xferAsset: assetId,
+    //     assetAmount: 1,
+    //     fee: 0,
+    //   })
+    //   .submit();
+    itxn_submit
+    // smart_contracts/AlgoMintX/contract.algo.ts:336
+    // this.listings(assetId).delete();
+    box_del
+    pop
+    // smart_contracts/AlgoMintX/contract.algo.ts:297
+    // @abimethod()
+    bytec_1 // 0x151f7c750020
+    // smart_contracts/AlgoMintX/contract.algo.ts:338
+    // return Txn.txId;
+    txn TxID
+    // smart_contracts/AlgoMintX/contract.algo.ts:297
+    // @abimethod()
+    concat
+    log
+    intc_1 // 1
+    return
+
+
+// smart_contracts/AlgoMintX/contract.algo.ts::AlgoMintX.fundContract[routing]() -> void:
+fundContract:
+    // smart_contracts/AlgoMintX/contract.algo.ts:346
+    // @abimethod()
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_3 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    // smart_contracts/AlgoMintX/contract.algo.ts:350
+    // Txn.sender === Global.creatorAddress,
+    txn Sender
+    global CreatorAddress
+    ==
+    // smart_contracts/AlgoMintX/contract.algo.ts:349-352
+    // assert(
+    //   Txn.sender === Global.creatorAddress,
+    //   "Only contract creator can fund the contract"
+    // );
+    assert // Only contract creator can fund the contract
+    // smart_contracts/AlgoMintX/contract.algo.ts:354-360
+    // itxn
+    //   .payment({
+    //     amount: amount,
+    //     receiver: Global.currentApplicationAddress,
+    //     fee: 0,
+    //   })
+    //   .submit();
+    itxn_begin
+    // smart_contracts/AlgoMintX/contract.algo.ts:357
+    // receiver: Global.currentApplicationAddress,
+    global CurrentApplicationAddress
+    itxn_field Receiver
+    itxn_field Amount
+    // smart_contracts/AlgoMintX/contract.algo.ts:354-359
+    // itxn
+    //   .payment({
+    //     amount: amount,
+    //     receiver: Global.currentApplicationAddress,
+    //     fee: 0,
+    //   })
+    intc_1 // 1
+    itxn_field TypeEnum
+    // smart_contracts/AlgoMintX/contract.algo.ts:358
+    // fee: 0,
+    intc_0 // 0
+    itxn_field Fee
+    // smart_contracts/AlgoMintX/contract.algo.ts:354-360
+    // itxn
+    //   .payment({
+    //     amount: amount,
+    //     receiver: Global.currentApplicationAddress,
+    //     fee: 0,
+    //   })
+    //   .submit();
+    itxn_submit
+    // smart_contracts/AlgoMintX/contract.algo.ts:346
+    // @abimethod()
+    intc_1 // 1
+    return
+
+
+// smart_contracts/AlgoMintX/contract.algo.ts::AlgoMintX.withdrawExcessFunds[routing]() -> void:
+withdrawExcessFunds:
+    // smart_contracts/AlgoMintX/contract.algo.ts:367
+    // Txn.sender === Global.creatorAddress,
+    txn Sender
+    global CreatorAddress
+    ==
+    // smart_contracts/AlgoMintX/contract.algo.ts:366-369
+    // assert(
+    //   Txn.sender === Global.creatorAddress,
+    //   "Only contract creator can withdraw funds"
+    // );
+    assert // Only contract creator can withdraw funds
+    // smart_contracts/AlgoMintX/contract.algo.ts:373
+    // Global.currentApplicationAddress.balance - MIN_BALANCE
+    global CurrentApplicationAddress
+    acct_params_get AcctBalance
+    assert // account funded
+    pushint 100000 // 100000
+    -
+    // smart_contracts/AlgoMintX/contract.algo.ts:380-386
+    // itxn
+    //   .payment({
+    //     amount: amountToWithdraw,
+    //     receiver: Txn.sender,
+    //     fee: 0,
+    //   })
+    //   .submit();
+    itxn_begin
+    // smart_contracts/AlgoMintX/contract.algo.ts:383
+    // receiver: Txn.sender,
+    txn Sender
+    itxn_field Receiver
+    itxn_field Amount
+    // smart_contracts/AlgoMintX/contract.algo.ts:380-385
+    // itxn
+    //   .payment({
+    //     amount: amountToWithdraw,
+    //     receiver: Txn.sender,
+    //     fee: 0,
+    //   })
+    intc_1 // 1
+    itxn_field TypeEnum
+    // smart_contracts/AlgoMintX/contract.algo.ts:384
+    // fee: 0,
+    intc_0 // 0
+    itxn_field Fee
+    // smart_contracts/AlgoMintX/contract.algo.ts:380-386
+    // itxn
+    //   .payment({
+    //     amount: amountToWithdraw,
+    //     receiver: Txn.sender,
+    //     fee: 0,
+    //   })
+    //   .submit();
+    itxn_submit
+    // smart_contracts/AlgoMintX/contract.algo.ts:363
+    // @abimethod()
+    intc_1 // 1
+    return

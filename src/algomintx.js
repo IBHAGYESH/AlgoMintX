@@ -4,7 +4,7 @@ import { DeflyWalletConnect } from "@blockshake/defly-connect";
 import eventBus from "./event-bus.js";
 import "./algomintx.css";
 
-const appSpecJson = require("./AlgoMintXClient/AlgoMintX.arc32.json");
+const appSpecJson = require("../AlgoKit/smart_contracts/artifacts/AlgoMintX/AlgoMintX.arc32.json");
 const encoder = new algosdk.ABIContract({
   name: appSpecJson.contract.name,
   methods: appSpecJson.contract.methods,
