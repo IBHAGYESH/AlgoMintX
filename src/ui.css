@@ -321,13 +321,6 @@
   color: #fff;
 }
 
-#wallet-choice-screen {
-  padding: 15px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
 #sdkUI {
   display: none;
   padding: 15px;
@@ -589,21 +582,74 @@
   border-color: #ff4444;
 }
 
-#sdkUI .input-counter {
-  font-size: 0.8rem;
-  color: #666;
-  text-align: right;
-  margin-top: 4px;
+/* Temporary Wallet Connection UI (Headless Mode) */
+#algomintx-temp-wallet-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999999;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-.dark-theme #sdkUI .input-counter {
-  color: #999;
+#algomintx-temp-wallet-overlay .temp-wallet-container {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  text-align: center;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  margin: 1rem;
 }
 
-#sdkUI .input-counter.warning {
-  color: #ff9800;
+#algomintx-temp-wallet-overlay .temp-wallet-title {
+  margin: 0 0 1rem 0;
+  color: #1f2937;
+  font-size: 1.5rem;
+  font-weight: 600;
 }
 
-#sdkUI .input-counter.error {
-  color: #ff4444;
+#algomintx-temp-wallet-overlay .temp-wallet-message {
+  margin: 0 0 1.5rem 0;
+  color: #6b7280;
+  font-size: 1rem;
+  line-height: 1.5;
 }
+
+#algomintx-temp-wallet-overlay .temp-wallet-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #e5e7eb;
+  border-top: 4px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem auto;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+#algomintx-temp-wallet-overlay .temp-wallet-cancel-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+#algomintx-temp-wallet-overlay .temp-wallet-cancel-btn:hover {
+  background: #dc2626;
+}
+

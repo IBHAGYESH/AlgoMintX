@@ -776,87 +776,24 @@ export class UIManager {
     // Create a temporary overlay for wallet connection
     const overlay = document.createElement("div");
     overlay.id = "algomintx-temp-wallet-overlay";
-    overlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.8);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 999999;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    `;
 
     const container = document.createElement("div");
-    container.style.cssText = `
-      background: white;
-      padding: 2rem;
-      border-radius: 12px;
-      text-align: center;
-      max-width: 400px;
-      width: 90%;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-      margin: 1rem;
-    `;
+    container.className = "temp-wallet-container";
 
     const title = document.createElement("h2");
+    title.className = "temp-wallet-title";
     title.textContent = "Connect Wallet";
-    title.style.cssText = `
-      margin: 0 0 1rem 0;
-      color: #1f2937;
-      font-size: 1.5rem;
-      font-weight: 600;
-    `;
 
     const message = document.createElement("p");
+    message.className = "temp-wallet-message";
     message.textContent = `Please open your ${walletType} wallet to complete the connection.`;
-    message.style.cssText = `
-      margin: 0 0 1.5rem 0;
-      color: #6b7280;
-      font-size: 1rem;
-      line-height: 1.5;
-    `;
 
     const spinner = document.createElement("div");
-    spinner.style.cssText = `
-      width: 40px;
-      height: 40px;
-      border: 4px solid #e5e7eb;
-      border-top: 4px solid #3b82f6;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 1rem auto;
-    `;
-
-    // Add CSS animation
-    const style = document.createElement("style");
-    style.setAttribute("data-algomintx-temp", "true");
-    style.textContent = `
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-    `;
-    document.head.appendChild(style);
+    spinner.className = "temp-wallet-spinner";
 
     const cancelBtn = document.createElement("button");
+    cancelBtn.className = "temp-wallet-cancel-btn";
     cancelBtn.textContent = "Cancel";
-    cancelBtn.style.cssText = `
-      background: #ef4444;
-      color: white;
-      border: none;
-      padding: 0.75rem 1.5rem;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    `;
-    cancelBtn.onmouseover = () => (cancelBtn.style.background = "#dc2626");
-    cancelBtn.onmouseout = () => (cancelBtn.style.background = "#ef4444");
 
     cancelBtn.onclick = async () => {
       onCancel();
@@ -890,9 +827,5 @@ export class UIManager {
       this.tempWalletOverlay.remove();
       this.tempWalletOverlay = null;
     }
-
-    // Also remove any temporary styles
-    const tempStyles = document.querySelectorAll("style[data-algomintx-temp]");
-    tempStyles.forEach((style) => style.remove());
   }
 }
