@@ -163,7 +163,7 @@ class AlgoMintX {
 
       // Load saved UI state (only if UI is not disabled)
       if (!this.#disableUi) {
-        const savedState = localStorage.getItem("amx");
+        const savedState = localStorage.getItem("axs");
         if (savedState) {
           try {
             const parsedState = JSON.parse(savedState);

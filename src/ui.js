@@ -52,10 +52,14 @@ export class UIManager {
         <div class="header-left">
           ${
             this.#logo
-              ? `<img src="${this.#logo}" alt="AlgoMintX" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />`
+              ? `<img src="${
+                  this.#logo
+                }" alt="AlgoMintX" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />`
               : ""
           }
-          <h3 style="${this.#logo ? "display: none;" : "display: block;"}">AlgoMintX</h3>
+          <h3 style="${
+            this.#logo ? "display: none;" : "display: block;"
+          }">AlgoMintX</h3>
         </div>
         <div class="header-right">
           <button id="algox-theme-btn" title="Toggle Theme">🌓</button>
@@ -104,7 +108,9 @@ export class UIManager {
     document.body.appendChild(container);
 
     // Create minimized circle button
-    const existingSdkMinimizeBtn = document.getElementById("algox-minimized-btn");
+    const existingSdkMinimizeBtn = document.getElementById(
+      "algox-minimized-btn"
+    );
     if (existingSdkMinimizeBtn) existingSdkMinimizeBtn.remove();
 
     const minimizedBtn = document.createElement("button");
@@ -167,7 +173,9 @@ export class UIManager {
       .addEventListener("click", () => callbacks.onLogout());
 
     // Maximized button
-    document.getElementById("algox-minimized-btn").addEventListener("click", () => callbacks.onMaximize());
+    document
+      .getElementById("algox-minimized-btn")
+      .addEventListener("click", () => callbacks.onMaximize());
 
     // Copy to clipboard for sdkMessages (tx id)
     this.#messageElement = document.getElementById("algox-mintx-messages");
@@ -202,11 +210,9 @@ export class UIManager {
     });
 
     // Add theme toggle button listener
-    document
-      .getElementById("algox-theme-btn")
-      .addEventListener("click", () => {
-        callbacks.onThemeToggle();
-      });
+    document.getElementById("algox-theme-btn").addEventListener("click", () => {
+      callbacks.onThemeToggle();
+    });
   }
 
   /**
@@ -312,7 +318,13 @@ export class UIManager {
     toast.appendChild(toastContent);
     toast.appendChild(toastClose);
     toast.classList.add(
-      type === "error" ? "error" : type === "success" ? "success" : type === "warning" ? "warning" : "info"
+      type === "error"
+        ? "error"
+        : type === "success"
+        ? "success"
+        : type === "warning"
+        ? "warning"
+        : "info"
     );
     toast.classList.add(this.#toastLocation.toLowerCase().replace("_", "-"));
     document.body.appendChild(toast);
@@ -476,7 +488,7 @@ export class UIManager {
     }
 
     localStorage.setItem(
-      "amx",
+      "axs",
       JSON.stringify({
         minimized: this.#sdk.isMinimized,
         theme: this.#sdk.theme,
@@ -629,7 +641,9 @@ export class UIManager {
     }
 
     const nftName = document.getElementById("algox-mintx-nft-name");
-    const nftDescription = document.getElementById("algox-mintx-nft-description");
+    const nftDescription = document.getElementById(
+      "algox-mintx-nft-description"
+    );
     const nftFile = document.getElementById("algox-mintx-nft-file");
 
     // Set up file input accept attribute based on supported formats
@@ -639,7 +653,8 @@ export class UIManager {
       AUDIO: "audio/mpeg,audio/wav,audio/ogg,audio/mp4,audio/webm",
     };
 
-    const acceptedTypes = callbacks.getSupportedMediaFormats()
+    const acceptedTypes = callbacks
+      .getSupportedMediaFormats()
       .map((format) => mimeTypes[format])
       .join(",");
 
@@ -668,10 +683,7 @@ export class UIManager {
       // Stop input if length exceeds 500 characters
       if (e.target.value.length > 500) {
         e.target.value = e.target.value.slice(0, 500);
-        this.showToast(
-          "NFT description cannot exceed 500 characters",
-          "error"
-        );
+        this.showToast("NFT description cannot exceed 500 characters", "error");
         return;
       }
 
@@ -724,10 +736,7 @@ export class UIManager {
       const sanitized = callbacks.sanitizeInput(truncatedText);
       e.target.value = sanitized;
       if (pastedText.length > 500) {
-        this.showToast(
-          "NFT description cannot exceed 500 characters",
-          "error"
-        );
+        this.showToast("NFT description cannot exceed 500 characters", "error");
       }
       this.validateMintButton();
     });
@@ -746,7 +755,9 @@ export class UIManager {
 
     const mintBtn = document.getElementById("algox-mintx-mint-btn");
     const nftName = document.getElementById("algox-mintx-nft-name");
-    const nftDescription = document.getElementById("algox-mintx-nft-description");
+    const nftDescription = document.getElementById(
+      "algox-mintx-nft-description"
+    );
     const nftFile = document.getElementById("algox-mintx-nft-file");
 
     const isNameValid = nftName.value.trim().length > 0;
@@ -779,7 +790,9 @@ export class UIManager {
     }
 
     const nftName = document.getElementById("algox-mintx-nft-name");
-    const nftDescription = document.getElementById("algox-mintx-nft-description");
+    const nftDescription = document.getElementById(
+      "algox-mintx-nft-description"
+    );
     const nftFile = document.getElementById("algox-mintx-nft-file");
     const mintBtn = document.getElementById("algox-mintx-mint-btn");
     const resetBtn = document.getElementById("algox-mintx-reset-btn");
