@@ -1,4 +1,9 @@
-#algomintx-sdk-container {
+/* ==========================================
+   ALGOXSUITE COMMON UI STYLES
+   ========================================== */
+
+/* SDK Container */
+#algox-sdk-container {
   position: fixed;
   top: 50%;
   left: 50%;
@@ -9,7 +14,7 @@
   border: 1px solid #ccc;
   border-radius: 8px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-  font-family: Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   flex-direction: column;
@@ -20,30 +25,31 @@
   transform-origin: center;
 }
 
-#algomintx-sdk-container.dark-theme {
+#algox-sdk-container.dark-theme {
   background-color: #1a1a1a;
   border-color: #333;
   color: #fff;
 }
 
-#algomintx-sdk-container.minimizing {
+#algox-sdk-container.minimizing {
   opacity: 0;
   visibility: hidden;
   transform: translate(-50%, -50%) scale(0.95);
 }
 
-#algomintx-sdk-container.maximizing {
+#algox-sdk-container.maximizing {
   opacity: 0;
   visibility: hidden;
   transform: translate(-50%, -50%) scale(0.95);
 }
 
-#algomintx-loading-overlay {
+/* Loading Overlay */
+#algox-loading-overlay {
   position: absolute;
-  top: 45px; /* Height of header */
+  top: 45px;
   left: 0;
   right: 0;
-  bottom: 90px; /* Height of wallet address bar + footer bar */
+  bottom: 90px;
   background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
@@ -60,32 +66,32 @@
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-.dark-theme #algomintx-loading-overlay {
+.dark-theme #algox-loading-overlay {
   background: rgba(26, 26, 26, 0.7);
   border-top-color: rgba(255, 255, 255, 0.1);
   border-bottom-color: rgba(255, 255, 255, 0.1);
 }
 
-#algomintx-loading-overlay.visible {
+#algox-loading-overlay.visible {
   opacity: 1;
   visibility: visible;
 }
 
-#algomintx-loader {
+#algox-loader {
   width: 40px;
   height: 40px;
   border: 3px solid #f3f3f3;
   border-top: 3px solid #3498db;
   border-radius: 50%;
-  animation: algomintx-spin 1s linear infinite;
+  animation: algox-spin 1s linear infinite;
 }
 
-.dark-theme #algomintx-loader {
+.dark-theme #algox-loader {
   border-color: #2d2d2d;
   border-top-color: #3498db;
 }
 
-@keyframes algomintx-spin {
+@keyframes algox-spin {
   0% {
     transform: rotate(0deg);
   }
@@ -94,42 +100,85 @@
   }
 }
 
-#sdkMinimizedBtn {
+#algox-processing-message {
+  font-size: 0.9rem;
+  color: #333;
+  text-align: center;
+  padding: 0 20px;
+  line-height: 1.4;
+}
+
+.dark-theme #algox-processing-message {
+  color: #fff;
+}
+
+/* Minimized Button */
+#algox-minimized-btn {
   position: fixed;
   bottom: 20px;
   width: 50px;
   height: 50px;
   border-radius: 50%;
+  background-color: #3498db;
+  color: white;
   border: none;
-  background-color: white;
-  color: black;
-  font-weight: 900;
   cursor: pointer;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-  z-index: 99999999;
-  display: none;
-  opacity: 0;
-  transform: scale(0.8);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
-  overflow: visible;
+  font-size: 20px;
+  font-weight: 900;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  z-index: 9999998;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0;
+  transform: scale(0.8);
 }
 
-#sdkMinimizedBtn img {
+#algox-minimized-btn img {
   width: 35px;
   height: 35px;
   object-fit: contain;
 }
 
-#sdkMinimizedBtn span {
+#algox-minimized-btn span {
   font-size: 1.1rem;
   line-height: 1;
 }
 
-#sdkMinimizedBtn::before {
+#algox-minimized-btn:hover {
+  transform: scale(1.1);
+  background-color: #2980b9;
+}
+
+#algox-minimized-btn.dark-theme {
+  background-color: #2d2d2d;
+  color: #fff;
+}
+
+#algox-minimized-btn.dark-theme:hover {
+  background-color: #1a1a1a;
+}
+
+#algox-minimized-btn.left {
+  left: 20px;
+}
+
+#algox-minimized-btn.right {
+  right: 20px;
+}
+
+#algox-minimized-btn.showing {
+  opacity: 1;
+  transform: scale(1);
+}
+
+#algox-minimized-btn.hiding {
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+#algox-minimized-btn::before {
   content: "";
   position: absolute;
   top: -3px;
@@ -144,36 +193,148 @@
   pointer-events: none;
 }
 
-#sdkMinimizedBtn.processing::before {
+#algox-minimized-btn.processing::before {
   opacity: 1;
   border-top-color: #3498db;
   border-right-color: #3498db;
-  animation: algomintx-spin 1s linear infinite;
+  animation: algox-spin 1s linear infinite;
   z-index: 99999999;
 }
 
-.dark-theme #sdkMinimizedBtn.processing::before {
+.dark-theme #algox-minimized-btn.processing::before {
   border-top-color: #3498db;
   border-right-color: #3498db;
 }
 
-#sdkMinimizedBtn.showing {
-  opacity: 1;
-  transform: scale(1);
+/* Header */
+#algox-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  background-color: #f9fafb;
 }
 
-#sdkMinimizedBtn.hiding {
-  opacity: 0;
-  transform: scale(0.8);
+.dark-theme #algox-header {
+  background-color: #1f2937;
+  border-bottom-color: #374151;
 }
 
-#sdkMinimizedBtn.dark-theme {
-  background-color: #1a1a1a;
-  color: #fff;
-  border: 1px solid #333;
+#algox-header .header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-#walletAddressBar {
+#algox-header .header-left img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+#algox-header .header-left h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.dark-theme #algox-header .header-left h3 {
+  color: #f9fafb;
+}
+
+#algox-header .header-right {
+  display: flex;
+  gap: 4px;
+}
+
+#algox-header .header-right button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  font-size: 1.25rem;
+  color: #111827;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#algox-header .header-right button:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.dark-theme #algox-header .header-right button {
+  color: #f9fafb;
+}
+
+.dark-theme #algox-header .header-right button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+#algox-logout-btn {
+  transform: rotate(180deg);
+  transition: opacity 0.3s ease;
+}
+
+#algox-logout-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Wallet Selection Screen */
+#algox-wallet-choice {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.algox-wallet-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 14px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+  color: #333;
+}
+
+.algox-wallet-btn:hover {
+  background-color: #f9fafb;
+  border-color: #3498db;
+  transform: translateY(-2px);
+}
+
+.algox-wallet-btn img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
+.dark-theme .algox-wallet-btn {
+  background-color: #111827;
+  border-color: #374151;
+  color: #f9fafb;
+}
+
+.dark-theme .algox-wallet-btn:hover {
+  background-color: #1f2937;
+  border-color: #60a5fa;
+}
+
+/* Wallet Address Bar */
+#algox-wallet-address {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -181,7 +342,7 @@
   user-select: text;
   cursor: pointer;
   display: none;
-  color: black;
+  color: #111827;
   padding: 12px 15px;
   font-size: 0.85rem;
   font-family: monospace;
@@ -190,268 +351,92 @@
   letter-spacing: 0.5px;
 }
 
-.dark-theme #walletAddressBar {
-  color: #fff;
+.dark-theme #algox-wallet-address {
+  color: #f9fafb;
   background-color: #2d2d2d;
   border-top-color: #444;
 }
 
-#sdk-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 15px;
-  border-bottom: 1px solid #ddd;
-}
-
-.dark-theme #sdk-header {
-  border-bottom-color: #333;
-}
-
-#sdk-header h3 {
-  margin: 0;
-  font-size: 1.25rem;
-  color: black;
-}
-
-.dark-theme #sdk-header h3 {
-  color: #fff;
-}
-
-#sdkMinimizeBtn,
-#themeToggleBtn {
-  background: none;
-  border: none;
-  border-radius: 25%;
-  font-size: 1.25rem;
-  cursor: pointer;
-  width: 30px;
-  color: black;
-}
-
-.dark-theme #sdkMinimizeBtn,
-.dark-theme #themeToggleBtn {
-  color: #fff;
-}
-
-#walletChoiceScreen {
-  flex-flow: column;
-  padding: 15px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.walletBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  padding: 1rem 2rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-  border: none;
-  background-color: #ffffff;
-  color: #333;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  width: 100%;
-}
-
-.walletBtn:hover {
-  transform: translateY(-2px);
-}
-
-.walletBtn img {
-  width: 24px;
-  height: 24px;
-  object-fit: contain;
-}
-
-#walletChoiceScreen {
-  display: flex;
-  flex-direction: column;
-  max-width: 400px;
-}
-
-#\#mintNFTBtn:disabled {
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-#\#mintNFTBtn:disabled:hover {
-  transform: none;
-  box-shadow: none;
-}
-
-.dark-theme .walletBtn {
-  background-color: #2d2d2d;
-  border-color: #444;
-  color: #fff;
-}
-
-.dark-theme .walletBtn:hover {
-  background-color: #3d3d3d;
-}
-
-#logoutBtn {
-  padding: 8px;
-  font-size: 1.25rem;
-  cursor: pointer;
-  margin-top: auto;
-  background: none;
-  border: none;
-  display: none;
-  color: black;
-  width: 30px;
-  height: 30px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transform: rotate(180deg); /* Rotate the icon to point right */
-  transition: opacity 0.3s ease;
-}
-
-#logoutBtn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.dark-theme #logoutBtn {
-  color: #fff;
-}
-
-#sdkUI {
-  display: none;
-  padding: 15px;
-  flex-direction: column;
-  gap: 10px;
-  overflow-y: auto;
-  flex-grow: 1;
-  border-bottom: 1px solid #ddd;
-}
-
-.dark-theme #sdkUI {
-  border-bottom-color: #333;
-}
-
-#sdkUI input[type="text"],
-#sdkUI textarea,
-#sdkUI input[type="file"] {
-  padding: 8px;
-  font-size: 1rem;
-  color: black;
-  background-color: white;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-}
-
-.dark-theme #sdkUI input[type="text"],
-.dark-theme #sdkUI textarea,
-.dark-theme #sdkUI input[type="file"] {
-  color: #fff;
-  background-color: #2d2d2d;
-  border-color: #444;
-}
-
-#sdkUI textarea {
-  resize: vertical;
-  min-height: 10vh;
-}
-
-#sdkUI #resetNFTBtn {
-  display: none;
-}
-
-#sdkUI button {
-  padding: 10px;
-  font-size: 1rem;
-  cursor: pointer;
-  background-color: #f8f9fa;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  color: black;
-}
-
-.dark-theme #sdkUI button {
-  background-color: #2d2d2d;
-  border-color: #444;
-  color: #fff;
-}
-
-#sdkMessages {
-  margin-top: 10px;
+/* Footer */
+#algox-footer {
+  padding: 8px 15px;
   font-size: 0.85rem;
-  color: black;
-  word-break: break-word;
-  user-select: text;
-  cursor: pointer;
-  display: none;
-  padding: 8px;
+  text-align: center;
+  color: #666;
   background-color: #f8f9fa;
-  border-radius: 4px;
-  border: 1px solid #ddd;
+  border-top: 1px solid #ddd;
+  user-select: none;
 }
 
-#sdkMessages:not(:empty) {
-  display: block;
-}
-
-.dark-theme #sdkMessages {
-  color: #fff;
+.dark-theme #algox-footer {
+  color: #999;
   background-color: #2d2d2d;
-  border-color: #444;
+  border-top-color: #444;
 }
 
-#algomintx-toast {
-  position: fixed !important;
-  z-index: 99999999 !important;
-  min-width: 200px;
-  max-width: 500px;
-  padding: 8px 12px;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+#algox-footer a {
+  color: #3498db;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+#algox-footer a:hover {
+  color: #2980b9;
+  text-decoration: underline;
+}
+
+.dark-theme #algox-footer a {
+  color: #5dade2;
+}
+
+.dark-theme #algox-footer a:hover {
+  color: #3498db;
+}
+
+/* Toast Notifications (AlgoStakeX Style) */
+#algox-toast {
+  position: fixed;
+  z-index: 10000002;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  min-width: 280px;
+  max-width: 420px;
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  padding: 10px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  opacity: 0;
-  transition: all 0.3s ease;
-  font-size: 13px;
-  line-height: 1.4;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  transform: translateY(0);
-  margin: 0;
-  color: white;
 }
 
-#algomintx-toast.top-right {
-  top: 12px !important;
-  right: 12px !important;
-  left: auto !important;
-  bottom: auto !important;
+#algox-toast.top-left {
+  top: 20px;
+  left: 20px;
 }
 
-#algomintx-toast.top-left {
-  top: 12px !important;
-  left: 12px !important;
-  right: auto !important;
-  bottom: auto !important;
-  max-width: calc(100vw - 24px) !important;
+#algox-toast.top-right {
+  top: 20px;
+  right: 20px;
 }
 
-#algomintx-toast .toast-content {
+.dark-theme #algox-toast {
+  background: #1f2937;
+  color: #f9fafb;
+  border-color: #374151;
+}
+
+#algox-toast .toast-content {
   flex: 1;
   word-wrap: break-word;
   overflow-wrap: break-word;
   white-space: normal;
-  max-width: calc(100% - 24px);
-  margin: 0;
-  padding: 0;
 }
 
-#algomintx-toast .toast-close {
+#algox-toast .toast-close {
   background: none;
   border: none;
   color: inherit;
@@ -466,124 +451,31 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0;
   flex-shrink: 0;
 }
 
-#algomintx-toast .toast-close:hover {
+#algox-toast .toast-close:hover {
   opacity: 1;
 }
 
-#algomintx-toast.success {
-  background-color: rgba(76, 175, 80, 0.95);
-  color: white;
+#algox-toast.success {
+  border-left: 4px solid #10b981;
 }
 
-#algomintx-toast.error {
-  background-color: rgba(244, 67, 54, 0.95);
-  color: white;
+#algox-toast.error {
+  border-left: 4px solid #ef4444;
 }
 
-#algomintx-toast.info {
-  background-color: rgba(33, 150, 243, 0.95);
-  color: white;
+#algox-toast.warning {
+  border-left: 4px solid #f59e0b;
 }
 
-@media (max-width: 480px) {
-  #algomintx-toast {
-    min-width: calc(100% - 24px);
-    max-width: calc(100% - 24px);
-    margin: 0 12px;
-  }
-}
-
-#sdkFooter {
-  padding: 8px 15px;
-  font-size: 0.85rem;
-  text-align: center;
-  color: #666;
-  background-color: #f8f9fa;
-  border-top: 1px solid #ddd;
-  user-select: none;
-}
-
-.dark-theme #sdkFooter {
-  color: #999;
-  background-color: #2d2d2d;
-  border-top-color: #444;
-}
-
-#sdkFooter a {
-  color: #3498db;
-  text-decoration: none;
-  transition: color 0.2s ease;
-}
-
-#sdkFooter a:hover {
-  color: #2980b9;
-  text-decoration: underline;
-}
-
-.dark-theme #sdkFooter a {
-  color: #5dade2;
-}
-
-.dark-theme #sdkFooter a:hover {
-  color: #3498db;
-}
-
-.header-logo {
-  display: flex;
-  align-items: center;
-  height: 100%;
-}
-
-.header-logo img {
-  height: 30px;
-  width: auto;
-  object-fit: contain;
-}
-
-.header-logo h3 {
-  margin: 0;
-  font-size: 1.25rem;
-  color: black;
-}
-
-.dark-theme .header-logo h3 {
-  color: #fff;
-}
-
-#algomintx-processing-message {
-  font-size: 0.9rem;
-  color: #333;
-  text-align: center;
-  padding: 0 20px;
-  line-height: 1.4;
-}
-
-.dark-theme #algomintx-processing-message {
-  color: #fff;
-}
-
-#sdkUI input[type="text"],
-#sdkUI textarea {
-  transition: border-color 0.3s ease;
-}
-
-#sdkUI input[type="text"]:focus,
-#sdkUI textarea:focus {
-  outline: none;
-  border-color: #3498db;
-}
-
-#sdkUI input[type="text"].error,
-#sdkUI textarea.error {
-  border-color: #ff4444;
+#algox-toast.info {
+  border-left: 4px solid #3498db;
 }
 
 /* Temporary Wallet Connection UI (Headless Mode) */
-#algomintx-temp-wallet-overlay {
+#algox-temp-wallet-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -597,7 +489,7 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-#algomintx-temp-wallet-overlay .temp-wallet-container {
+#algox-temp-wallet-overlay .temp-wallet-container {
   background: white;
   padding: 2rem;
   border-radius: 12px;
@@ -608,21 +500,21 @@
   margin: 1rem;
 }
 
-#algomintx-temp-wallet-overlay .temp-wallet-title {
+#algox-temp-wallet-overlay .temp-wallet-title {
   margin: 0 0 1rem 0;
   color: #1f2937;
   font-size: 1.5rem;
   font-weight: 600;
 }
 
-#algomintx-temp-wallet-overlay .temp-wallet-message {
+#algox-temp-wallet-overlay .temp-wallet-message {
   margin: 0 0 1.5rem 0;
   color: #6b7280;
   font-size: 1rem;
   line-height: 1.5;
 }
 
-#algomintx-temp-wallet-overlay .temp-wallet-spinner {
+#algox-temp-wallet-overlay .temp-wallet-spinner {
   width: 40px;
   height: 40px;
   border: 4px solid #e5e7eb;
@@ -637,7 +529,7 @@
   100% { transform: rotate(360deg); }
 }
 
-#algomintx-temp-wallet-overlay .temp-wallet-cancel-btn {
+#algox-temp-wallet-overlay .temp-wallet-cancel-btn {
   background: #ef4444;
   color: white;
   border: none;
@@ -649,7 +541,114 @@
   transition: background-color 0.2s;
 }
 
-#algomintx-temp-wallet-overlay .temp-wallet-cancel-btn:hover {
+#algox-temp-wallet-overlay .temp-wallet-cancel-btn:hover {
   background: #dc2626;
 }
 
+/* ==========================================
+   SDK-SPECIFIC STYLES (ALGOMINTX)
+   ========================================== */
+
+#algox-mintx-content {
+  display: none;
+  padding: 15px;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  flex-grow: 1;
+  border-bottom: 1px solid #ddd;
+}
+
+.dark-theme #algox-mintx-content {
+  border-bottom-color: #333;
+}
+
+#algox-mintx-content input[type="text"],
+#algox-mintx-content textarea,
+#algox-mintx-content input[type="file"] {
+  padding: 8px;
+  font-size: 1rem;
+  color: #111827;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  transition: border-color 0.3s ease;
+}
+
+.dark-theme #algox-mintx-content input[type="text"],
+.dark-theme #algox-mintx-content textarea,
+.dark-theme #algox-mintx-content input[type="file"] {
+  color: #f9fafb;
+  background-color: #2d2d2d;
+  border-color: #444;
+}
+
+#algox-mintx-content input[type="text"]:focus,
+#algox-mintx-content textarea:focus {
+  outline: none;
+  border-color: #3498db;
+}
+
+#algox-mintx-content input[type="text"].error,
+#algox-mintx-content textarea.error {
+  border-color: #ff4444;
+}
+
+#algox-mintx-content textarea {
+  resize: vertical;
+  min-height: 10vh;
+}
+
+#algox-mintx-content button {
+  padding: 10px;
+  font-size: 1rem;
+  cursor: pointer;
+  background-color: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  color: #111827;
+}
+
+.dark-theme #algox-mintx-content button {
+  background-color: #2d2d2d;
+  border-color: #444;
+  color: #f9fafb;
+}
+
+#algox-mintx-content button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+#algox-mintx-content button:disabled:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+#algox-mintx-reset-btn {
+  display: none;
+}
+
+#algox-mintx-messages {
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: #111827;
+  word-break: break-word;
+  user-select: text;
+  cursor: pointer;
+  display: none;
+  padding: 8px;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  border: 1px solid #ddd;
+}
+
+#algox-mintx-messages:not(:empty) {
+  display: block;
+}
+
+.dark-theme #algox-mintx-messages {
+  color: #f9fafb;
+  background-color: #2d2d2d;
+  border-color: #444;
+}

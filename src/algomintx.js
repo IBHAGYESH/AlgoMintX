@@ -24,6 +24,9 @@ const encoder = new algosdk.ABIContract({
 });
 
 class AlgoMintX {
+  // ==========================================
+  // COMMON SDK PRIVATE FIELDS
+  // ==========================================
   #walletConnectors;
   #walletConnected;
   #connectionInfo;
@@ -31,6 +34,18 @@ class AlgoMintX {
   #supportedWallets;
   #selectedWalletType;
   #algodClient;
+  #disableToast;
+  #disableUi;
+  #minimizeUILocation;
+  #logo;
+  #supportedNetworks;
+  #theme;
+  #toastLocation;
+  #uiManager; // UI Manager instance
+
+  // ==========================================
+  // SDK-SPECIFIC PRIVATE FIELDS (ALGOMINTX)
+  // ==========================================
   #contractApplicationId;
   #contractWalletAddress;
   #indexerUrl;
@@ -45,15 +60,7 @@ class AlgoMintX {
   #buyingFee;
   #unListingFee;
   #mintFee;
-  #disableToast;
-  #disableUi;
-  #minimizeUILocation;
-  #logo;
-  #supportedNetworks;
-  #theme;
-  #toastLocation;
   #supportedMediaFormats;
-  #uiManager; // UI Manager instance
 
   constructor({
     pinata_ipfs_server_key,
@@ -198,6 +205,10 @@ class AlgoMintX {
     window.location.reload();
   }
 
+  // ==========================================
+  // COMMON SDK PRIVATE METHODS
+  // ==========================================
+
   async #initUI() {
     // Initialize UI with callbacks
     this.#uiManager.initUI({
@@ -337,7 +348,7 @@ class AlgoMintX {
       );
     } else {
       // Only manipulate DOM if UI is not disabled
-      document.getElementById("algomintx-sdk-container").style.display = "none";
+      document.getElementById("algox-sdk-container").style.display = "none";
     }
 
     const walletConnector = this.#walletConnectors[walletType];
@@ -490,6 +501,10 @@ class AlgoMintX {
     this.#uiManager.resetToLoginUI();
   }
 
+  // ==========================================
+  // SDK-SPECIFIC PRIVATE METHODS (ALGOMINTX)
+  // ==========================================
+
   async #validateNFTDetails() {
     if (this.processing) {
       return;
@@ -528,8 +543,8 @@ class AlgoMintX {
       this.#messageElement.style.display = "block";
       this.#messageElement.style.cursor = "default";
       this.#messageElement.innerText = "Minting NFT... Please wait.";
-      document.getElementById("#mintNFTBtn").disabled = true;
-      document.getElementById("logoutBtn").disabled = true;
+      document.getElementById("algox-mintx-mint-btn").disabled = true;
+      document.getElementById("algox-logout-btn").disabled = true;
     }
 
     // show loading overlay after validation
@@ -560,12 +575,12 @@ class AlgoMintX {
 
       // show resetNFTBtn and hide mintNFTBtn (only if UI is not disabled)
       if (!this.#disableUi) {
-        document.getElementById("#mintNFTBtn").style.display = "none";
-        document.getElementById("resetNFTBtn").style.display = "block";
+        document.getElementById("algox-mintx-mint-btn").style.display = "none";
+        document.getElementById("algox-mintx-reset-btn").style.display = "block";
 
         // enable mintNFTBtn and logout button
-        document.getElementById("#mintNFTBtn").disabled = false;
-        document.getElementById("logoutBtn").disabled = false;
+        document.getElementById("algox-mintx-mint-btn").disabled = false;
+        document.getElementById("algox-logout-btn").disabled = false;
       }
 
       const nftData = await this.getNFTMetadata({ assetId });
@@ -825,6 +840,10 @@ class AlgoMintX {
   /**
    *********** SDK public methods
    */
+
+  // ==========================================
+  // COMMON SDK PUBLIC METHODS
+  // ==========================================
 
   /**
    * SDK UI Management
@@ -1386,6 +1405,10 @@ class AlgoMintX {
       throw error; // Re-throw to allow caller to handle the error
     }
   }
+
+  // ==========================================
+  // SDK-SPECIFIC PUBLIC METHODS (ALGOMINTX)
+  // ==========================================
 
   async listNFT({ assetId, nftPrice }) {
     try {
