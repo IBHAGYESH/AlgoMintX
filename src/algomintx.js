@@ -2,7 +2,20 @@ import algosdk from "algosdk";
 import { PeraWalletConnect } from "@perawallet/connect";
 import { DeflyWalletConnect } from "@blockshake/defly-connect";
 import eventBus from "./event-bus.js";
-import "./algomintx.css";
+import { Validator } from "./validation.js";
+import { UIManager } from "./ui.js";
+import {
+  sha256Hash,
+  getImageIntegrityBase64,
+  uploadFileToIPFS,
+  uploadJSONToIPFS,
+  deleteFromIPFS,
+  getBoxNameB64,
+  algosToMicroAlgos,
+  microAlgosToAlgos,
+  convertIpfsToHttp,
+  getListingBoxReference,
+} from "./utils.js";
 
 const appSpecJson = require("../AlgoKit/smart_contracts/artifacts/AlgoMintX/AlgoMintX.arc32.json");
 const encoder = new algosdk.ABIContract({
@@ -40,12 +53,11 @@ class AlgoMintX {
   #theme;
   #toastLocation;
   #supportedMediaFormats;
-  #currentLoadingMessage;
-  #tempWalletOverlay;
+  #uiManager; // UI Manager instance
 
   constructor({
     pinata_ipfs_server_key,
-    pinata_ipfs_gateway_url,
+    pinata_ipfs_gateway_url = null,
     env,
     namespace,
     revenueWalletAddress,
@@ -62,27 +74,30 @@ class AlgoMintX {
   }) {
     try {
       // Validate all parameters
-      this.#pinata_ipfs_server_key = this.#validatePinataServerKey(
+      this.#pinata_ipfs_server_key = Validator.validatePinataServerKey(
         pinata_ipfs_server_key
       );
-      this.#pinata_ipfs_gateway_url = this.#validatePinataGatewayUrl(
+      this.#pinata_ipfs_gateway_url = Validator.validatePinataGatewayUrl(
         pinata_ipfs_gateway_url
       );
-      this.network = this.#validateEnvironment(env);
-      this.#namespace = this.#validateNamespace(namespace);
+      this.network = Validator.validateEnvironment(env);
+      this.#namespace = Validator.validateNamespace(namespace);
       this.#revenueWalletAddress =
-        this.#validateRevenueWalletAddress(revenueWalletAddress);
-      this.#listingFee = this.#validateFee(listingFee, "Listing fee");
-      this.#buyingFee = this.#validateFee(buyingFee, "Buying fee");
-      this.#unListingFee = this.#validateFee(unListingFee, "unListingFee fee");
-      this.#mintFee = this.#validateFee(mintFee, "Mint fee");
-      this.#disableToast = this.#validateDisableToast(disableToast);
-      this.#disableUi = this.#validateDisableUi(disableUi);
+        Validator.validateRevenueWalletAddress(revenueWalletAddress);
+      this.#listingFee = Validator.validateFee(listingFee, "Listing fee");
+      this.#buyingFee = Validator.validateFee(buyingFee, "Buying fee");
+      this.#unListingFee = Validator.validateFee(
+        unListingFee,
+        "unListingFee fee"
+      );
+      this.#mintFee = Validator.validateFee(mintFee, "Mint fee");
+      this.#disableToast = Validator.validateDisableToast(disableToast);
+      this.#disableUi = Validator.validateDisableUi(disableUi);
       this.#minimizeUILocation =
-        this.#validateMinimizeUILocation(minimizeUILocation);
-      this.#logo = this.#validateLogo(logo);
-      this.#toastLocation = this.#validateToastLocation(toastLocation);
-      this.#supportedMediaFormats = this.#validateSupportedMediaFormats(
+        Validator.validateMinimizeUILocation(minimizeUILocation);
+      this.#logo = Validator.validateLogo(logo);
+      this.#toastLocation = Validator.validateToastLocation(toastLocation);
+      this.#supportedMediaFormats = Validator.validateSupportedMediaFormats(
         supportedMediaFormats
       );
 
@@ -129,6 +144,15 @@ class AlgoMintX {
       this.#messageElement = null;
       this.processing = false;
 
+      // Initialize UI Manager
+      this.#uiManager = new UIManager(this, {
+        disableUi: this.#disableUi,
+        disableToast: this.#disableToast,
+        logo: this.#logo,
+        minimizeUILocation: this.#minimizeUILocation,
+        toastLocation: this.#toastLocation,
+      });
+
       // Load saved UI state (only if UI is not disabled)
       if (!this.#disableUi) {
         const savedState = localStorage.getItem("amx");
@@ -136,473 +160,28 @@ class AlgoMintX {
           try {
             const parsedState = JSON.parse(savedState);
             this.isMinimized = parsedState.minimized || false;
-            this.theme = parsedState.theme || this.#getSystemTheme();
+            this.theme = parsedState.theme || this.#uiManager.getSystemTheme();
           } catch (e) {
             this.isMinimized = false;
-            this.theme = this.#getSystemTheme();
+            this.theme = this.#uiManager.getSystemTheme();
           }
         } else {
           this.isMinimized = false;
-          this.theme = this.#getSystemTheme();
+          this.theme = this.#uiManager.getSystemTheme();
         }
 
         // Save initial state and initialize UI
-        this.#saveUIState();
+        this.#uiManager.saveUIState();
         this.#initUI();
       }
     } catch (error) {
       this.#sdkValidationFailed(error.message);
     }
   }
+
   /**
-   * SDK parameters Validation
+   *********** SDK private methods
    */
-
-  #validateRequired(value, paramName) {
-    if (value === undefined || value === null) {
-      throw new Error(`${paramName} is required`);
-    }
-    return value;
-  }
-
-  #validateString(value, paramName) {
-    this.#validateRequired(value, paramName);
-    if (typeof value !== "string") {
-      throw new Error(`${paramName} must be a string`);
-    }
-    if (value.trim().length === 0) {
-      throw new Error(`${paramName} cannot be empty`);
-    }
-    return value;
-  }
-
-  #validateEnum(value, paramName, validValues) {
-    this.#validateString(value, paramName);
-    if (!validValues.includes(value)) {
-      throw new Error(`${paramName} must be one of: ${validValues.join(", ")}`);
-    }
-    return value;
-  }
-
-  #validateNumber(value, paramName, options = {}) {
-    if (value === undefined || value === null) {
-      return options.default ?? 0;
-    }
-    if (typeof value !== "number") {
-      throw new Error(`${paramName} must be a number`);
-    }
-    if (!Number.isFinite(value)) {
-      throw new Error(`${paramName} must be a finite number`);
-    }
-    if (options.min !== undefined && value < options.min) {
-      throw new Error(
-        `${paramName} must be greater than or equal to ${options.min}`
-      );
-    }
-    if (options.max !== undefined && value > options.max) {
-      throw new Error(
-        `${paramName} must be less than or equal to ${options.max}`
-      );
-    }
-    return value;
-  }
-
-  #validateBoolean(value, paramName, defaultValue = false) {
-    if (value === undefined || value === null) {
-      return defaultValue;
-    }
-    if (typeof value !== "boolean") {
-      throw new Error(`${paramName} must be a boolean`);
-    }
-    return value;
-  }
-
-  #validateUrl(value, paramName) {
-    this.#validateString(value, paramName);
-    try {
-      new URL(value);
-      return value;
-    } catch (e) {
-      throw new Error(`${paramName} must be a valid URL`);
-    }
-  }
-
-  #validatePinataServerKey(key) {
-    return this.#validateString(key, "Pinata IPFS server key");
-  }
-
-  #validatePinataGatewayUrl(url) {
-    const validatedUrl = this.#validateString(url, "Pinata IPFS gateway URL");
-
-    // Check for https:// or http://
-    if (
-      validatedUrl.startsWith("http://") ||
-      validatedUrl.startsWith("https://")
-    ) {
-      throw new Error(
-        "Pinata IPFS gateway URL must not include http:// or https://"
-      );
-    }
-
-    // Check for any forward slashes
-    if (validatedUrl.includes("/")) {
-      throw new Error(
-        "Pinata IPFS gateway URL must not contain any forward slashes"
-      );
-    }
-
-    try {
-      // Test if it's a valid URL by adding https://
-      new URL(`https://${validatedUrl}`);
-      return validatedUrl;
-    } catch (e) {
-      throw new Error("Pinata IPFS gateway URL must be a valid URL");
-    }
-  }
-
-  #validateEnvironment(env) {
-    return this.#validateEnum(env, "Environment", ["testnet", "mainnet"]);
-  }
-
-  #validateNamespace(namespace) {
-    const validatedNamespace = this.#validateString(namespace, "Namespace");
-    if (validatedNamespace.length !== 5) {
-      throw new Error("Namespace must be exactly 5 characters long");
-    }
-    if (!/^[A-Z]+$/.test(validatedNamespace)) {
-      throw new Error("Namespace must contain only uppercase letters");
-    }
-    return validatedNamespace;
-  }
-
-  #validateRevenueWalletAddress(address) {
-    const validatedAddress = this.#validateString(
-      address,
-      "Revenue wallet address"
-    );
-    if (validatedAddress.length !== 58) {
-      throw new Error("Revenue wallet address must be 58 characters long");
-    }
-    if (!/^[A-Z2-7]{58}$/.test(validatedAddress)) {
-      throw new Error("Invalid Algorand wallet address format");
-    }
-    return validatedAddress;
-  }
-
-  #validateFee(fee, paramName) {
-    return this.#validateNumber(fee, paramName, { min: 0 });
-  }
-
-  #validateDisableToast(disableToast) {
-    return this.#validateBoolean(disableToast, "disableToast", false);
-  }
-
-  #validateDisableUi(disableUi) {
-    return this.#validateBoolean(disableUi, "disableUi", false);
-  }
-
-  async #showTemporaryWalletConnectionUI(walletType) {
-    // Create a temporary overlay for wallet connection
-    const overlay = document.createElement("div");
-    overlay.id = "algomintx-temp-wallet-overlay";
-    overlay.style.cssText = `
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.8);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 999999;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    `;
-
-    const container = document.createElement("div");
-    container.style.cssText = `
-      background: white;
-      padding: 2rem;
-      border-radius: 12px;
-      text-align: center;
-      max-width: 400px;
-      width: 90%;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-      margin: 1rem;
-    `;
-
-    const title = document.createElement("h2");
-    title.textContent = "Connect Wallet";
-    title.style.cssText = `
-      margin: 0 0 1rem 0;
-      color: #1f2937;
-      font-size: 1.5rem;
-      font-weight: 600;
-    `;
-
-    const message = document.createElement("p");
-    message.textContent = `Please open your ${walletType} wallet to complete the connection.`;
-    message.style.cssText = `
-      margin: 0 0 1.5rem 0;
-      color: #6b7280;
-      font-size: 1rem;
-      line-height: 1.5;
-    `;
-
-    const spinner = document.createElement("div");
-    spinner.style.cssText = `
-      width: 40px;
-      height: 40px;
-      border: 4px solid #e5e7eb;
-      border-top: 4px solid #3b82f6;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 1rem auto;
-    `;
-
-    // Add CSS animation
-    const style = document.createElement("style");
-    style.setAttribute("data-algomintx-temp", "true");
-    style.textContent = `
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-    `;
-    document.head.appendChild(style);
-
-    const cancelBtn = document.createElement("button");
-    cancelBtn.textContent = "Cancel";
-    cancelBtn.style.cssText = `
-      background: #ef4444;
-      color: white;
-      border: none;
-      padding: 0.75rem 1.5rem;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 500;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    `;
-    cancelBtn.onmouseover = () => (cancelBtn.style.background = "#dc2626");
-    cancelBtn.onmouseout = () => (cancelBtn.style.background = "#ef4444");
-
-    cancelBtn.onclick = async () => {
-      // Cancel the connection
-      this.#connectionInProgress = false;
-      if (this.#walletConnectors[walletType]) {
-        try {
-          await this.#walletConnectors[walletType].disconnect();
-          if (this.#walletConnectors[walletType].killSession) {
-            await this.#walletConnectors[walletType].killSession();
-          }
-        } catch (error) {
-          console.error("Failed to disconnect wallet:", error);
-        }
-      }
-      this.#hideTemporaryWalletConnectionUI();
-      eventBus.emit("wallet:connection:cancelled", { walletType });
-    };
-
-    container.appendChild(title);
-    container.appendChild(message);
-    container.appendChild(spinner);
-    container.appendChild(cancelBtn);
-    overlay.appendChild(container);
-    document.body.appendChild(overlay);
-
-    // Store reference to overlay for later removal
-    this.#tempWalletOverlay = overlay;
-
-    // Add a safety timeout to auto-hide the UI after 5 minutes
-    setTimeout(() => {
-      if (this.#tempWalletOverlay && this.#connectionInProgress) {
-        this.#hideTemporaryWalletConnectionUI();
-        this.#connectionInProgress = false;
-        eventBus.emit("wallet:connection:timeout", { walletType });
-      }
-    }, 5 * 60 * 1000); // 5 minutes
-  }
-
-  #hideTemporaryWalletConnectionUI() {
-    if (this.#tempWalletOverlay) {
-      this.#tempWalletOverlay.remove();
-      this.#tempWalletOverlay = null;
-    }
-  }
-
-  // Force cleanup of any temporary UI elements (useful for headless mode)
-  forceCleanup() {
-    this.#hideTemporaryWalletConnectionUI();
-    // Also remove any temporary styles that might have been added
-    const tempStyles = document.querySelectorAll("style[data-algomintx-temp]");
-    tempStyles.forEach((style) => style.remove());
-  }
-
-  // Force disconnect and clear all wallet sessions
-  async forceDisconnect() {
-    try {
-      // Disconnect from all supported wallets
-      for (const [walletType, connector] of Object.entries(
-        this.#walletConnectors
-      )) {
-        try {
-          if (connector.disconnect) {
-            await connector.disconnect();
-          }
-          if (connector.killSession) {
-            await connector.killSession();
-          }
-        } catch (error) {
-          console.error(`Error disconnecting from ${walletType}:`, error);
-        }
-      }
-
-      // Clear localStorage
-      localStorage.removeItem("walletconnect");
-      localStorage.removeItem("DeflyWallet.Wallet");
-      localStorage.removeItem("PeraWallet.Wallet");
-
-      // Reset internal state
-      this.#walletConnected = false;
-      this.account = null;
-      this.#connectionInfo = null;
-      this.#selectedWalletType = null;
-      this.#connectionInProgress = false;
-
-      // Emit disconnect event
-      eventBus.emit("wallet:connection:disconnected", {
-        address: this.account,
-      });
-
-      return true;
-    } catch (error) {
-      console.error("Error during force disconnect:", error);
-      return false;
-    }
-  }
-
-  #validateMinimizeUILocation(location) {
-    return (
-      this.#validateEnum(location, "minimizeUILocation", ["left", "right"]) ||
-      "right"
-    );
-  }
-
-  #validateLogo(logo) {
-    if (logo === undefined || logo === null) {
-      return null;
-    }
-
-    const validatedLogo = this.#validateString(logo, "Logo");
-
-    // Check if it's a URL
-    if (
-      validatedLogo.startsWith("http://") ||
-      validatedLogo.startsWith("https://")
-    ) {
-      return this.#validateUrl(validatedLogo, "Logo");
-    }
-
-    // Check if it's a local file path
-    if (
-      validatedLogo.startsWith("./") ||
-      validatedLogo.startsWith("../") ||
-      validatedLogo.startsWith("/")
-    ) {
-      if (
-        !/^[./\\a-zA-Z0-9_-]+\.(png|jpg|jpeg|gif|svg|webp)$/i.test(
-          validatedLogo
-        )
-      ) {
-        throw new Error(
-          "Invalid logo file path. Must be a valid image file path"
-        );
-      }
-      return validatedLogo;
-    }
-
-    throw new Error(
-      "Logo must be either a valid URL or a valid local file path"
-    );
-  }
-
-  #validateToastLocation(location) {
-    return this.#validateEnum(location, "Toast location", [
-      "TOP_LEFT",
-      "TOP_RIGHT",
-    ]);
-  }
-
-  #validateSupportedMediaFormats(formats) {
-    if (!Array.isArray(formats)) {
-      throw new Error("supportedMediaFormats must be an array");
-    }
-
-    const validFormats = ["IMAGE", "VIDEO", "AUDIO"];
-    const invalidFormats = formats.filter(
-      (format) => !validFormats.includes(format)
-    );
-
-    if (invalidFormats.length > 0) {
-      throw new Error(
-        `Invalid media formats: ${invalidFormats.join(
-          ", "
-        )}. Valid formats are: ${validFormats.join(", ")}`
-      );
-    }
-
-    return formats;
-  }
-
-  #validateFileType(file) {
-    const allowedTypes = {
-      IMAGE: [
-        "image/jpeg",
-        "image/png",
-        "image/gif",
-        "image/webp",
-        "image/svg+xml",
-      ],
-      VIDEO: ["video/mp4", "video/webm", "video/ogg", "video/quicktime"],
-      AUDIO: [
-        "audio/mpeg",
-        "audio/wav",
-        "audio/ogg",
-        "audio/mp4",
-        "audio/webm",
-      ],
-    };
-
-    // Get all allowed types based on supported formats
-    const allowedMimeTypes = this.#supportedMediaFormats.reduce(
-      (types, format) => {
-        return [...types, ...allowedTypes[format]];
-      },
-      []
-    );
-
-    if (!allowedMimeTypes.includes(file.type)) {
-      const formatNames = this.#supportedMediaFormats
-        .map((format) => format.toLowerCase())
-        .join(", ");
-      return {
-        valid: false,
-        message: `Please upload a supported file type (${formatNames})`,
-      };
-    }
-
-    // Check file size (max 100MB)
-    const maxSize = 100 * 1024 * 1024; // 100MB in bytes
-    if (file.size > maxSize) {
-      return {
-        valid: false,
-        message: "File size must be less than 100MB",
-      };
-    }
-
-    return { valid: true };
-  }
 
   #sdkValidationFailed(message) {
     localStorage.removeItem("walletconnect");
@@ -619,297 +198,33 @@ class AlgoMintX {
     window.location.reload();
   }
 
-  /**
-   * SDK private methods
-   */
-
-  #getSystemTheme() {
-    return window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light";
-  }
-
-  #setupThemeListener() {
-    // If UI is disabled, don't set up theme listener
-    if (this.#disableUi) {
-      return;
-    }
-
-    // Listen for system theme changes
-    window
-      .matchMedia("(prefers-color-scheme: dark)")
-      .addEventListener("change", (e) => {
-        // Only update if user hasn't manually set a theme
-        const savedState = localStorage.getItem("amx");
-        if (savedState) {
-          try {
-            const parsedState = JSON.parse(savedState);
-            if (!parsedState.theme) {
-              // If theme wasn't manually set
-              this.theme = e.matches ? "dark" : "light";
-              this.#saveUIState();
-              this.#applyTheme();
-            }
-          } catch (error) {
-            console.error("Failed to parse saved state:", error);
-          }
-        }
-      });
-  }
-
-  #applyTheme() {
-    // If UI is disabled, don't manipulate DOM elements
-    if (this.#disableUi) {
-      return;
-    }
-
-    const container = document.getElementById("algomintx-sdk-container");
-    const minimizedBtn = document.getElementById("sdkMinimizedBtn");
-
-    if (this.theme === "dark") {
-      container.classList.add("dark-theme");
-      minimizedBtn.classList.add("dark-theme");
-    } else {
-      container.classList.remove("dark-theme");
-      minimizedBtn.classList.remove("dark-theme");
-    }
-  }
-
-  #toggleTheme() {
-    this.theme = this.theme === "light" ? "dark" : "light";
-    this.#saveUIState();
-    this.#applyTheme();
-    eventBus.emit("theme:changed", { theme: this.theme });
-  }
-
-  #saveUIState() {
-    // If UI is disabled, don't save UI state
-    if (this.#disableUi) {
-      return;
-    }
-
-    localStorage.setItem(
-      "amx",
-      JSON.stringify({
-        minimized: this.isMinimized,
-        theme: this.theme,
-      })
-    );
-  }
-
   async #initUI() {
-    try {
-      // If UI is disabled, don't create any UI elements
-      if (this.#disableUi) {
-        return;
-      }
+    // Initialize UI with callbacks
+    this.#uiManager.initUI({
+      onWalletConnect: (walletType) => this.#startWalletConnection(walletType),
+      onMintNFT: () => this.#validateNFTDetails(),
+      onResetNFT: () => this.#uiManager.resetNFTDetails(),
+      onMinimize: () => this.minimizeSDK(),
+      onMaximize: () => this.maximizeSDK(),
+      onLogout: () => this.#handleLogout(),
+      onThemeToggle: () => {
+        this.theme = this.theme === "light" ? "dark" : "light";
+        this.#uiManager.saveUIState();
+        this.#uiManager.applyTheme();
+        eventBus.emit("theme:changed", { theme: this.theme });
+      },
+    });
 
-      // Inject the entire SDK container directly into document.body with highest z-index
+    // Setup NFT input validation
+    this.#uiManager.setupNFTInputValidation({
+      getSupportedMediaFormats: () => this.#supportedMediaFormats,
+      sanitizeInput: (input) => Validator.sanitizeInput(input),
+      validateFileType: (file) =>
+        Validator.validateFileType(file, this.#supportedMediaFormats),
+    });
 
-      // check if sdk container already exists
-      const existingSdk = document.getElementById("algomintx-sdk-container");
-      if (existingSdk) existingSdk.remove(); // remove if existing to avoid duplicates
-
-      const container = document.createElement("div");
-      container.id = "algomintx-sdk-container";
-
-      container.innerHTML = `
-      <div id="sdk-header">
-        <div class="header-logo">
-          ${
-            this.#logo
-              ? `<img src="${
-                  this.#logo
-                }" alt="AlgoMintX" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />`
-              : ""
-          }
-          <h3 style="${
-            this.#logo ? "display: none;" : "display: block;"
-          }">AlgoMintX</h3>
-        </div>
-        <div>
-          <button id="themeToggleBtn" title="Toggle Theme">🌓</button>
-          <button id="logoutBtn" title="Logout">⏻</button>
-          <button id="sdkMinimizeBtn" title="Minimize">&#x2013;</button>
-        </div>
-      </div>
-    
-      <div id="walletChoiceScreen">
-        <button class="walletBtn" data-wallet="pera">
-          <img src="https://perawallet.s3.amazonaws.com/images/media-kit/logomark-white.svg" alt="Pera Wallet" />
-          Connect Pera Wallet
-        </button>
-        <button class="walletBtn" data-wallet="defly">
-          <img src="https://docs.defly.app/~gitbook/image?url=https%3A%2F%2F2700986753-files.gitbook.io%2F%7E%2Ffiles%2Fv0%2Fb%2Fgitbook-x-prod.appspot.com%2Fo%2Fcollections%252FWDbwYIFtoiPa3JoJufCw%252Ficon%252FbQUUOW6VhH6vKR0XH7UB%252Flogo-notext-whiteonblack.png%3Falt%3Dmedia%26token%3D7d62c65b-fd29-47b6-a83b-162caac2fc8f&width=32&dpr=2&quality=100&sign=952138fe&sv=2" alt="Defly Wallet" />
-          Connect Defly Wallet
-        </button>
-      </div>
-    
-      <div id="sdkUI">
-        <input type="text" id="nftName" placeholder="NFT Name" />
-        <textarea id="nftDescription" placeholder="NFT Description"></textarea>
-        <input type="file" id="nftFile" accept="image/*,video/*" />
-        <button id="#mintNFTBtn" title="Mint NFT">Mint NFT</button>
-        <button id="resetNFTBtn">Mint another NFT</button>
-        <div id="sdkMessages" title="Click to copy"></div>
-      </div>
-
-      <div id="walletAddressBar" title="Click to copy connected wallet address"></div>
-      
-      <div id="sdkFooter">
-        <span>AlgoMintX crafted with ❤️ by <a href="https://ibhagyesh.site/" target="_blank" rel="noopener noreferrer">ibhagyesh</a></span>
-      </div>
-
-      <div id="algomintx-loading-overlay">
-        <div id="algomintx-loader"></div>
-        <div id="algomintx-processing-message"></div>
-      </div>
-    `;
-
-      document.body.appendChild(container);
-
-      // check if sdk minimized button already exists
-      const existingSdkMinimizeBtn = document.getElementById("sdkMinimizedBtn");
-      if (existingSdkMinimizeBtn) existingSdkMinimizeBtn.remove(); // remove if existing to avoid duplicates
-
-      // Create minimized circle button but hide initially
-      const minimizedBtn = document.createElement("button");
-      minimizedBtn.id = "sdkMinimizedBtn";
-      minimizedBtn.innerHTML = this.#logo
-        ? `<img src="${
-            this.#logo
-          }" alt="AMX" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" /><span style="display: none;">AMX</span>`
-        : "AMX";
-
-      document.body.appendChild(minimizedBtn);
-
-      // Apply initial theme
-      this.#applyTheme();
-
-      // Setup theme listener
-      this.#setupThemeListener();
-
-      // Choose wallet button
-      document
-        .getElementById("walletChoiceScreen")
-        .addEventListener("click", async (event) => {
-          if (event.target.classList.contains("walletBtn")) {
-            const walletType = event.target.getAttribute("data-wallet");
-            await this.#startWalletConnection(walletType);
-          }
-        });
-
-      // Mint NFT button
-      document
-        .getElementById("#mintNFTBtn")
-        .addEventListener("click", async () => {
-          await this.#validateNFTDetails();
-        });
-
-      // Reset NFT button
-      document
-        .getElementById("resetNFTBtn")
-        .addEventListener("click", () => this.#resetNFTDetails());
-
-      // Minimize button
-      document
-        .getElementById("sdkMinimizeBtn")
-        .addEventListener("click", () => this.minimizeSDK());
-
-      // Logout button
-      document
-        .getElementById("logoutBtn")
-        .addEventListener("click", () => this.#handleLogout());
-
-      minimizedBtn.addEventListener("click", () => this.maximizeSDK());
-
-      // Copy to clipboard for sdkMessages (tx id)
-      this.#messageElement = document.getElementById("sdkMessages");
-      this.#messageElement.addEventListener("click", () => {
-        if (
-          this.#messageElement.innerText &&
-          this.#messageElement.innerText !== "Minting NFT... Please wait."
-        ) {
-          const txId = this.#messageElement.innerText.replace(
-            "NFT Minted! Transaction ID: ",
-            ""
-          );
-
-          // Copy to clipboard
-          navigator.clipboard.writeText(txId);
-          this.#showToast("Transaction ID copied to clipboard", "success");
-
-          // Open transaction in new tab
-          const network = this.network === "mainnet" ? "mainnet" : "testnet";
-          const txUrl = `https://lora.algokit.io/${network}/transaction/${txId}`;
-          window.open(txUrl, "_blank");
-        }
-      });
-
-      // Copy to clipboard for wallet address bar
-      walletAddressBar.addEventListener("click", () => {
-        if (this.account) {
-          navigator.clipboard.writeText(this.account);
-          this.#showToast("Wallet address copied to clipboard", "success");
-        }
-      });
-
-      // Add theme toggle button listener
-      document
-        .getElementById("themeToggleBtn")
-        .addEventListener("click", () => {
-          this.#toggleTheme();
-        });
-
-      // Check if already connected (from localStorage)
-      await this.#loadConnectionFromStorage();
-
-      // Add validation for mint button
-      const nftName = document.getElementById("nftName");
-      const nftDescription = document.getElementById("nftDescription");
-      const nftFile = document.getElementById("nftFile");
-
-      // Setup input validation and sanitization
-      this.#setupNFTInputValidation();
-
-      nftName.addEventListener("input", () => this.#validateMintButton());
-      nftDescription.addEventListener("input", () =>
-        this.#validateMintButton()
-      );
-      nftFile.addEventListener("change", () => this.#validateMintButton());
-
-      // Initial validation
-      this.#validateMintButton();
-    } catch (error) {
-      console.error(error, "init");
-    }
-  }
-
-  #resetToLoginUI() {
-    this.#walletConnected = false;
-    this.account = null;
-    this.#connectionInfo = null;
-    this.#selectedWalletType = null;
-
-    // If UI is disabled, don't manipulate DOM elements
-    if (this.#disableUi) {
-      return;
-    }
-
-    this.#clearMessage();
-    this.#updateWalletAddressBar();
-
-    document.getElementById("algomintx-sdk-container").style.display = "flex";
-    document.getElementById("sdk-header").style.display = "flex";
-    document.getElementById("logoutBtn").style.display = "none";
-    document.getElementById("walletChoiceScreen").style.display = "flex";
-    document.getElementById("sdkUI").style.display = "none";
-
-    if (this.isMinimized) {
-      this.minimizeSDK(true);
-    } else {
-      this.maximizeSDK(true);
-    }
+    // Try restore wallet connection
+    await this.#loadConnectionFromStorage();
   }
 
   async #loadConnectionFromStorage() {
@@ -956,13 +271,13 @@ class AlgoMintX {
         this.#selectedWalletType = walletType;
         this.#connectionInfo = { address: this.account, walletType };
 
-        this.#showToast(
+        this.#uiManager.showToast(
           `Restored connection to ${walletType} wallet`,
           "success"
         );
 
         if (!this.#disableUi) {
-          this.#showSDKUI();
+          this.#uiManager.showSDKUI();
         }
         eventBus.emit("wallet:connection:connected", { address: this.account });
       } else {
@@ -973,7 +288,7 @@ class AlgoMintX {
       }
     } catch (error) {
       console.error("Failed to restore connection", error);
-      this.#showToast("Failed to restore connection!", "error");
+      this.#uiManager.showToast("Failed to restore connection!", "error");
       eventBus.emit("wallet:connection:failed", {
         error: "Failed to restore connection",
       });
@@ -985,22 +300,41 @@ class AlgoMintX {
 
   async #startWalletConnection(walletType) {
     if (this.#connectionInProgress) {
-      this.#showToast("A wallet connection is already in progress.", "warning");
+      this.#uiManager.showToast(
+        "A wallet connection is already in progress.",
+        "warning"
+      );
       return;
     }
 
     if (!this.#supportedWallets.includes(walletType)) {
-      this.#showToast("Unsupported wallet selected.", "error");
+      this.#uiManager.showToast("Unsupported wallet selected.", "error");
       return;
     }
 
-    this.#clearMessage();
+    this.#uiManager.clearMessage();
     this.#selectedWalletType = walletType;
 
     // If UI is disabled, we need to temporarily show wallet connection UI
     if (this.#disableUi) {
       // Create temporary wallet connection UI
-      await this.#showTemporaryWalletConnectionUI(walletType);
+      await this.#uiManager.showTemporaryWalletConnectionUI(
+        walletType,
+        async () => {
+          this.#connectionInProgress = false;
+          if (this.#walletConnectors[walletType]) {
+            try {
+              await this.#walletConnectors[walletType].disconnect();
+              if (this.#walletConnectors[walletType].killSession) {
+                await this.#walletConnectors[walletType].killSession();
+              }
+            } catch (error) {
+              console.error("Failed to disconnect wallet:", error);
+            }
+          }
+          eventBus.emit("wallet:connection:cancelled", { walletType });
+        }
+      );
     } else {
       // Only manipulate DOM if UI is not disabled
       document.getElementById("algomintx-sdk-container").style.display = "none";
@@ -1032,13 +366,12 @@ class AlgoMintX {
       this.#connectionInfo = { address: this.account, walletType };
 
       if (!this.#disableUi) {
-        this.#showSDKUI();
-        this.#updateWalletAddressBar();
+        this.#uiManager.showSDKUI();
       } else {
         // Hide the temporary wallet connection UI
-        this.#hideTemporaryWalletConnectionUI();
+        this.#uiManager.hideTemporaryWalletConnectionUI();
       }
-      this.#showToast(`Connected to ${walletType} wallet`, "success");
+      this.#uiManager.showToast(`Connected to ${walletType} wallet`, "success");
       eventBus.emit("wallet:connection:connected", { address: this.account });
       this.#connectionInProgress = false;
     } catch (error) {
@@ -1048,7 +381,7 @@ class AlgoMintX {
           await walletConnector.killSession(); // Extra hard-kill if supported
         }
         if (this.#disableUi) {
-          this.#hideTemporaryWalletConnectionUI();
+          this.#uiManager.hideTemporaryWalletConnectionUI();
         } else {
           window.location.reload();
         }
@@ -1072,13 +405,13 @@ class AlgoMintX {
               this.#connectionInfo = { address: this.account, walletType };
 
               if (!this.#disableUi) {
-                this.#showSDKUI();
-                this.#updateWalletAddressBar();
+                this.#uiManager.showSDKUI();
+                this.#uiManager.updateWalletAddressBar();
               } else {
-                this.#hideTemporaryWalletConnectionUI();
+                this.#uiManager.hideTemporaryWalletConnectionUI();
               }
 
-              this.#showToast(
+              this.#uiManager.showToast(
                 `Connected to existing ${walletType} session`,
                 "success"
               );
@@ -1095,54 +428,16 @@ class AlgoMintX {
           }
         }
 
-        this.#showToast("Failed to connect wallet!", "error");
+        this.#uiManager.showToast("Failed to connect wallet!", "error");
         eventBus.emit("wallet:connection:failed", {
           error: "Failed to connect wallet!",
         });
         if (this.#disableUi) {
-          this.#hideTemporaryWalletConnectionUI();
+          this.#uiManager.hideTemporaryWalletConnectionUI();
         } else {
           this.#resetToLoginUI();
         }
       }
-    }
-  }
-
-  #showSDKUI() {
-    // If UI is disabled, don't manipulate DOM elements
-    if (this.#disableUi) {
-      return;
-    }
-
-    document.getElementById("algomintx-sdk-container").style.display = "flex";
-    document.getElementById("sdk-header").style.display = "flex";
-    document.getElementById("logoutBtn").style.display = "contents";
-    document.getElementById("walletChoiceScreen").style.display = "none";
-    document.getElementById("sdkUI").style.display = "flex";
-    this.#updateWalletAddressBar();
-
-    if (this.isMinimized) {
-      this.minimizeSDK(true);
-    } else {
-      this.maximizeSDK(true);
-    }
-  }
-
-  #updateWalletAddressBar() {
-    // If UI is disabled, don't manipulate DOM elements
-    if (this.#disableUi) {
-      return;
-    }
-
-    const bar = document.getElementById("walletAddressBar");
-    if (!bar) return;
-
-    if (this.#walletConnected && this.account) {
-      bar.innerText = this.account;
-      bar.style.display = "block";
-    } else {
-      bar.innerText = "";
-      bar.style.display = "none";
     }
   }
 
@@ -1173,7 +468,7 @@ class AlgoMintX {
       eventBus.emit("wallet:connection:disconnected", {
         address: this.account,
       });
-      this.#showToast("Logged out successfully.", "success");
+      this.#uiManager.showToast("Logged out successfully.", "success");
       if (!this.#disableUi) {
         this.#resetToLoginUI();
       } else {
@@ -1186,286 +481,13 @@ class AlgoMintX {
     }
   }
 
-  #showToast(message, type = "info") {
-    // Emit toast event regardless of disableToast setting
-    eventBus.emit("toast:show", { message, type });
+  #resetToLoginUI() {
+    this.#walletConnected = false;
+    this.account = null;
+    this.#connectionInfo = null;
+    this.#selectedWalletType = null;
 
-    // Only show toast UI if not disabled
-    if (this.#disableToast || this.#disableUi) return;
-
-    // Remove existing toast if any
-    const existingToast = document.getElementById("algomintx-toast");
-    if (existingToast) existingToast.remove();
-
-    const toast = document.createElement("div");
-    toast.id = "algomintx-toast";
-
-    // Create toast content container
-    const toastContent = document.createElement("div");
-    toastContent.className = "toast-content";
-    toastContent.innerText = message;
-
-    // Create close button
-    const closeButton = document.createElement("button");
-    closeButton.className = "toast-close";
-    closeButton.innerHTML = "×";
-    closeButton.onclick = () => {
-      toast.style.opacity = "0";
-      toast.addEventListener(
-        "transitionend",
-        () => {
-          if (toast.parentElement) toast.parentElement.removeChild(toast);
-        },
-        { once: true }
-      );
-    };
-
-    // Add content and close button to toast
-    toast.appendChild(toastContent);
-    toast.appendChild(closeButton);
-
-    // Assign toast type class dynamically
-    if (type === "error") {
-      toast.classList.add("error");
-    } else if (type === "success") {
-      toast.classList.add("success");
-    } else {
-      toast.classList.add("info");
-    }
-
-    // Set toast location - convert to lowercase for CSS class
-    const locationClass = this.#toastLocation.toLowerCase().replace("_", "-");
-    toast.classList.add(locationClass);
-
-    document.body.appendChild(toast);
-
-    // Show fade-in
-    requestAnimationFrame(() => {
-      toast.style.opacity = "1";
-    });
-
-    // Auto fade out after 3.5 seconds
-    setTimeout(() => {
-      toast.style.opacity = "0";
-      toast.addEventListener(
-        "transitionend",
-        () => {
-          if (toast.parentElement) toast.parentElement.removeChild(toast);
-        },
-        { once: true }
-      );
-    }, 3500);
-  }
-
-  #clearMessage() {
-    // If UI is disabled, don't manipulate DOM elements
-    if (this.#disableUi) {
-      return;
-    }
-
-    if (this.#messageElement) {
-      this.#messageElement.innerText = "";
-      this.#messageElement.style.display = "none";
-    }
-  }
-
-  #resetNFTDetails() {
-    if (this.processing) {
-      return;
-    }
-
-    // If UI is disabled, don't manipulate DOM elements
-    if (this.#disableUi) {
-      return;
-    }
-
-    // Reset form fields
-    const nftName = document.getElementById("nftName");
-    const nftDescription = document.getElementById("nftDescription");
-    const nftFile = document.getElementById("nftFile");
-    const mintBtn = document.getElementById("#mintNFTBtn");
-    const resetBtn = document.getElementById("resetNFTBtn");
-
-    nftName.value = "";
-    nftDescription.value = "";
-    nftFile.value = "";
-
-    // Reset UI state
-    mintBtn.style.display = "block";
-    resetBtn.style.display = "none";
-    mintBtn.disabled = true; // Keep button disabled until fields are filled
-    this.#clearMessage();
-
-    // Re-validate mint button
-    this.#validateMintButton();
-  }
-
-  #validateMintButton() {
-    // If UI is disabled, don't manipulate DOM elements
-    if (this.#disableUi) {
-      return;
-    }
-
-    const mintBtn = document.getElementById("#mintNFTBtn");
-    const nftName = document.getElementById("nftName");
-    const nftDescription = document.getElementById("nftDescription");
-    const nftFile = document.getElementById("nftFile");
-
-    const isNameValid = nftName.value.trim().length > 0;
-    const isDescriptionValid = nftDescription.value.trim().length > 0;
-    const isFileValid = nftFile.files.length > 0;
-    mintBtn.disabled = !(isNameValid && isDescriptionValid && isFileValid);
-  }
-
-  #sanitizeInput(input) {
-    // Remove any HTML tags
-    input = input.replace(/<[^>]*>/g, "");
-    // Remove any script tags and their content
-    input = input.replace(
-      /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
-      ""
-    );
-    // Remove any special characters except basic punctuation, spaces, and alphanumeric
-    input = input.replace(
-      /[^a-zA-Z0-9\s.,!?@#$%^&*()_+\-=\[\]{};':"\\|<>\/]/g,
-      ""
-    );
-    // Remove multiple spaces but keep single spaces
-    input = input.replace(/\s+/g, " ");
-    return input.trim();
-  }
-
-  #validateNFTName(name) {
-    // Check length (between 1 and 50 characters)
-    if (name.length < 1 || name.length > 50) {
-      return {
-        valid: false,
-        message: "NFT name must be between 1 and 50 characters",
-      };
-    }
-    return { valid: true };
-  }
-
-  #validateNFTDescription(description) {
-    // Check length (between 1 and 500 characters)
-    if (description.length < 1 || description.length > 500) {
-      return {
-        valid: false,
-        message: "NFT description must be between 1 and 500 characters",
-      };
-    }
-    return { valid: true };
-  }
-
-  #setupNFTInputValidation() {
-    // If UI is disabled, don't manipulate DOM elements
-    if (this.#disableUi) {
-      return;
-    }
-
-    const nftName = document.getElementById("nftName");
-    const nftDescription = document.getElementById("nftDescription");
-    const nftFile = document.getElementById("nftFile");
-
-    // Set up file input accept attribute based on supported formats
-    const mimeTypes = {
-      IMAGE: "image/jpeg,image/png,image/gif,image/webp,image/svg+xml",
-      VIDEO: "video/mp4,video/webm,video/ogg,video/quicktime",
-      AUDIO: "audio/mpeg,audio/wav,audio/ogg,audio/mp4,audio/webm",
-    };
-
-    const acceptedTypes = this.#supportedMediaFormats
-      .map((format) => mimeTypes[format])
-      .join(",");
-
-    nftFile.setAttribute("accept", acceptedTypes);
-
-    // Add input event listeners for real-time validation
-    nftName.addEventListener("input", (e) => {
-      // Stop input if length exceeds 50 characters
-      if (e.target.value.length > 50) {
-        e.target.value = e.target.value.slice(0, 50);
-        this.#showToast("NFT name cannot exceed 50 characters", "error");
-        return;
-      }
-
-      // Only sanitize if there are HTML tags or scripts
-      if (e.target.value.includes("<") || e.target.value.includes(">")) {
-        const sanitized = this.#sanitizeInput(e.target.value);
-        if (sanitized !== e.target.value) {
-          e.target.value = sanitized;
-        }
-      }
-      this.#validateMintButton();
-    });
-
-    nftDescription.addEventListener("input", (e) => {
-      // Stop input if length exceeds 500 characters
-      if (e.target.value.length > 500) {
-        e.target.value = e.target.value.slice(0, 500);
-        this.#showToast(
-          "NFT description cannot exceed 500 characters",
-          "error"
-        );
-        return;
-      }
-
-      // Only sanitize if there are HTML tags or scripts
-      if (e.target.value.includes("<") || e.target.value.includes(">")) {
-        const sanitized = this.#sanitizeInput(e.target.value);
-        if (sanitized !== e.target.value) {
-          e.target.value = sanitized;
-        }
-      }
-      this.#validateMintButton();
-    });
-
-    // Add file validation
-    nftFile.addEventListener("change", (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const validation = this.#validateFileType(file);
-        if (!validation.valid) {
-          this.#showToast(validation.message, "error");
-          e.target.value = ""; // Clear the file input
-          this.#validateMintButton();
-        }
-      }
-    });
-
-    // Add paste event listeners to sanitize pasted content
-    nftName.addEventListener("paste", (e) => {
-      e.preventDefault();
-      const pastedText = (e.clipboardData || window.clipboardData).getData(
-        "text"
-      );
-      // Truncate pasted text if it exceeds 50 characters
-      const truncatedText = pastedText.slice(0, 50);
-      const sanitized = this.#sanitizeInput(truncatedText);
-      e.target.value = sanitized;
-      if (pastedText.length > 50) {
-        this.#showToast("NFT name cannot exceed 50 characters", "error");
-      }
-      this.#validateMintButton();
-    });
-
-    nftDescription.addEventListener("paste", (e) => {
-      e.preventDefault();
-      const pastedText = (e.clipboardData || window.clipboardData).getData(
-        "text"
-      );
-      // Truncate pasted text if it exceeds 500 characters
-      const truncatedText = pastedText.slice(0, 500);
-      const sanitized = this.#sanitizeInput(truncatedText);
-      e.target.value = sanitized;
-      if (pastedText.length > 500) {
-        this.#showToast(
-          "NFT description cannot exceed 500 characters",
-          "error"
-        );
-      }
-      this.#validateMintButton();
-    });
+    this.#uiManager.resetToLoginUI();
   }
 
   async #validateNFTDetails() {
@@ -1473,29 +495,31 @@ class AlgoMintX {
       return;
     }
 
-    const name = this.#sanitizeInput(document.getElementById("nftName").value);
-    const description = this.#sanitizeInput(
+    const name = Validator.sanitizeInput(
+      document.getElementById("nftName").value
+    );
+    const description = Validator.sanitizeInput(
       document.getElementById("nftDescription").value
     );
     const fileInput = document.getElementById("nftFile");
 
     // Validate name
-    const nameValidation = this.#validateNFTName(name);
+    const nameValidation = Validator.validateNFTName(name);
     if (!nameValidation.valid) {
-      this.#showToast(nameValidation.message, "error");
+      this.#uiManager.showToast(nameValidation.message, "error");
       return;
     }
 
     // Validate description
-    const descriptionValidation = this.#validateNFTDescription(description);
+    const descriptionValidation = Validator.validateNFTDescription(description);
     if (!descriptionValidation.valid) {
-      this.#showToast(descriptionValidation.message, "error");
+      this.#uiManager.showToast(descriptionValidation.message, "error");
       return;
     }
 
     // Validate file
     if (!fileInput.files.length) {
-      this.#showToast("Please upload a file.", "error");
+      this.#uiManager.showToast("Please upload a file.", "error");
       return;
     }
 
@@ -1510,7 +534,7 @@ class AlgoMintX {
 
     // show loading overlay after validation
     this.processing = true;
-    this.#showLoadingOverlay("Processing...");
+    this.#uiManager.showLoadingOverlay("Processing...");
     eventBus.emit("sdk:processing:started", { processing: this.processing });
 
     try {
@@ -1526,10 +550,10 @@ class AlgoMintX {
       }
 
       this.processing = false;
-      this.#hideLoadingOverlay();
+      this.#uiManager.hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
 
-      this.#showToast(
+      this.#uiManager.showToast(
         `NFT Minted Successfully! TxID: ${transactionId}`,
         "success"
       );
@@ -1552,32 +576,17 @@ class AlgoMintX {
       });
     } catch (error) {
       this.processing = false;
-      this.#hideLoadingOverlay();
+      this.#uiManager.hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
 
       // Reset form on error (only if UI is not disabled)
       if (!this.#disableUi) {
-        this.#resetNFTDetails();
+        this.#uiManager.resetNFTDetails();
       }
 
-      this.#showToast("Failed to mint NFT!", "error");
+      this.#uiManager.showToast("Failed to mint NFT!", "error");
       eventBus.emit("nft:mint:failed", { error: "Failed to mint NFT!" });
     }
-  }
-
-  async #sha256Hash(data) {
-    const encoder = new TextEncoder();
-    const dataBuffer = encoder.encode(data);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", dataBuffer);
-    return new Uint8Array(hashBuffer);
-  }
-
-  async #getImageIntegrityBase64(file) {
-    const buffer = await file.arrayBuffer();
-    const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const base64Hash = btoa(String.fromCharCode(...hashArray));
-    return `sha256-${base64Hash}`;
   }
 
   async #mintNFT({ name, description, file }) {
@@ -1592,15 +601,17 @@ class AlgoMintX {
     try {
       // 1. Upload file to IPFS (Pinata) using your API key
       currentStep = 1;
-      this.#updateLoadingMessage(
+      this.#uiManager.updateLoadingMessage(
         "Processing... Step 1: Uploading file to IPFS"
       );
-      ipfsHash = await this.#uploadFileToIPFS(file);
+      ipfsHash = await uploadFileToIPFS(file, this.#pinata_ipfs_server_key);
 
       // 2. Create metadata JSON with IPFS link, name, description
       currentStep = 2;
-      this.#updateLoadingMessage("Processing... Step 2: Creating metadata");
-      const integrity = await this.#getImageIntegrityBase64(file);
+      this.#uiManager.updateLoadingMessage(
+        "Processing... Step 2: Creating metadata"
+      );
+      const integrity = await getImageIntegrityBase64(file);
 
       const metadata = {
         name,
@@ -1616,20 +627,27 @@ class AlgoMintX {
 
       // 3. Hash metadata JSON to get 32 byte assetMetadataHash
       currentStep = 3;
-      this.#updateLoadingMessage("Processing... Step 3: Hashing metadata");
+      this.#uiManager.updateLoadingMessage(
+        "Processing... Step 3: Hashing metadata"
+      );
       const metadataStr = JSON.stringify(metadata);
-      const metadataHash = await this.#sha256Hash(metadataStr);
+      const metadataHash = await sha256Hash(metadataStr);
 
       // 4. Upload metadata JSON to IPFS to get the CID for assetURL
       currentStep = 4;
-      this.#updateLoadingMessage(
+      this.#uiManager.updateLoadingMessage(
         "Processing... Step 4: Uploading metadata to IPFS"
       );
-      metadataIpfsHash = await this.#uploadJSONToIPFS(metadata);
+      metadataIpfsHash = await uploadJSONToIPFS(
+        metadata,
+        this.#pinata_ipfs_server_key
+      );
 
       // 5. Create Algorand asset (NFT) pointing to metadata URL
       currentStep = 5;
-      this.#updateLoadingMessage("Processing... Open your wallet to continue");
+      this.#uiManager.updateLoadingMessage(
+        "Processing... Open your wallet to continue"
+      );
       const { txid, assetId } = await this.#createAlgorandAsset(
         metadataIpfsHash,
         name,
@@ -1643,15 +661,18 @@ class AlgoMintX {
         if (currentStep >= 4) {
           // If we got to step 4 or beyond, delete both the metadata JSON and the file
           if (metadataIpfsHash) {
-            await this.#deleteFromIPFS(metadataIpfsHash);
+            await deleteFromIPFS(
+              metadataIpfsHash,
+              this.#pinata_ipfs_server_key
+            );
           }
           if (ipfsHash) {
-            await this.#deleteFromIPFS(ipfsHash);
+            await deleteFromIPFS(ipfsHash, this.#pinata_ipfs_server_key);
           }
         } else if (currentStep >= 1) {
           // If we got to step 1 but failed before step 4, only delete the file
           if (ipfsHash) {
-            await this.#deleteFromIPFS(ipfsHash);
+            await deleteFromIPFS(ipfsHash, this.#pinata_ipfs_server_key);
           }
         }
       } catch (cleanupError) {
@@ -1659,83 +680,6 @@ class AlgoMintX {
       }
       throw error;
     }
-  }
-
-  async #deleteFromIPFS(ipfsHash) {
-    try {
-      const response = await fetch(
-        `https://api.pinata.cloud/pinning/unpin/${ipfsHash}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${this.#pinata_ipfs_server_key}`,
-          },
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to delete from IPFS: ${response.statusText}`);
-      }
-
-      return true;
-    } catch (error) {
-      console.error("Error deleting from IPFS:", error);
-      throw error;
-    }
-  }
-
-  async #uploadFileToIPFS(file) {
-    const url = "https://api.pinata.cloud/pinning/pinFileToIPFS";
-
-    const data = new FormData();
-    data.append("file", file);
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${this.#pinata_ipfs_server_key}`,
-      },
-      body: data,
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Failed to upload file to IPFS: ${response.status} ${response.statusText}`
-      );
-    }
-
-    const json = await response.json();
-    if (!json.IpfsHash) {
-      throw new Error("Pinata did not return an IPFS hash.");
-    }
-
-    return json.IpfsHash;
-  }
-
-  async #uploadJSONToIPFS(jsonData) {
-    const url = "https://api.pinata.cloud/pinning/pinJSONToIPFS";
-
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${this.#pinata_ipfs_server_key}`,
-      },
-      body: JSON.stringify(jsonData),
-    });
-
-    if (!response.ok) {
-      throw new Error(
-        `Failed to upload JSON to IPFS: ${response.status} ${response.statusText}`
-      );
-    }
-
-    const json = await response.json();
-    if (!json.IpfsHash) {
-      throw new Error("Pinata did not return an IPFS hash for metadata.");
-    }
-
-    return json.IpfsHash;
   }
 
   async #createAlgorandAsset(metadataIpfsHash, assetName, metadataHashBuffer) {
@@ -1776,7 +720,7 @@ class AlgoMintX {
       const revenueTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
         sender: this.account,
         receiver: this.#revenueWalletAddress,
-        amount: this.#algosToMicroAlgos(this.#mintFee),
+        amount: algosToMicroAlgos(this.#mintFee),
         suggestedParams,
       });
       mintingGroup.push(revenueTxn);
@@ -1850,7 +794,7 @@ class AlgoMintX {
     const priceBytes = raw.slice(priceStart, priceEnd);
 
     // Decode price as a UTF-8 string (not number)
-    const nftPrice = this.#microAlgosToAlgos(
+    const nftPrice = microAlgosToAlgos(
       Number(new TextDecoder().decode(priceBytes))
     );
     // console.log("nftPrice:", nftPrice);
@@ -1878,150 +822,23 @@ class AlgoMintX {
     };
   }
 
-  #convertIpfsToHttp(ipfsUrl, gateway = "https://ipfs.io/ipfs/") {
-    if (gateway) {
-      return ipfsUrl.replace("ipfs://", `https://${gateway}/ipfs/`);
-    } else {
-      return ipfsUrl.replace("ipfs://", gateway);
-    }
+  /**
+   *********** SDK public methods
+   */
+
+  /**
+   * SDK UI Management
+   */
+  minimizeSDK(initialLoad) {
+    this.#uiManager.minimizeSDK(initialLoad);
   }
 
-  #microAlgosToAlgos(microAlgos) {
-    return Number(microAlgos / 1_000_000);
-  }
-
-  #algosToMicroAlgos(algos) {
-    return Math.round(algos * 1_000_000);
-  }
-
-  #getListingBoxReference(appIndex, assetId) {
-    const prefix = "listing_";
-    const encodedAssetId = algosdk.encodeUint64(BigInt(assetId)); // Uint64 to 8-byte Buffer
-    const boxName = new Uint8Array([
-      ...Buffer.from(prefix), // "listing_" as bytes
-      ...encodedAssetId, // 8-byte encoded assetId
-    ]);
-
-    return { appIndex, name: boxName };
-  }
-
-  #getBoxNameB64(assetId) {
-    const prefix = "listing_";
-    const encodedAssetId = algosdk.encodeUint64(BigInt(assetId)); // Uint64 to 8-byte Buffer
-    const boxName = new Uint8Array([
-      ...Buffer.from(prefix), // "listing_" as bytes
-      ...encodedAssetId, // 8-byte encoded assetId
-    ]);
-    return Buffer.from(boxName).toString("base64");
-  }
-
-  #showLoadingOverlay(message = "Processing...") {
-    // If UI is disabled, don't show loading overlay
-    if (this.#disableUi) {
-      return;
-    }
-
-    if (this.isMinimized) {
-      // Show processing spinner on minimized button
-      const minimizedBtn = document.getElementById("sdkMinimizedBtn");
-      if (minimizedBtn) {
-        minimizedBtn.classList.add("processing");
-      }
-      // Store the current message
-      this.#currentLoadingMessage = message;
-      return;
-    }
-
-    const overlay = document.getElementById("algomintx-loading-overlay");
-    const messageElement = document.getElementById(
-      "algomintx-processing-message"
-    );
-    if (!overlay) return;
-
-    // Apply theme to overlay
-    if (this.theme === "dark") {
-      overlay.classList.add("dark-theme");
-    } else {
-      overlay.classList.remove("dark-theme");
-    }
-
-    // Update processing message
-    if (messageElement) {
-      if (message === "Processing..." && this.#selectedWalletType) {
-        messageElement.innerHTML = `Processing... Open ${
-          this.#selectedWalletType
-        } wallet on your mobile to continue<br><br>Please do not reload the page or close the tab`;
-      } else {
-        messageElement.textContent = message;
-      }
-    }
-
-    // Store the current message
-    this.#currentLoadingMessage = message;
-
-    // Show overlay with animation
-    requestAnimationFrame(() => {
-      overlay.classList.add("visible");
-    });
-
-    // Disable logout button
-    const logoutBtn = document.getElementById("logoutBtn");
-    if (logoutBtn) {
-      logoutBtn.disabled = true;
-    }
-  }
-
-  #updateLoadingMessage(message) {
-    // If UI is disabled, don't manipulate DOM elements
-    if (this.#disableUi) {
-      return;
-    }
-
-    const messageElement = document.getElementById(
-      "algomintx-processing-message"
-    );
-    if (messageElement) {
-      if (message === "Processing..." && this.#selectedWalletType) {
-        messageElement.innerHTML = `Processing... Open ${
-          this.#selectedWalletType
-        } wallet on your mobile to continue<br><br>Please do not reload the page or close the tab`;
-      } else {
-        messageElement.textContent = message;
-      }
-    }
-    // Store the current message
-    this.#currentLoadingMessage = message;
-  }
-
-  #hideLoadingOverlay() {
-    // If UI is disabled, don't manipulate DOM elements
-    if (this.#disableUi) {
-      return;
-    }
-
-    // Remove processing spinner from minimized button
-    const minimizedBtn = document.getElementById("sdkMinimizedBtn");
-    if (minimizedBtn) {
-      minimizedBtn.classList.remove("processing");
-    }
-
-    const overlay = document.getElementById("algomintx-loading-overlay");
-    if (!overlay) return;
-
-    // Hide overlay with animation using requestAnimationFrame
-    requestAnimationFrame(() => {
-      overlay.classList.remove("visible");
-    });
-
-    // Enable logout button
-    const logoutBtn = document.getElementById("logoutBtn");
-    if (logoutBtn) {
-      logoutBtn.disabled = false;
-    }
+  maximizeSDK(initialLoad) {
+    this.#uiManager.maximizeSDK(initialLoad);
   }
 
   /**
-   * SDK public methods
+   * Wallet Connection Methods
    */
 
   async connectWallet(walletType) {
@@ -2062,7 +879,10 @@ class AlgoMintX {
             });
 
             // Show toast notification
-            this.#showToast(`Reconnected to ${walletType} wallet`, "success");
+            this.#uiManager.showToast(
+              `Reconnected to ${walletType} wallet`,
+              "success"
+            );
 
             return; // Exit early since we successfully reconnected
           }
@@ -2109,18 +929,6 @@ class AlgoMintX {
     await this.#startWalletConnection(walletType);
   }
 
-  isWalletSupported(walletType) {
-    return this.#supportedWallets.includes(walletType);
-  }
-
-  getSupportedWallets() {
-    return [...this.#supportedWallets];
-  }
-
-  isHeadlessMode() {
-    return this.#disableUi;
-  }
-
   async disconnectWallet() {
     if (!this.#walletConnected) {
       throw new Error("No wallet is currently connected");
@@ -2128,6 +936,54 @@ class AlgoMintX {
 
     // Handle logout process
     await this.#handleLogout();
+  }
+
+  // Force cleanup of any temporary UI elements (useful for headless mode)
+  forceCleanup() {
+    this.#uiManager.hideTemporaryWalletConnectionUI();
+  }
+
+  // Force disconnect and clear all wallet sessions
+  async forceDisconnect() {
+    try {
+      // Disconnect from all supported wallets
+      for (const [walletType, connector] of Object.entries(
+        this.#walletConnectors
+      )) {
+        try {
+          if (connector.disconnect) {
+            await connector.disconnect();
+          }
+          if (connector.killSession) {
+            await connector.killSession();
+          }
+        } catch (error) {
+          console.error(`Error disconnecting from ${walletType}:`, error);
+        }
+      }
+
+      // Clear localStorage
+      localStorage.removeItem("walletconnect");
+      localStorage.removeItem("DeflyWallet.Wallet");
+      localStorage.removeItem("PeraWallet.Wallet");
+
+      // Reset internal state
+      this.#walletConnected = false;
+      this.account = null;
+      this.#connectionInfo = null;
+      this.#selectedWalletType = null;
+      this.#connectionInProgress = false;
+
+      // Emit disconnect event
+      eventBus.emit("wallet:connection:disconnected", {
+        address: this.account,
+      });
+
+      return true;
+    } catch (error) {
+      console.error("Error during force disconnect:", error);
+      return false;
+    }
   }
 
   getConnectionStatus() {
@@ -2141,7 +997,6 @@ class AlgoMintX {
     };
   }
 
-  // Get detailed wallet session information
   async getWalletSessionInfo() {
     const sessionInfo = {};
 
@@ -2176,98 +1031,9 @@ class AlgoMintX {
     return sessionInfo;
   }
 
-  minimizeSDK(initialLoad) {
-    // If UI is disabled, don't manipulate DOM elements
-    if (this.#disableUi) {
-      return;
-    }
-
-    if (!initialLoad && this.isMinimized) return;
-
-    const container = document.getElementById("algomintx-sdk-container");
-    const minimizedBtn = document.getElementById("sdkMinimizedBtn");
-
-    // Set position based on minimizeUILocation
-    minimizedBtn.style.right =
-      this.#minimizeUILocation === "right" ? "20px" : "auto";
-    minimizedBtn.style.left =
-      this.#minimizeUILocation === "left" ? "20px" : "auto";
-
-    // Start minimizing animation
-    container.classList.add("minimizing");
-    minimizedBtn.style.display = "block";
-
-    // Store current loading message if processing
-    if (this.processing) {
-      const messageElement = document.getElementById(
-        "algomintx-processing-message"
-      );
-      if (messageElement) {
-        this.#currentLoadingMessage = messageElement.textContent;
-      }
-    }
-
-    // Wait for the minimizing animation to complete
-    setTimeout(() => {
-      container.style.display = "none";
-      container.classList.remove("minimizing");
-
-      // Start showing minimized button animation
-      requestAnimationFrame(() => {
-        minimizedBtn.classList.add("showing");
-        // Add processing class if processing is active
-        if (this.processing) {
-          minimizedBtn.classList.add("processing");
-        }
-      });
-    }, 300);
-
-    this.isMinimized = true;
-    this.#saveUIState();
-    eventBus.emit("window:size:minimized", { minimized: this.isMinimized });
-  }
-
-  maximizeSDK(initialLoad) {
-    // If UI is disabled, don't manipulate DOM elements
-    if (this.#disableUi) {
-      return;
-    }
-
-    if (!initialLoad && !this.isMinimized) return;
-
-    const container = document.getElementById("algomintx-sdk-container");
-    const minimizedBtn = document.getElementById("sdkMinimizedBtn");
-
-    // Start hiding minimized button animation
-    minimizedBtn.classList.remove("showing");
-    minimizedBtn.classList.add("hiding");
-
-    // Wait for the hiding animation to complete
-    setTimeout(() => {
-      minimizedBtn.style.display = "none";
-      minimizedBtn.classList.remove("hiding");
-      minimizedBtn.classList.remove("processing"); // Remove processing class
-
-      // Show and animate the main container
-      container.style.display = "flex";
-      container.classList.add("maximizing");
-
-      // Force a reflow
-      container.offsetHeight;
-
-      requestAnimationFrame(() => {
-        container.classList.remove("maximizing");
-        // Show loading overlay if processing
-        if (this.processing) {
-          this.#showLoadingOverlay(this.#currentLoadingMessage);
-        }
-      });
-    }, 300);
-
-    this.isMinimized = false;
-    this.#saveUIState();
-    eventBus.emit("window:size:minimized", { minimized: this.isMinimized });
-  }
+  /**
+   * NFT Operations
+   */
 
   async getListedNFTs() {
     const nfts = [];
@@ -2327,7 +1093,7 @@ class AlgoMintX {
             // Handle IPFS metadata
             const metadataUrl = params.url;
             if (metadataUrl?.startsWith("ipfs://")) {
-              const ipfsUrl = this.#convertIpfsToHttp(
+              const ipfsUrl = convertIpfsToHttp(
                 metadataUrl,
                 this.#pinata_ipfs_gateway_url
               );
@@ -2343,7 +1109,7 @@ class AlgoMintX {
                     metadata.image &&
                     metadata.image.startsWith("ipfs://")
                   ) {
-                    metadata.image = this.#convertIpfsToHttp(
+                    metadata.image = convertIpfsToHttp(
                       metadata.image,
                       this.#pinata_ipfs_gateway_url
                     );
@@ -2401,7 +1167,7 @@ class AlgoMintX {
           throw new Error("Wallet is not connected");
         }
       } else {
-        this.#validateRevenueWalletAddress(accountId);
+        Validator.validateRevenueWalletAddress(accountId);
       }
 
       const url = `${this.#indexerUrl}/v2/accounts/${
@@ -2442,7 +1208,7 @@ class AlgoMintX {
         // Handle IPFS metadata
         const metadataUrl = params.url;
         if (metadataUrl?.startsWith("ipfs://")) {
-          const ipfsUrl = this.#convertIpfsToHttp(
+          const ipfsUrl = convertIpfsToHttp(
             metadataUrl,
             this.#pinata_ipfs_gateway_url
           );
@@ -2458,7 +1224,7 @@ class AlgoMintX {
                 metadata.image &&
                 metadata.image.startsWith("ipfs://")
               ) {
-                metadata.image = this.#convertIpfsToHttp(
+                metadata.image = convertIpfsToHttp(
                   metadata.image,
                   this.#pinata_ipfs_gateway_url
                 );
@@ -2549,7 +1315,7 @@ class AlgoMintX {
       // Handle IPFS metadata
       const metadataUrl = params.url;
       if (metadataUrl?.startsWith("ipfs://")) {
-        const ipfsUrl = this.#convertIpfsToHttp(
+        const ipfsUrl = convertIpfsToHttp(
           metadataUrl,
           this.#pinata_ipfs_gateway_url
         );
@@ -2569,7 +1335,7 @@ class AlgoMintX {
             metadata.image &&
             metadata.image.startsWith("ipfs://")
           ) {
-            metadata.image = this.#convertIpfsToHttp(
+            metadata.image = convertIpfsToHttp(
               metadata.image,
               this.#pinata_ipfs_gateway_url
             );
@@ -2624,7 +1390,7 @@ class AlgoMintX {
   async listNFT({ assetId, nftPrice }) {
     try {
       this.processing = true;
-      this.#showLoadingOverlay("Processing...");
+      this.#uiManager.showLoadingOverlay("Processing...");
       eventBus.emit("sdk:processing:started", { processing: this.processing });
 
       if (!this.#walletConnected || !this.account) {
@@ -2657,7 +1423,7 @@ class AlgoMintX {
       const walletConnector = this.#walletConnectors[this.#selectedWalletType];
 
       // Get the listing box reference
-      const boxRef = this.#getListingBoxReference(
+      const boxRef = getListingBoxReference(
         this.#contractApplicationId,
         assetId
       );
@@ -2683,7 +1449,7 @@ class AlgoMintX {
             algosdk.ABIType.from("uint64").encode(BigInt(assetId)),
             algosdk.ABIType.from("string").encode(this.account),
             algosdk.ABIType.from("string").encode(
-              this.#algosToMicroAlgos(nftPrice).toString()
+              algosToMicroAlgos(nftPrice).toString()
             ),
             algosdk.ABIType.from("string").encode(this.#unitName),
           ],
@@ -2703,7 +1469,7 @@ class AlgoMintX {
         const revenueTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
           sender: this.account,
           receiver: this.#revenueWalletAddress,
-          amount: this.#algosToMicroAlgos(this.#listingFee),
+          amount: algosToMicroAlgos(this.#listingFee),
           suggestedParams,
         });
         listingGroup.push(revenueTxn);
@@ -2721,7 +1487,7 @@ class AlgoMintX {
       await algosdk.waitForConfirmation(this.#algodClient, listingTxId, 10);
 
       this.processing = false;
-      this.#hideLoadingOverlay();
+      this.#uiManager.hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
 
       const nftData = await this.getNFTMetadata({ assetId });
@@ -2739,7 +1505,7 @@ class AlgoMintX {
     } catch (error) {
       console.error("Error listing NFT:", error.message);
       this.processing = false;
-      this.#hideLoadingOverlay();
+      this.#uiManager.hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
       eventBus.emit("nft:list:failed", { error: "Could not list NFT!" });
       throw error;
@@ -2749,7 +1515,7 @@ class AlgoMintX {
   async unlistNFT({ assetId }) {
     try {
       this.processing = true;
-      this.#showLoadingOverlay("Processing...");
+      this.#uiManager.showLoadingOverlay("Processing...");
       eventBus.emit("sdk:processing:started", { processing: this.processing });
 
       if (!this.#walletConnected || !this.account) {
@@ -2789,7 +1555,7 @@ class AlgoMintX {
       const walletConnector = this.#walletConnectors[this.#selectedWalletType];
 
       // Get the listing box reference
-      const boxRef = this.#getListingBoxReference(
+      const boxRef = getListingBoxReference(
         this.#contractApplicationId,
         assetId
       );
@@ -2835,7 +1601,7 @@ class AlgoMintX {
         const revenueTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
           sender: this.account,
           receiver: this.#revenueWalletAddress,
-          amount: this.#algosToMicroAlgos(this.#unListingFee),
+          amount: algosToMicroAlgos(this.#unListingFee),
           suggestedParams,
         });
         unlistingGroup.push(revenueTxn);
@@ -2853,7 +1619,7 @@ class AlgoMintX {
       await algosdk.waitForConfirmation(this.#algodClient, unlistingTxId, 10);
 
       this.processing = false;
-      this.#hideLoadingOverlay();
+      this.#uiManager.hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
 
       const newNftData = await this.getNFTMetadata({ assetId });
@@ -2871,7 +1637,7 @@ class AlgoMintX {
     } catch (error) {
       console.error("Error un-listing NFT:", error.message);
       this.processing = false;
-      this.#hideLoadingOverlay();
+      this.#uiManager.hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
       eventBus.emit("nft:unlist:failed", { error: "Could not unlist NFT!" });
       throw error;
@@ -2881,7 +1647,7 @@ class AlgoMintX {
   async buyNFT({ assetId }) {
     try {
       this.processing = true;
-      this.#showLoadingOverlay("Processing...");
+      this.#uiManager.showLoadingOverlay("Processing...");
       eventBus.emit("sdk:processing:started", { processing: this.processing });
 
       if (!this.#walletConnected || !this.account) {
@@ -2926,7 +1692,7 @@ class AlgoMintX {
       const walletConnector = this.#walletConnectors[this.#selectedWalletType];
 
       // Get the listing box reference
-      const boxRef = this.#getListingBoxReference(
+      const boxRef = getListingBoxReference(
         this.#contractApplicationId,
         assetId
       );
@@ -2966,7 +1732,7 @@ class AlgoMintX {
         algosdk.makePaymentTxnWithSuggestedParamsFromObject({
           sender: this.account,
           receiver: nftData.listing.seller,
-          amount: this.#algosToMicroAlgos(nftData.listing.price),
+          amount: algosToMicroAlgos(nftData.listing.price),
           suggestedParams,
         });
 
@@ -2982,7 +1748,7 @@ class AlgoMintX {
         const revenueTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
           sender: this.account,
           receiver: this.#revenueWalletAddress,
-          amount: this.#algosToMicroAlgos(this.#buyingFee),
+          amount: algosToMicroAlgos(this.#buyingFee),
           suggestedParams,
         });
         buyingGroup.push(revenueTxn);
@@ -3000,7 +1766,7 @@ class AlgoMintX {
       await algosdk.waitForConfirmation(this.#algodClient, buyingTxId, 10);
 
       this.processing = false;
-      this.#hideLoadingOverlay();
+      this.#uiManager.hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
 
       const newNftData = await this.getNFTMetadata({ assetId });
@@ -3018,7 +1784,7 @@ class AlgoMintX {
     } catch (error) {
       console.error("Error buying NFT:", error.message);
       this.processing = false;
-      this.#hideLoadingOverlay();
+      this.#uiManager.hideLoadingOverlay();
       eventBus.emit("sdk:processing:stopped", { processing: this.processing });
       eventBus.emit("nft:buy:failed", { error: "Could not buy NFT!" });
       throw error;
