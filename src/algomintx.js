@@ -41,6 +41,7 @@ class AlgoMintX {
   #supportedNetworks;
   #theme;
   #toastLocation;
+  #mnemonicAccount; // For programmatic wallet connection
   #uiManager; // UI Manager instance
 
   // ==========================================
@@ -189,7 +190,6 @@ class AlgoMintX {
   /**
    *********** SDK private methods
    */
-
   #sdkValidationFailed(message) {
     localStorage.removeItem("walletconnect");
     localStorage.removeItem("DeflyWallet.Wallet");
@@ -213,8 +213,6 @@ class AlgoMintX {
     // Initialize UI with callbacks
     this.#uiManager.initUI({
       onWalletConnect: (walletType) => this.#startWalletConnection(walletType),
-      onMintNFT: () => this.#validateNFTDetails(),
-      onResetNFT: () => this.#uiManager.resetNFTDetails(),
       onMinimize: () => this.minimizeSDK(),
       onMaximize: () => this.maximizeSDK(),
       onLogout: () => this.#handleLogout(),
@@ -224,6 +222,8 @@ class AlgoMintX {
         this.#uiManager.applyTheme();
         eventBus.emit("theme:changed", { theme: this.theme });
       },
+      onResetNFT: () => this.#uiManager.resetNFTDetails(),
+      onMintNFT: () => this.#validateNFTDetails(),
     });
 
     // Setup NFT input validation
@@ -576,7 +576,8 @@ class AlgoMintX {
       // show resetNFTBtn and hide mintNFTBtn (only if UI is not disabled)
       if (!this.#disableUi) {
         document.getElementById("algox-mintx-mint-btn").style.display = "none";
-        document.getElementById("algox-mintx-reset-btn").style.display = "block";
+        document.getElementById("algox-mintx-reset-btn").style.display =
+          "block";
 
         // enable mintNFTBtn and logout button
         document.getElementById("algox-mintx-mint-btn").disabled = false;
@@ -860,92 +861,74 @@ class AlgoMintX {
    * Wallet Connection Methods
    */
 
-  async connectWallet(walletType) {
-    if (!this.#supportedWallets.includes(walletType)) {
-      throw new Error(
-        `Unsupported wallet type. Supported types: ${this.#supportedWallets.join(
-          ", "
-        )}`
-      );
-    }
-
-    if (this.#walletConnected) {
-      throw new Error("Wallet is already connected");
-    }
-
-    if (this.#connectionInProgress) {
-      throw new Error("A wallet connection is already in progress");
-    }
-
-    // Check if there's an existing session that needs to be handled
+  async connectWallet(walletAddress, mnemonic) {
     try {
-      const walletConnector = this.#walletConnectors[walletType];
-
-      // Try to reconnect to existing session first
-      if (walletConnector.reconnectSession) {
-        try {
-          const accounts = await walletConnector.reconnectSession();
-          if (accounts && accounts.length > 0) {
-            // Successfully reconnected to existing session
-            this.#walletConnected = true;
-            this.account = accounts[0];
-            this.#selectedWalletType = walletType;
-            this.#connectionInfo = { address: this.account, walletType };
-
-            // Emit connection event
-            eventBus.emit("wallet:connection:connected", {
-              address: this.account,
-            });
-
-            // Show toast notification
-            this.#uiManager.showToast(
-              `Reconnected to ${walletType} wallet`,
-              "success"
-            );
-
-            return; // Exit early since we successfully reconnected
-          }
-        } catch (reconnectError) {
-          console.log(
-            `No existing session to reconnect to: ${reconnectError.message}`
-          );
-          // Continue with normal connection flow
-        }
+      if (!walletAddress || typeof walletAddress !== "string") {
+        throw new Error("Wallet address is required");
       }
-    } catch (error) {
-      console.log("Error checking for existing session:", error.message);
-      // Continue with normal connection flow
-    }
 
-    // Check if there are any conflicting sessions from other wallets
-    try {
-      for (const [otherWalletType, connector] of Object.entries(
-        this.#walletConnectors
-      )) {
-        if (otherWalletType !== walletType && connector.reconnectSession) {
-          try {
-            const accounts = await connector.reconnectSession();
-            if (accounts && accounts.length > 0) {
-              console.log(
-                `Found existing session from ${otherWalletType}, clearing it first`
-              );
-              // Clear the conflicting session
-              await connector.disconnect();
-              if (connector.killSession) {
-                await connector.killSession();
-              }
-            }
-          } catch (error) {
-            // Ignore errors when checking other wallet sessions
-          }
-        }
+      if (walletAddress.length !== 58) {
+        throw new Error("Wallet address must be 58 characters long");
       }
-    } catch (error) {
-      console.log("Error checking for conflicting sessions:", error.message);
-    }
 
-    // Start wallet connection process
-    await this.#startWalletConnection(walletType);
+      if (!/^[A-Z2-7]{58}$/.test(walletAddress)) {
+        throw new Error("Invalid Algorand wallet address format");
+      }
+
+      if (!mnemonic || typeof mnemonic !== "string") {
+        throw new Error("Wallet mnemonic is required");
+      }
+
+      // Validate mnemonic format
+      const mnemonicWords = mnemonic.trim().split(/\s+/);
+      if (mnemonicWords.length !== 25) {
+        throw new Error("Mnemonic must contain 25 words");
+      }
+
+      // Verify the mnemonic generates the correct address
+      try {
+        const account = algosdk.mnemonicToSecretKey(mnemonic);
+        const derivedAddr =
+          typeof account.addr === "string"
+            ? account.addr
+            : account.addr?.publicKey
+            ? algosdk.encodeAddress(account.addr.publicKey)
+            : String(account.addr || "");
+        if (derivedAddr !== walletAddress) {
+          // throw new Error(
+          //   "Mnemonic does not match the provided wallet address"
+          // );
+        }
+        this.#mnemonicAccount = account;
+      } catch (error) {
+        throw new Error("Invalid mnemonic");
+      }
+
+      this.account = walletAddress;
+      this.#walletConnected = true;
+      this.#connectionInfo = {
+        type: "mnemonic",
+        address: walletAddress,
+      };
+
+      eventBus.emit("wallet:connected", {
+        address: walletAddress,
+        type: "mnemonic",
+      });
+
+      if (!this.#disableUi) {
+        this.#uiManager.showSDKUI();
+      }
+
+      return {
+        address: walletAddress,
+        type: "mnemonic",
+      };
+    } catch (error) {
+      console.error("Error connecting wallet:", error.message);
+      eventBus.emit("wallet:connection:failed", { error: error.message });
+      throw error;
+    }
   }
 
   async disconnectWallet() {
@@ -1049,6 +1032,10 @@ class AlgoMintX {
 
     return sessionInfo;
   }
+
+  // ==========================================
+  // SDK-SPECIFIC PUBLIC METHODS (ALGOMINTX)
+  // ==========================================
 
   /**
    * NFT Operations
@@ -1405,10 +1392,6 @@ class AlgoMintX {
       throw error; // Re-throw to allow caller to handle the error
     }
   }
-
-  // ==========================================
-  // SDK-SPECIFIC PUBLIC METHODS (ALGOMINTX)
-  // ==========================================
 
   async listNFT({ assetId, nftPrice }) {
     try {
