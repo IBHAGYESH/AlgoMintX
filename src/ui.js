@@ -706,7 +706,13 @@ export class UIManager {
           this.showToast(validation.message, "error");
           e.target.value = ""; // Clear the file input
           this.validateMintButton();
+        } else {
+          // File is valid, validate mint button to enable it if all fields are filled
+          this.validateMintButton();
         }
+      } else {
+        // No file selected, validate mint button to disable it
+        this.validateMintButton();
       }
     });
 
@@ -836,6 +842,20 @@ export class UIManager {
     const logoutBtn = document.getElementById("algox-logout-btn");
     if (mintBtn) mintBtn.disabled = true;
     if (logoutBtn) logoutBtn.disabled = true;
+  }
+
+  /**
+   * Enable mint button
+   */
+  enableMintButton() {
+    if (this.#disableUi) {
+      return;
+    }
+
+    const mintBtn = document.getElementById("algox-mintx-mint-btn");
+    const logoutBtn = document.getElementById("algox-logout-btn");
+    if (mintBtn) mintBtn.disabled = false;
+    if (logoutBtn) logoutBtn.disabled = false;
   }
 
   /**

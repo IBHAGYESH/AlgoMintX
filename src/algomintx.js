@@ -52,7 +52,6 @@ class AlgoMintX {
   #indexerUrl;
   #unitName;
   #metadataMark;
-  #messageElement;
   #pinata_ipfs_server_key;
   #pinata_ipfs_gateway_url;
   #namespace;
@@ -149,7 +148,6 @@ class AlgoMintX {
       this.events = eventBus;
 
       // Initialize UI state
-      this.#messageElement = null;
       this.processing = false;
 
       // Initialize UI Manager
@@ -511,12 +509,12 @@ class AlgoMintX {
     }
 
     const name = Validator.sanitizeInput(
-      document.getElementById("nftName").value
+      document.getElementById("algox-mintx-nft-name").value
     );
     const description = Validator.sanitizeInput(
-      document.getElementById("nftDescription").value
+      document.getElementById("algox-mintx-nft-description").value
     );
-    const fileInput = document.getElementById("nftFile");
+    const fileInput = document.getElementById("algox-mintx-nft-file");
 
     // Validate name
     const nameValidation = Validator.validateNFTName(name);
@@ -540,11 +538,8 @@ class AlgoMintX {
 
     // Disable UI elements (only if UI is not disabled)
     if (!this.#disableUi) {
-      this.#messageElement.style.display = "block";
-      this.#messageElement.style.cursor = "default";
-      this.#messageElement.innerText = "Minting NFT... Please wait.";
-      document.getElementById("algox-mintx-mint-btn").disabled = true;
-      document.getElementById("algox-logout-btn").disabled = true;
+      this.#uiManager.updateMessage("Minting NFT... Please wait.", "default");
+      this.#uiManager.disableMintButton();
     }
 
     // show loading overlay after validation
@@ -560,8 +555,7 @@ class AlgoMintX {
       });
 
       if (!this.#disableUi) {
-        this.#messageElement.style.cursor = "pointer";
-        this.#messageElement.innerText = `NFT Minted! Transaction ID: ${transactionId}`;
+        this.#uiManager.updateMessage(`NFT Minted! Transaction ID: ${transactionId}`, "pointer");
       }
 
       this.processing = false;
@@ -575,13 +569,8 @@ class AlgoMintX {
 
       // show resetNFTBtn and hide mintNFTBtn (only if UI is not disabled)
       if (!this.#disableUi) {
-        document.getElementById("algox-mintx-mint-btn").style.display = "none";
-        document.getElementById("algox-mintx-reset-btn").style.display =
-          "block";
-
-        // enable mintNFTBtn and logout button
-        document.getElementById("algox-mintx-mint-btn").disabled = false;
-        document.getElementById("algox-logout-btn").disabled = false;
+        this.#uiManager.showResetButton();
+        this.#uiManager.enableMintButton();
       }
 
       const nftData = await this.getNFTMetadata({ assetId });
