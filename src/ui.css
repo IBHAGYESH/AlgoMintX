@@ -213,12 +213,12 @@
   justify-content: space-between;
   padding: 12px 14px;
   border-bottom: 1px solid #e5e7eb;
-  background-color: #f9fafb;
+  background-color: #f8f9fa;
 }
 
 .dark-theme #algox-header {
-  background-color: #1f2937;
-  border-bottom-color: #374151;
+  background-color: #2d2d2d;
+  border-bottom-color: #444;
 }
 
 #algox-header .header-left {
@@ -251,7 +251,7 @@
 }
 
 #algox-header .header-right button {
-  background: none;
+  background: transparent;
   border: none;
   cursor: pointer;
   padding: 4px 8px;
@@ -267,7 +267,7 @@
 }
 
 #algox-header .header-right button:hover {
-  background-color: rgba(0, 0, 0, 0.08);
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 .dark-theme #algox-header .header-right button {
@@ -275,7 +275,7 @@
 }
 
 .dark-theme #algox-header .header-right button:hover {
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
 #algox-logout-btn {
@@ -548,6 +548,131 @@
 
 #algox-temp-wallet-overlay .temp-wallet-cancel-btn:hover {
   background: #dc2626;
+}
+
+/* ==========================================
+   COMMON TAB UI SYSTEM (ALGOXSUITE STANDARD)
+   ========================================== */
+
+/* Tab Container */
+.algox-tabs-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 2px solid #e5e7eb;
+  padding: 0 16px;
+  margin-top: 12px;
+  position: relative;
+}
+
+.dark-theme .algox-tabs-container {
+  border-bottom-color: #444;
+}
+
+/* Tab Navigation Buttons */
+.algox-tab-nav-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.algox-tab-nav-btn:hover:not(:disabled) {
+  background-color: rgba(0, 0, 0, 0.05);
+  color: #111827;
+}
+
+.algox-tab-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.dark-theme .algox-tab-nav-btn {
+  color: #9ca3af;
+}
+
+.dark-theme .algox-tab-nav-btn:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #f9fafb;
+}
+
+/* Tabs Wrapper */
+.algox-tabs-wrapper {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Tabs Track */
+.algox-tabs-track {
+  display: flex;
+  gap: 6px;
+  transition: transform 0.3s ease;
+}
+
+/* Tab Buttons */
+.algox-tab-btn {
+  flex: 0 0 calc(50% - 3px);
+  min-width: calc(50% - 3px);
+  padding: 10px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #6b7280;
+  border-bottom: 2px solid transparent;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.algox-tab-btn:hover {
+  color: #111827;
+  background-color: rgba(0, 0, 0, 0.03);
+}
+
+.dark-theme .algox-tab-btn {
+  color: #9ca3af;
+}
+
+.dark-theme .algox-tab-btn:hover {
+  color: #f9fafb;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.algox-tab-btn.active {
+  color: #3498db;
+  border-bottom-color: #3498db;
+}
+
+.dark-theme .algox-tab-btn.active {
+  color: #60a5fa;
+  border-bottom-color: #60a5fa;
+}
+
+/* Tab Content */
+.algox-tab-content {
+  padding: 16px;
+  overflow-y: auto;
+  flex-grow: 1;
+}
+
+.algox-tab-pane {
+  display: none;
+}
+
+.algox-tab-pane.active {
+  display: block;
 }
 
 /* ==========================================
