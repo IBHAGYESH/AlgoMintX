@@ -1,7 +1,10 @@
 # AlgoMintX SDK
 
-- **Launch a beautiful, full-featured NFT marketplace on Algorand in minutes.**
-- Plug-and-play JavaScript SDK: just drop it in, connect wallets, mint, list, unlist, buy, and earn revenue—no backend required.
+**Launch a beautiful, full-featured NFT marketplace on Algorand in minutes.**
+Plug-and-play JavaScript SDK: just drop it in, connect wallets, mint, list, unlist, buy, and earn revenue—no backend required.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Algorand](https://img.shields.io/badge/Algorand-000000?style=flat&logo=algorand&logoColor=white)](https://algorand.com)
 
 ## ✨ Features
 
@@ -12,18 +15,20 @@
 - 🛒 **Buying NFTs** from the marketplace
 - 💰 **Revenue mechanism** for marketplace owners
 - 💸 **Customizable marketplace fees** (minting, listing, buying, unlisting)
-- 🛡️ **Robust input validation** for all user and config parameters
 - 📁 **IPFS metadata storage** and retrieval
+- 🎥 **Multi-media support** for NFTs (Images, Videos, Audio)
+- 🧪 **No smart contract writing required** — pre-audited smart contract ready to use
+- 🎓 **No blockchain expertise required**
+- ✅ Works on **Testnet** and **Mainnet**
 - 🧭 **Minimal, user-friendly UI** with SDK minimization support
 - ⚡ **Real-time event emitter** for frontend event handling
-- ✅ Works on **Testnet** and **Mainnet**
-- 🎥 **Multi-media support** for NFTs (Images, Videos, Audio)
 - 🔔 **Customizable toast notifications**
 - 🎨 **Customizable UI** with logo support
 - 🌗 **Light/Dark theme support**
 - 📱 **Mobile-friendly, responsive UI**
 - 🆓 **No backend required**—all logic runs in the browser
 - ⏳ **UI feedbacks with loaders and toast messages**
+- 🛡️ **Robust input validation** for all user and config parameters
 - 👐 **Open source & actively maintained**
 
 ---
@@ -69,6 +74,20 @@ window.algoMintXClient = new window.AlgoMintX({
 ### 3. See the SDK UI
 
 After initialization, the AlgoMintX UI will automatically appear on your frontend. Users can connect their wallet, mint, list, buy, and manage NFTs with no further setup.
+
+---
+
+## 🔧 Advanced Configuration
+
+### UI Customization
+
+```javascript
+// UI customization (relevant options only)
+disableToast: false;
+toastLocation: "TOP_RIGHT";
+minimizeUILocation: "right";
+logo: "https://myapp.com/logo.png";
+```
 
 ---
 
@@ -166,27 +185,29 @@ type NFT = {
 };
 ```
 
-🔧 **Exposed Variables**
-| Variable | Type | Description |
-| ------------- | --------- | -------------------------------------------------------- |
-| `account` | string | Wallet address of the currently connected user |
-| `events` | object | Event emitter for subscribing to SDK lifecycle events |
-| `isMinimized` | boolean | If the SDK UI is currently minimized |
-| `network` | string | Current configured network (`"testnet"` or `"mainnet"`) |
-| `processing` | boolean | If an operation (e.g., minting, buying, etc.) is ongoing |
-| `theme` | string | Current theme of the SDK UI (`"light"` or `"dark"`) |
+#### Exposed Variables
 
-🧠 **Exposed Methods**
-| Method & Signature | Description |
-| ------------------ | ----------- |
-| `listNFT({ assetId: number, nftPrice: number })` | List an existing NFT to the marketplace |
-| `unlistNFT({ assetId: number })` | Remove an NFT from the marketplace listing |
-| `buyNFT({ assetId: number })` | Buy a listed NFT from the marketplace |
-| `getListedNFTs(): Promise<Array<NFT>>` | Fetch all NFTs currently listed for sale |
+| Variable      | Type    | Description                                              |
+| ------------- | ------- | -------------------------------------------------------- |
+| `account`     | string  | Wallet address of the currently connected user           |
+| `events`      | object  | Event emitter for subscribing to SDK lifecycle events    |
+| `isMinimized` | boolean | If the SDK UI is currently minimized                     |
+| `network`     | string  | Current configured network (`"testnet"` or `"mainnet"`)  |
+| `processing`  | boolean | If an operation (e.g., minting, buying, etc.) is ongoing |
+| `theme`       | string  | Current theme of the SDK UI (`"light"` or `"dark"`)      |
+
+#### Exposed Methods
+
+| Method & Signature                                           | Description                                                                                                  |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `listNFT({ assetId: number, nftPrice: number })`             | List an existing NFT to the marketplace                                                                      |
+| `unlistNFT({ assetId: number })`                             | Remove an NFT from the marketplace listing                                                                   |
+| `buyNFT({ assetId: number })`                                | Buy a listed NFT from the marketplace                                                                        |
+| `getListedNFTs(): Promise<Array<NFT>>`                       | Fetch all NFTs currently listed for sale                                                                     |
 | `getWalletNFTs({ accountId?: string }): Promise<Array<NFT>>` | Retrieve NFTs owned by the specified account or connected wallet. Pass `{}` to get NFTs of connected wallet. |
-| `getNFTMetadata({ assetId: number }): Promise<NFT>` | Fetch metadata of a specific NFT using its asset ID |
-| `minimizeSDK(): void` | Minimize the SDK UI to a floating button |
-| `maximizeSDK(): void` | Restore the SDK UI to its full size |
+| `getNFTMetadata({ assetId: number }): Promise<NFT>`          | Fetch metadata of a specific NFT using its asset ID                                                          |
+| `minimizeSDK(): void`                                        | Minimize the SDK UI to a floating button                                                                     |
+| `maximizeSDK(): void`                                        | Restore the SDK UI to its full size                                                                          |
 
 ---
 
@@ -238,7 +259,17 @@ If you found this useful, feel free to ⭐️ star the repo and share it with ot
 
 Built and maintained by Bhagyesh Jahangirpuria.
 
-- 🌐 Website: http://ibhagyesh.site
+- 🌐 Website: https://ibhagyesh.site
 - 🔗 LinkedIn: https://in.linkedin.com/in/bhagyesh-jahangirpuria
 
-Feel free to connect for collaborations, feedback, or consulting!
+**Feel free to connect for collaborations, feedback, or consulting!**
+
+---
+
+<div align="center">
+
+**Made with ❤️ for the Algorand Community**
+
+If AlgoMintX helped you build something awesome, I'd love to hear about it!
+
+</div>
