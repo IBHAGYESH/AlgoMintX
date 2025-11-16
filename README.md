@@ -43,8 +43,10 @@ Add the following `<script>` tag to your HTML `<head>` (see demo HTML for refere
 <!-- Import AlgoMintX SDK -->
 <script
   defer
-  src="https://cdn.jsdelivr.net/gh/IBHAGYESH/AlgoMintX@v1.1.0/dist/algomintx.js"
+  src="https://cdn.jsdelivr.net/gh/IBHAGYESH/AlgoMintX@latest/dist/algomintx.js"
 ></script>
+<!-- Or use your local build during development -->
+<!-- <script defer src="./dist/algomintx.js"></script> -->
 ```
 
 ### 2. Initialize the SDK in your frontend
