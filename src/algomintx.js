@@ -555,7 +555,10 @@ class AlgoMintX {
       });
 
       if (!this.#disableUi) {
-        this.#uiManager.updateMessage(`NFT Minted! Transaction ID: ${transactionId}`, "pointer");
+        this.#uiManager.updateMessage(
+          `NFT Minted! Transaction ID: ${transactionId}`,
+          "pointer"
+        );
       }
 
       this.processing = false;
@@ -927,99 +930,6 @@ class AlgoMintX {
 
     // Handle logout process
     await this.#handleLogout();
-  }
-
-  // Force cleanup of any temporary UI elements (useful for headless mode)
-  forceCleanup() {
-    this.#uiManager.hideTemporaryWalletConnectionUI();
-  }
-
-  // Force disconnect and clear all wallet sessions
-  async forceDisconnect() {
-    try {
-      // Disconnect from all supported wallets
-      for (const [walletType, connector] of Object.entries(
-        this.#walletConnectors
-      )) {
-        try {
-          if (connector.disconnect) {
-            await connector.disconnect();
-          }
-          if (connector.killSession) {
-            await connector.killSession();
-          }
-        } catch (error) {
-          console.error(`Error disconnecting from ${walletType}:`, error);
-        }
-      }
-
-      // Clear localStorage
-      localStorage.removeItem("walletconnect");
-      localStorage.removeItem("DeflyWallet.Wallet");
-      localStorage.removeItem("PeraWallet.Wallet");
-
-      // Reset internal state
-      this.#walletConnected = false;
-      this.account = null;
-      this.#connectionInfo = null;
-      this.#selectedWalletType = null;
-      this.#connectionInProgress = false;
-
-      // Emit disconnect event
-      eventBus.emit("wallet:connection:disconnected", {
-        address: this.account,
-      });
-
-      return true;
-    } catch (error) {
-      console.error("Error during force disconnect:", error);
-      return false;
-    }
-  }
-
-  getConnectionStatus() {
-    return {
-      connected: this.#walletConnected,
-      account: this.account,
-      walletType: this.#selectedWalletType,
-      connectionInProgress: this.#connectionInProgress,
-      network: this.network,
-      namespace: this.#namespace,
-    };
-  }
-
-  async getWalletSessionInfo() {
-    const sessionInfo = {};
-
-    for (const [walletType, connector] of Object.entries(
-      this.#walletConnectors
-    )) {
-      try {
-        if (connector.reconnectSession) {
-          const accounts = await connector.reconnectSession();
-          sessionInfo[walletType] = {
-            hasSession: accounts && accounts.length > 0,
-            accountCount: accounts ? accounts.length : 0,
-            firstAccount: accounts && accounts.length > 0 ? accounts[0] : null,
-          };
-        } else {
-          sessionInfo[walletType] = {
-            hasSession: false,
-            accountCount: 0,
-            firstAccount: null,
-          };
-        }
-      } catch (error) {
-        sessionInfo[walletType] = {
-          hasSession: false,
-          accountCount: 0,
-          firstAccount: null,
-          error: error.message,
-        };
-      }
-    }
-
-    return sessionInfo;
   }
 
   // ==========================================
