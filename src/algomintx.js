@@ -63,20 +63,26 @@ class AlgoMintX {
   #supportedMediaFormats;
 
   constructor({
-    pinata_ipfs_server_key,
-    pinata_ipfs_gateway_url = null,
+    // Common SDK parameters
+    // Required
     env,
+    // Optional
+    disableUi = false,
+    disableToast = false,
+    toastLocation = "TOP_RIGHT",
+    minimizeUILocation = "right",
+    logo = null,
+    // AlgoMintX-specific parameters
+    // Required
     namespace,
+    pinata_ipfs_server_key,
     revenueWalletAddress,
+    // Optional
+    pinata_ipfs_gateway_url = null,
     listingFee = 0,
     buyingFee = 0,
     unListingFee = 0,
     mintFee = 0,
-    disableToast = false,
-    disableUi = false,
-    minimizeUILocation = "right",
-    logo = null,
-    toastLocation = "TOP_RIGHT",
     supportedMediaFormats = ["IMAGE"],
   }) {
     try {
