@@ -88,14 +88,28 @@ export class UIManager {
 
     // ========== SDK-SPECIFIC CONTENT ==========
     const sdkSpecificContent = `
-      <div id="algox-mintx-content">
-        <input type="text" id="algox-mintx-nft-name" placeholder="NFT Name" />
-        <textarea id="algox-mintx-nft-description" placeholder="NFT Description"></textarea>
-        <input type="file" id="algox-mintx-nft-file" accept="image/*,video/*" />
-        <button id="algox-mintx-mint-btn" title="Mint NFT">Mint NFT</button>
-        <button id="algox-mintx-reset-btn">Mint another NFT</button>
-        <div id="algox-mintx-messages" title="Click to copy"></div>
-      </div>`;
+    <div class="algox-tabs-container">
+      <button class="algox-tab-nav-btn" id="algox-tab-prev">‹</button>
+      <div class="algox-tabs-wrapper">
+        <div class="algox-tabs-track">
+          <button class="algox-tab-btn active" data-tab="mint">Mint NFT</button>
+        </div>
+      </div>
+      <button class="algox-tab-nav-btn" id="algox-tab-next">›</button>
+    </div>
+
+    <div class="algox-tab-content">
+      <div id="algox-tab" class="algox-tab-pane active">
+          <div id="algox-mintx-content">
+            <input type="text" id="algox-mintx-nft-name" placeholder="NFT Name" />
+            <textarea id="algox-mintx-nft-description" placeholder="NFT Description"></textarea>
+            <input type="file" id="algox-mintx-nft-file" accept="image/*,video/*" />
+            <button id="algox-mintx-mint-btn" title="Mint NFT">Mint NFT</button>
+            <button id="algox-mintx-reset-btn">Mint another NFT</button>
+            <div id="algox-mintx-messages" title="Click to copy"></div>
+          </div>
+      </div>
+    </div>`;
 
     // ========== COMMON FOOTER ==========
     const commonFooter = `
@@ -560,12 +574,20 @@ export class UIManager {
    */
   #initTabSystem(callbacks) {
     const container = document.getElementById("algox-sdk-container");
+    const tabsContainer = container?.querySelector(".algox-tabs-container");
+    const tabContent = container?.querySelector(".algox-tab-content");
     const tabsTrack = container?.querySelector(".algox-tabs-track");
     const tabButtons = container?.querySelectorAll(".algox-tab-btn");
     const prevBtn = container?.querySelector("#algox-tab-prev");
     const nextBtn = container?.querySelector("#algox-tab-next");
 
     if (!tabsTrack || !tabButtons || tabButtons.length === 0) return;
+
+    if (tabButtons.length <= 1) {
+      if (tabsContainer) tabsContainer.style.display = "none";
+      if (tabContent) tabContent.style.display = "contents";
+      return;
+    }
 
     let currentOffset = 0;
     const totalTabs = tabButtons.length;
@@ -614,7 +636,7 @@ export class UIManager {
         const tabPanes = container.querySelectorAll(".algox-tab-pane");
         tabPanes.forEach((pane) => pane.classList.remove("active"));
 
-        const targetPane = container.querySelector(`#algox-stakex-${tab}-tab`);
+        const targetPane = container.querySelector(`#algox-${tab}-tab`);
         if (targetPane) targetPane.classList.add("active");
 
         // Call SDK-specific callbacks

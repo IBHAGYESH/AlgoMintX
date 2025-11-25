@@ -667,6 +667,10 @@
   flex-grow: 1;
 }
 
+#algox-tab {
+  gap: 0;
+}
+
 .algox-tab-pane {
   display: none;
 }
