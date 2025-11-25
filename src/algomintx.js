@@ -86,17 +86,29 @@ class AlgoMintX {
     supportedMediaFormats = ["IMAGE"],
   }) {
     try {
-      // Validate all parameters
+      // Common SDK parameters
+      // Required
+      this.network = Validator.validateEnvironment(env);
+      // Optional
+      this.#disableUi = Validator.validateDisableUi(disableUi);
+      this.#disableToast = Validator.validateDisableToast(disableToast);
+      this.#toastLocation = Validator.validateToastLocation(toastLocation);
+      this.#minimizeUILocation =
+        Validator.validateMinimizeUILocation(minimizeUILocation);
+      this.#logo = Validator.validateLogo(logo);
+
+      // AlgoMintX-specific parameters
+      // Required
+      this.#namespace = Validator.validateNamespace(namespace);
       this.#pinata_ipfs_server_key = Validator.validatePinataServerKey(
         pinata_ipfs_server_key
       );
+      this.#revenueWalletAddress =
+        Validator.validateRevenueWalletAddress(revenueWalletAddress);
+      // Optional
       this.#pinata_ipfs_gateway_url = Validator.validatePinataGatewayUrl(
         pinata_ipfs_gateway_url
       );
-      this.network = Validator.validateEnvironment(env);
-      this.#namespace = Validator.validateNamespace(namespace);
-      this.#revenueWalletAddress =
-        Validator.validateRevenueWalletAddress(revenueWalletAddress);
       this.#listingFee = Validator.validateFee(listingFee, "Listing fee");
       this.#buyingFee = Validator.validateFee(buyingFee, "Buying fee");
       this.#unListingFee = Validator.validateFee(
@@ -104,17 +116,20 @@ class AlgoMintX {
         "unListingFee fee"
       );
       this.#mintFee = Validator.validateFee(mintFee, "Mint fee");
-      this.#disableToast = Validator.validateDisableToast(disableToast);
-      this.#disableUi = Validator.validateDisableUi(disableUi);
-      this.#minimizeUILocation =
-        Validator.validateMinimizeUILocation(minimizeUILocation);
-      this.#logo = Validator.validateLogo(logo);
-      this.#toastLocation = Validator.validateToastLocation(toastLocation);
       this.#supportedMediaFormats = Validator.validateSupportedMediaFormats(
         supportedMediaFormats
       );
 
-      // Initialize other properties
+      // Initialize other common SDK properties
+      this.#uiManager = new UIManager(this, {
+        disableUi: this.#disableUi,
+        disableToast: this.#disableToast,
+        logo: this.#logo,
+        minimizeUILocation: this.#minimizeUILocation,
+        toastLocation: this.#toastLocation,
+      });
+      this.processing = false;
+      this.events = eventBus;
       this.#supportedNetworks = ["mainnet", "testnet"];
       this.#walletConnectors = {
         pera: new PeraWalletConnect(),
@@ -126,8 +141,6 @@ class AlgoMintX {
       this.#connectionInProgress = false;
       this.#supportedWallets = ["pera", "defly"];
       this.#selectedWalletType = null;
-
-      // Initialize algosdk client
       this.#algodClient = new algosdk.Algodv2(
         "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
         this.network === "mainnet"
@@ -135,35 +148,22 @@ class AlgoMintX {
           : "https://testnet-api.algonode.cloud",
         443
       );
+      this.#indexerUrl =
+        this.network === "mainnet"
+          ? "https://mainnet-idx.algonode.cloud"
+          : "https://testnet-idx.algonode.cloud";
 
-      // Initialize contract details
+      // Initialize SDK variables (SDK specific)
+      this.#unitName = `AMX${this.#namespace}`;
+      this.#metadataMark = "AlgoMintX";
+
+      // Initialize SDK contract details (SDK specific)
       this.#contractApplicationId =
         this.network === "mainnet" ? 3127816536 : 741003115;
       this.#contractWalletAddress =
         this.network === "mainnet"
           ? "57U43PN2WYSYFQZAJ2WBGSHT2RG3GJF2B4JJZYBOGUZ5ZDR6K7WCFLQNHU"
           : "G6FBCN7OZTTHBSPU6RGYEFW6I7F5UAEUD7DLS7J66JU2FJEAKPZDWBUHNQ";
-
-      // Initialize SDK variables
-      this.#indexerUrl =
-        this.network === "mainnet"
-          ? "https://mainnet-idx.algonode.cloud"
-          : "https://testnet-idx.algonode.cloud";
-      this.#unitName = `AMX${this.#namespace}`;
-      this.#metadataMark = "AlgoMintX";
-      this.events = eventBus;
-
-      // Initialize UI state
-      this.processing = false;
-
-      // Initialize UI Manager
-      this.#uiManager = new UIManager(this, {
-        disableUi: this.#disableUi,
-        disableToast: this.#disableToast,
-        logo: this.#logo,
-        minimizeUILocation: this.#minimizeUILocation,
-        toastLocation: this.#toastLocation,
-      });
 
       // Load saved UI state (only if UI is not disabled)
       if (!this.#disableUi) {
