@@ -5,6 +5,7 @@
 
 import eventBus from "./event-bus.js";
 import "./ui.css";
+import "./mintx.css";
 
 export class UIManager {
   // ALGOXSUITE STANDARD
@@ -137,6 +138,7 @@ export class UIManager {
 
     // Setup event listeners
     this.#setupEventListeners(callbacks);
+    this.#setupSDKEventListeners(callbacks);
 
     // Setup toast container
     this.setupToastContainer();
@@ -150,23 +152,17 @@ export class UIManager {
     document
       .getElementById("algox-wallet-choice")
       .addEventListener("click", async (event) => {
-        if (event.target.classList.contains("algox-wallet-btn")) {
-          const walletType = event.target.getAttribute("data-wallet");
+        const btn = event.target.closest?.(".algox-wallet-btn");
+        if (btn) {
+          const walletType = btn.getAttribute("data-wallet");
           await callbacks.onWalletConnect(walletType);
         }
       });
 
-    // Mint NFT button
+    // Maximized button
     document
-      .getElementById("algox-mintx-mint-btn")
-      .addEventListener("click", async () => {
-        await callbacks.onMintNFT();
-      });
-
-    // Reset NFT button
-    document
-      .getElementById("algox-mintx-reset-btn")
-      .addEventListener("click", () => callbacks.onResetNFT());
+      .getElementById("algox-minimized-btn")
+      .addEventListener("click", () => callbacks.onMaximize());
 
     // Minimize button
     document
@@ -178,32 +174,9 @@ export class UIManager {
       .getElementById("algox-logout-btn")
       .addEventListener("click", () => callbacks.onLogout());
 
-    // Maximized button
-    document
-      .getElementById("algox-minimized-btn")
-      .addEventListener("click", () => callbacks.onMaximize());
-
-    // Copy to clipboard for sdkMessages (tx id)
-    this.#messageElement = document.getElementById("algox-mintx-messages");
-    this.#messageElement.addEventListener("click", () => {
-      if (
-        this.#messageElement.innerText &&
-        this.#messageElement.innerText !== "Minting NFT... Please wait."
-      ) {
-        const txId = this.#messageElement.innerText.replace(
-          "NFT Minted! Transaction ID: ",
-          ""
-        );
-
-        // Copy to clipboard
-        navigator.clipboard.writeText(txId);
-        this.showToast("Transaction ID copied to clipboard", "success");
-
-        // Open transaction in new tab
-        const network = this.#sdk.network === "mainnet" ? "mainnet" : "testnet";
-        const txUrl = `https://lora.algokit.io/${network}/transaction/${txId}`;
-        window.open(txUrl, "_blank");
-      }
+    // Theme toggle
+    document.getElementById("algox-theme-btn").addEventListener("click", () => {
+      callbacks.onThemeToggle();
     });
 
     // Copy to clipboard for wallet address bar
@@ -213,11 +186,6 @@ export class UIManager {
         navigator.clipboard.writeText(this.#sdk.account);
         this.showToast("Wallet address copied to clipboard", "success");
       }
-    });
-
-    // Add theme toggle button listener
-    document.getElementById("algox-theme-btn").addEventListener("click", () => {
-      callbacks.onThemeToggle();
     });
   }
 
@@ -650,11 +618,11 @@ export class UIManager {
         if (targetPane) targetPane.classList.add("active");
 
         // Call SDK-specific callbacks
-        if (tab === "stake") {
-          callbacks.onRenderAssets();
-        } else if (tab === "mystakes") {
-          callbacks.onRenderMyStaking();
-        }
+        // if (tab === "stake") {
+        //   callbacks.onRenderAssets();
+        // } else if (tab === "mystakes") {
+        //   callbacks.onRenderMyStaking();
+        // }
       });
     });
 
@@ -669,6 +637,52 @@ export class UIManager {
   // ==========================================
   // SDK-SPECIFIC METHODS (ALGOMINTX)
   // ==========================================
+
+  /**
+   * Setup SDK-specific event listeners
+   */
+  #setupSDKEventListeners(callbacks) {
+    // Initialize tab system (SDK-specific because it wires staking callbacks)
+    this.#initTabSystem(callbacks);
+
+    // Mint NFT button
+    document
+      .getElementById("algox-mintx-mint-btn")
+      .addEventListener("click", async () => {
+        await callbacks.onMintNFT();
+      });
+
+    // Reset NFT button
+    document
+      .getElementById("algox-mintx-reset-btn")
+      .addEventListener("click", () => callbacks.onResetNFT());
+
+    // Copy to clipboard for sdkMessages (tx id)
+    this.#messageElement = document.getElementById("algox-mintx-messages");
+    if (this.#messageElement) {
+      this.#messageElement.addEventListener("click", () => {
+        if (
+          this.#messageElement.innerText &&
+          this.#messageElement.innerText !== "Minting NFT... Please wait."
+        ) {
+          const txId = this.#messageElement.innerText.replace(
+            "NFT Minted! Transaction ID: ",
+            ""
+          );
+
+          // Copy to clipboard
+          navigator.clipboard.writeText(txId);
+          this.showToast("Transaction ID copied to clipboard", "success");
+
+          // Open transaction in new tab
+          const network =
+            this.#sdk.network === "mainnet" ? "mainnet" : "testnet";
+          const txUrl = `https://lora.algokit.io/${network}/transaction/${txId}`;
+          window.open(txUrl, "_blank");
+        }
+      });
+    }
+  }
 
   /**
    * Setup input validation and event listeners for NFT form
