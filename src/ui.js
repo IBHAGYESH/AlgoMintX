@@ -7,6 +7,7 @@ import eventBus from "./event-bus.js";
 import "./ui.css";
 
 export class UIManager {
+  // ALGOXSUITE STANDARD
   #sdk;
   #disableUi;
   #disableToast;
@@ -14,9 +15,11 @@ export class UIManager {
   #minimizeUILocation;
   #toastLocation;
   #currentLoadingMessage;
+  // SDK-SPECIFIC
   #messageElement;
 
   constructor(sdk, config) {
+    // ALGOXSUITE STANDARD
     this.#sdk = sdk;
     this.#disableUi = config.disableUi;
     this.#disableToast = config.disableToast;
@@ -24,6 +27,7 @@ export class UIManager {
     this.#minimizeUILocation = config.minimizeUILocation;
     this.#toastLocation = config.toastLocation;
     this.#currentLoadingMessage = null;
+    // SDK-SPECIFIC
     this.#messageElement = null;
   }
 
@@ -43,8 +47,10 @@ export class UIManager {
     const existingSdk = document.getElementById("algox-sdk-container");
     if (existingSdk) existingSdk.remove();
 
+    // Create SDK container and inner UI
     const container = document.createElement("div");
     container.id = "algox-sdk-container";
+    container.style.display = this.#sdk.isMinimized ? "none" : "flex";
 
     // ========== COMMON HEADER ==========
     const commonHeader = `
@@ -223,6 +229,11 @@ export class UIManager {
       return;
     }
 
+    if (!this.#sdk || !this.#sdk.account) {
+      this.resetToLoginUI();
+      return;
+    }
+
     document.getElementById("algox-sdk-container").style.display = "flex";
     document.getElementById("algox-header").style.display = "flex";
     document.getElementById("algox-logout-btn").style.display = "contents";
@@ -245,7 +256,7 @@ export class UIManager {
       return;
     }
 
-    this.clearMessage();
+    this.clearMessage(); // SDK-specific
     this.updateWalletAddressBar();
 
     document.getElementById("algox-sdk-container").style.display = "flex";
@@ -278,6 +289,24 @@ export class UIManager {
         walletAddressBar.innerText = "";
         walletAddressBar.style.display = "none";
       }
+    }
+  }
+
+  /**
+   * Setup toast container
+   */
+  setupToastContainer() {
+    if (this.#disableToast || this.#disableUi) {
+      return;
+    }
+
+    let toastContainer = document.getElementById("algox-toast-container");
+    if (!toastContainer) {
+      toastContainer = document.createElement("div");
+      toastContainer.id = "algox-toast-container";
+      toastContainer.className =
+        this.#toastLocation === "TOP_LEFT" ? "top-left" : "top-right";
+      document.body.appendChild(toastContainer);
     }
   }
 
@@ -334,24 +363,6 @@ export class UIManager {
     });
 
     setTimeout(() => toastClose.onclick(), 3500);
-  }
-
-  /**
-   * Setup toast container
-   */
-  setupToastContainer() {
-    if (this.#disableToast || this.#disableUi) {
-      return;
-    }
-
-    let toastContainer = document.getElementById("algox-toast-container");
-    if (!toastContainer) {
-      toastContainer = document.createElement("div");
-      toastContainer.id = "algox-toast-container";
-      toastContainer.className =
-        this.#toastLocation === "TOP_LEFT" ? "top-left" : "top-right";
-      document.body.appendChild(toastContainer);
-    }
   }
 
   /**
@@ -476,12 +487,14 @@ export class UIManager {
     const container = document.getElementById("algox-sdk-container");
     const minimizedBtn = document.getElementById("algox-minimized-btn");
 
-    if (this.#sdk.theme === "dark") {
-      if (container) container.classList.add("dark-theme");
-      if (minimizedBtn) minimizedBtn.classList.add("dark-theme");
-    } else {
-      if (container) container.classList.remove("dark-theme");
-      if (minimizedBtn) minimizedBtn.classList.remove("dark-theme");
+    if (container) {
+      if (this.#sdk.theme === "dark") {
+        container.classList.add("dark-theme");
+        if (minimizedBtn) minimizedBtn.classList.add("dark-theme");
+      } else {
+        container.classList.remove("dark-theme");
+        if (minimizedBtn) minimizedBtn.classList.remove("dark-theme");
+      }
     }
   }
 
@@ -575,63 +588,82 @@ export class UIManager {
   }
 
   /**
-   * Show temporary wallet connection UI (for headless mode)
+   * Initialize common tab system with navigation
    */
-  async showTemporaryWalletConnectionUI(walletType, onCancel) {
-    // Create a temporary overlay for wallet connection
-    const overlay = document.createElement("div");
-    overlay.id = "algox-temp-wallet-overlay";
+  #initTabSystem(callbacks) {
+    const container = document.getElementById("algox-sdk-container");
+    const tabsTrack = container?.querySelector(".algox-tabs-track");
+    const tabButtons = container?.querySelectorAll(".algox-tab-btn");
+    const prevBtn = container?.querySelector("#algox-tab-prev");
+    const nextBtn = container?.querySelector("#algox-tab-next");
 
-    const container = document.createElement("div");
-    container.className = "temp-wallet-container";
+    if (!tabsTrack || !tabButtons || tabButtons.length === 0) return;
 
-    const title = document.createElement("h2");
-    title.className = "temp-wallet-title";
-    title.textContent = "Connect Wallet";
+    let currentOffset = 0;
+    const totalTabs = tabButtons.length;
+    const visibleTabs = 2;
 
-    const message = document.createElement("p");
-    message.className = "temp-wallet-message";
-    message.textContent = `Please open your ${walletType} wallet to complete the connection.`;
+    // Hide navigation buttons if only 2 or fewer tabs
+    if (totalTabs <= visibleTabs) {
+      if (prevBtn) prevBtn.style.display = "none";
+      if (nextBtn) nextBtn.style.display = "none";
+    }
 
-    const spinner = document.createElement("div");
-    spinner.className = "temp-wallet-spinner";
+    // Update navigation button states
+    const updateNavButtons = () => {
+      if (!prevBtn || !nextBtn || totalTabs <= visibleTabs) return;
 
-    const cancelBtn = document.createElement("button");
-    cancelBtn.className = "temp-wallet-cancel-btn";
-    cancelBtn.textContent = "Cancel";
-
-    cancelBtn.onclick = async () => {
-      onCancel();
-      this.hideTemporaryWalletConnectionUI();
+      prevBtn.disabled = currentOffset === 0;
+      nextBtn.disabled = currentOffset >= totalTabs - visibleTabs;
     };
 
-    container.appendChild(title);
-    container.appendChild(message);
-    container.appendChild(spinner);
-    container.appendChild(cancelBtn);
-    overlay.appendChild(container);
-    document.body.appendChild(overlay);
-
-    // Store reference to overlay for later removal
-    this.tempWalletOverlay = overlay;
-
-    // Add a safety timeout to auto-hide the UI after 5 minutes
-    setTimeout(() => {
-      if (this.tempWalletOverlay) {
-        this.hideTemporaryWalletConnectionUI();
-        eventBus.emit("wallet:connection:timeout", { walletType });
+    // Navigate tabs
+    const navigateTabs = (direction) => {
+      if (direction === "prev" && currentOffset > 0) {
+        currentOffset--;
+      } else if (
+        direction === "next" &&
+        currentOffset < totalTabs - visibleTabs
+      ) {
+        currentOffset++;
       }
-    }, 5 * 60 * 1000); // 5 minutes
-  }
 
-  /**
-   * Hide temporary wallet connection UI
-   */
-  hideTemporaryWalletConnectionUI() {
-    if (this.tempWalletOverlay) {
-      this.tempWalletOverlay.remove();
-      this.tempWalletOverlay = null;
-    }
+      const offset = currentOffset * -50; // Each tab is 50% width
+      tabsTrack.style.transform = `translateX(${offset}%)`;
+      updateNavButtons();
+    };
+
+    // Tab click handlers
+    tabButtons.forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const tab = btn.getAttribute("data-tab");
+
+        // Update active tab styling
+        tabButtons.forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+
+        // Update tab panes
+        const tabPanes = container.querySelectorAll(".algox-tab-pane");
+        tabPanes.forEach((pane) => pane.classList.remove("active"));
+
+        const targetPane = container.querySelector(`#algox-stakex-${tab}-tab`);
+        if (targetPane) targetPane.classList.add("active");
+
+        // Call SDK-specific callbacks
+        if (tab === "stake") {
+          callbacks.onRenderAssets();
+        } else if (tab === "mystakes") {
+          callbacks.onRenderMyStaking();
+        }
+      });
+    });
+
+    // Navigation button handlers
+    prevBtn?.addEventListener("click", () => navigateTabs("prev"));
+    nextBtn?.addEventListener("click", () => navigateTabs("next"));
+
+    // Initialize navigation state
+    updateNavButtons();
   }
 
   // ==========================================

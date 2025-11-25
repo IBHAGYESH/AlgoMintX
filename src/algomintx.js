@@ -43,18 +43,18 @@ class AlgoMintX {
   #toastLocation;
   #mnemonicAccount; // For programmatic wallet connection
   #uiManager; // UI Manager instance
+  #indexerUrl;
 
   // ==========================================
   // SDK-SPECIFIC PRIVATE FIELDS (ALGOMINTX)
   // ==========================================
   #contractApplicationId;
   #contractWalletAddress;
-  #indexerUrl;
+  #namespace;
   #unitName;
   #metadataMark;
   #pinata_ipfs_server_key;
   #pinata_ipfs_gateway_url;
-  #namespace;
   #revenueWalletAddress;
   #listingFee;
   #buyingFee;
@@ -327,29 +327,12 @@ class AlgoMintX {
       return;
     }
 
-    this.#uiManager.clearMessage();
+    this.#uiManager.clearMessage(); // SDK-Specific
     this.#selectedWalletType = walletType;
 
     // If UI is disabled, we need to temporarily show wallet connection UI
     if (this.#disableUi) {
-      // Create temporary wallet connection UI
-      await this.#uiManager.showTemporaryWalletConnectionUI(
-        walletType,
-        async () => {
-          this.#connectionInProgress = false;
-          if (this.#walletConnectors[walletType]) {
-            try {
-              await this.#walletConnectors[walletType].disconnect();
-              if (this.#walletConnectors[walletType].killSession) {
-                await this.#walletConnectors[walletType].killSession();
-              }
-            } catch (error) {
-              console.error("Failed to disconnect wallet:", error);
-            }
-          }
-          eventBus.emit("wallet:connection:cancelled", { walletType });
-        }
-      );
+      console.log("UI is disabled, skipping wallet connection UI");
     } else {
       // Only manipulate DOM if UI is not disabled
       document.getElementById("algox-sdk-container").style.display = "none";
@@ -382,10 +365,8 @@ class AlgoMintX {
 
       if (!this.#disableUi) {
         this.#uiManager.showSDKUI();
-      } else {
-        // Hide the temporary wallet connection UI
-        this.#uiManager.hideTemporaryWalletConnectionUI();
       }
+
       this.#uiManager.showToast(`Connected to ${walletType} wallet`, "success");
       eventBus.emit("wallet:connection:connected", { address: this.account });
       this.#connectionInProgress = false;
@@ -396,7 +377,7 @@ class AlgoMintX {
           await walletConnector.killSession(); // Extra hard-kill if supported
         }
         if (this.#disableUi) {
-          this.#uiManager.hideTemporaryWalletConnectionUI();
+          console.error("UI is disabled, skipping wallet connection UI");
         } else {
           window.location.reload();
         }
@@ -423,7 +404,7 @@ class AlgoMintX {
                 this.#uiManager.showSDKUI();
                 this.#uiManager.updateWalletAddressBar();
               } else {
-                this.#uiManager.hideTemporaryWalletConnectionUI();
+                console.error("UI is disabled, skipping wallet connection UI");
               }
 
               this.#uiManager.showToast(
@@ -448,7 +429,7 @@ class AlgoMintX {
           error: "Failed to connect wallet!",
         });
         if (this.#disableUi) {
-          this.#uiManager.hideTemporaryWalletConnectionUI();
+          console.error("UI is disabled, skipping wallet connection UI");
         } else {
           this.#resetToLoginUI();
         }
@@ -897,11 +878,11 @@ class AlgoMintX {
           //   "Mnemonic does not match the provided wallet address"
           // );
         }
-        this.#mnemonicAccount = account;
       } catch (error) {
         throw new Error("Invalid mnemonic");
       }
 
+      this.#mnemonicAccount = account;
       this.account = walletAddress;
       this.#walletConnected = true;
       this.#connectionInfo = {
