@@ -99,7 +99,7 @@ export class UIManager {
     </div>
 
     <div class="algox-tab-content">
-      <div id="algox-tab" class="algox-tab-pane active">
+      <div id="algox-nft-tab" class="algox-tab-pane active">
           <div id="algox-mintx-content">
             <input type="text" id="algox-mintx-nft-name" placeholder="NFT Name" />
             <textarea id="algox-mintx-nft-description" placeholder="NFT Description"></textarea>
