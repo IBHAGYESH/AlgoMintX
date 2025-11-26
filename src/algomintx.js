@@ -349,7 +349,7 @@ class AlgoMintX {
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(
           () => reject(new Error("Wallet connection timed out.")),
-          60 * 1000
+          30 * 1000
         )
       );
 
@@ -414,6 +414,7 @@ class AlgoMintX {
               eventBus.emit("wallet:connection:connected", {
                 address: this.account,
               });
+              this.#connectionInProgress = false;
               return; // Exit successfully
             }
           } catch (reconnectError) {
@@ -428,9 +429,12 @@ class AlgoMintX {
         eventBus.emit("wallet:connection:failed", {
           error: "Failed to connect wallet!",
         });
+        this.#connectionInProgress = false;
         if (this.#disableUi) {
           console.error("UI is disabled, skipping wallet connection UI");
         } else {
+          // Ensure the hidden container is shown back before resetting UI
+          document.getElementById("algox-sdk-container").style.display = "flex";
           this.#resetToLoginUI();
         }
       }
