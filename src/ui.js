@@ -16,8 +16,10 @@ export class UIManager {
   #minimizeUILocation;
   #toastLocation;
   #currentLoadingMessage;
+  #marketplaceType;
   // SDK-SPECIFIC
   #messageElement;
+  #ftMessageElement;
 
   constructor(sdk, config) {
     // ALGOXSUITE STANDARD
@@ -28,8 +30,10 @@ export class UIManager {
     this.#minimizeUILocation = config.minimizeUILocation;
     this.#toastLocation = config.toastLocation;
     this.#currentLoadingMessage = null;
+    this.#marketplaceType = config.marketplaceType || "NFT";
     // SDK-SPECIFIC
     this.#messageElement = null;
+    this.#ftMessageElement = null;
   }
 
   // ==========================================
@@ -87,20 +91,35 @@ export class UIManager {
       </div>`;
 
     // ========== SDK-SPECIFIC CONTENT ==========
+    const showNftTab = this.#marketplaceType === "NFT";
+    const showFtTab = this.#marketplaceType === "FT";
+
     const sdkSpecificContent = `
+    <div id="algox-mintx-content">
     <div class="algox-tabs-container">
       <button class="algox-tab-nav-btn" id="algox-tab-prev">‹</button>
       <div class="algox-tabs-wrapper">
         <div class="algox-tabs-track">
-          <button class="algox-tab-btn active" data-tab="mint">Mint NFT</button>
+          ${
+            showNftTab
+              ? `<button class="algox-tab-btn active" data-tab="nft">Mint NFT</button>`
+              : ""
+          }
+          ${
+            showFtTab
+              ? `<button class="algox-tab-btn${showNftTab ? "" : " active"}" data-tab="ft">Mint FT</button>`
+              : ""
+          }
         </div>
       </div>
       <button class="algox-tab-nav-btn" id="algox-tab-next">›</button>
     </div>
 
     <div class="algox-tab-content">
-      <div id="algox-nft-tab" class="algox-tab-pane active">
-          <div id="algox-mintx-content">
+      ${
+        showNftTab
+          ? `<div id="algox-nft-tab" class="algox-tab-pane active">
+          <div id="algox-mintx-nft-form">
             <input type="text" id="algox-mintx-nft-name" placeholder="NFT Name" />
             <textarea id="algox-mintx-nft-description" placeholder="NFT Description"></textarea>
             <input type="file" id="algox-mintx-nft-file" accept="image/*,video/*" />
@@ -108,16 +127,40 @@ export class UIManager {
             <button id="algox-mintx-reset-btn">Mint another NFT</button>
             <div id="algox-mintx-messages" title="Click to copy"></div>
           </div>
-      </div>
+      </div>`
+          : ""
+      }
+      ${
+        showFtTab
+          ? `<div id="algox-ft-tab" class="algox-tab-pane${showNftTab ? "" : " active"}">
+          <div id="algox-mintx-ft-content">
+            <input type="text" id="algox-mintx-ft-name" placeholder="Token Name" />
+            <textarea id="algox-mintx-ft-description" placeholder="Token Description"></textarea>
+            <input type="number" id="algox-mintx-ft-decimals" placeholder="Decimals (0 - 19)" min="0" max="19" step="1" />
+            <input type="number" id="algox-mintx-ft-supply" placeholder="Total Supply" min="1" step="1" />
+            <label class="algox-mintx-ft-file-label" for="algox-mintx-ft-file">Token Icon (optional)</label>
+            <input type="file" id="algox-mintx-ft-file" accept="image/*" />
+            <button id="algox-mintx-ft-mint-btn" title="Mint FT">Mint FT</button>
+            <button id="algox-mintx-ft-reset-btn">Mint another FT</button>
+            <div id="algox-mintx-ft-messages" title="Click to copy"></div>
+          </div>
+      </div>`
+          : ""
+      }
+    </div>
     </div>`;
 
     // ========== COMMON FOOTER ==========
+    const authorFooter = this.#logo
+      ? ""
+      : `
+      <div id="algox-footer">
+        <span>AlgoMintX crafted with ❤️ by <a href="https://ibhagyesh.com/" target="_blank" rel="noopener noreferrer">ibhagyesh</a></span>
+      </div>`;
+
     const commonFooter = `
       <div id="algox-wallet-address" title="Click to copy connected wallet address"></div>
-      
-      <div id="algox-footer">
-        <span>AlgoMintX crafted with ❤️ by <a href="https://ibhagyesh.site/" target="_blank" rel="noopener noreferrer">ibhagyesh</a></span>
-      </div>
+      ${authorFooter}
 
       <div id="algox-loading-overlay">
         <div id="algox-loader"></div>
@@ -239,6 +282,7 @@ export class UIManager {
     }
 
     this.clearMessage(); // SDK-specific
+    this.clearFTMessage(); // SDK-specific
     this.updateWalletAddressBar();
 
     document.getElementById("algox-sdk-container").style.display = "flex";
@@ -679,6 +723,18 @@ export class UIManager {
       .getElementById("algox-mintx-reset-btn")
       .addEventListener("click", () => callbacks.onResetNFT());
 
+    // Mint FT button
+    document
+      .getElementById("algox-mintx-ft-mint-btn")
+      .addEventListener("click", async () => {
+        await callbacks.onMintFT();
+      });
+
+    // Reset FT button
+    document
+      .getElementById("algox-mintx-ft-reset-btn")
+      .addEventListener("click", () => callbacks.onResetFT());
+
     // Copy to clipboard for sdkMessages (tx id)
     this.#messageElement = document.getElementById("algox-mintx-messages");
     if (this.#messageElement) {
@@ -689,6 +745,32 @@ export class UIManager {
         ) {
           const txId = this.#messageElement.innerText.replace(
             "NFT Minted! Transaction ID: ",
+            ""
+          );
+
+          // Copy to clipboard
+          navigator.clipboard.writeText(txId);
+          this.showToast("Transaction ID copied to clipboard", "success");
+
+          // Open transaction in new tab
+          const network =
+            this.#sdk.network === "mainnet" ? "mainnet" : "testnet";
+          const txUrl = `https://lora.algokit.io/${network}/transaction/${txId}`;
+          window.open(txUrl, "_blank");
+        }
+      });
+    }
+
+    // Copy to clipboard for FT sdkMessages (tx id)
+    this.#ftMessageElement = document.getElementById("algox-mintx-ft-messages");
+    if (this.#ftMessageElement) {
+      this.#ftMessageElement.addEventListener("click", () => {
+        if (
+          this.#ftMessageElement.innerText &&
+          this.#ftMessageElement.innerText !== "Minting FT... Please wait."
+        ) {
+          const txId = this.#ftMessageElement.innerText.replace(
+            "FT Minted! Transaction ID: ",
             ""
           );
 
@@ -942,6 +1024,259 @@ export class UIManager {
 
     const mintBtn = document.getElementById("algox-mintx-mint-btn");
     const resetBtn = document.getElementById("algox-mintx-reset-btn");
+    if (mintBtn) mintBtn.style.display = "none";
+    if (resetBtn) resetBtn.style.display = "block";
+  }
+
+  // ==========================================
+  // SDK-SPECIFIC METHODS (FT MINTING)
+  // ==========================================
+
+  /**
+   * Setup input validation and event listeners for FT form
+   */
+  setupFTInputValidation(callbacks) {
+    if (this.#disableUi) {
+      return;
+    }
+
+    const ftName = document.getElementById("algox-mintx-ft-name");
+    const ftDescription = document.getElementById("algox-mintx-ft-description");
+    const ftDecimals = document.getElementById("algox-mintx-ft-decimals");
+    const ftSupply = document.getElementById("algox-mintx-ft-supply");
+    const ftFile = document.getElementById("algox-mintx-ft-file");
+
+    // Name validation (max 50 chars, sanitize)
+    ftName.addEventListener("input", (e) => {
+      if (e.target.value.length > 50) {
+        e.target.value = e.target.value.slice(0, 50);
+        this.showToast("Token name cannot exceed 50 characters", "error");
+        return;
+      }
+      if (e.target.value.includes("<") || e.target.value.includes(">")) {
+        const sanitized = callbacks.sanitizeInput(e.target.value);
+        if (sanitized !== e.target.value) {
+          e.target.value = sanitized;
+        }
+      }
+      this.validateFTMintButton();
+    });
+
+    // Description validation (max 500 chars, sanitize)
+    ftDescription.addEventListener("input", (e) => {
+      if (e.target.value.length > 500) {
+        e.target.value = e.target.value.slice(0, 500);
+        this.showToast(
+          "Token description cannot exceed 500 characters",
+          "error"
+        );
+        return;
+      }
+      if (e.target.value.includes("<") || e.target.value.includes(">")) {
+        const sanitized = callbacks.sanitizeInput(e.target.value);
+        if (sanitized !== e.target.value) {
+          e.target.value = sanitized;
+        }
+      }
+      this.validateFTMintButton();
+    });
+
+    // Decimals validation (integer 0 - 19)
+    ftDecimals.addEventListener("input", (e) => {
+      let value = e.target.value.replace(/[^0-9]/g, "");
+      if (value !== "" && Number(value) > 19) {
+        value = "19";
+        this.showToast("Decimals cannot exceed 19", "error");
+      }
+      e.target.value = value;
+      this.validateFTMintButton();
+    });
+
+    // Total supply validation (positive integer)
+    ftSupply.addEventListener("input", (e) => {
+      const value = e.target.value.replace(/[^0-9]/g, "");
+      e.target.value = value;
+      this.validateFTMintButton();
+    });
+
+    // Icon file validation (optional, image only)
+    ftFile.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        const validation = callbacks.validateFileType(file);
+        if (!validation.valid) {
+          this.showToast(validation.message, "error");
+          e.target.value = "";
+        }
+      }
+      this.validateFTMintButton();
+    });
+
+    // Paste sanitization for name / description
+    ftName.addEventListener("paste", (e) => {
+      e.preventDefault();
+      const pastedText = (e.clipboardData || window.clipboardData).getData(
+        "text"
+      );
+      const truncatedText = pastedText.slice(0, 50);
+      e.target.value = callbacks.sanitizeInput(truncatedText);
+      if (pastedText.length > 50) {
+        this.showToast("Token name cannot exceed 50 characters", "error");
+      }
+      this.validateFTMintButton();
+    });
+
+    ftDescription.addEventListener("paste", (e) => {
+      e.preventDefault();
+      const pastedText = (e.clipboardData || window.clipboardData).getData(
+        "text"
+      );
+      const truncatedText = pastedText.slice(0, 500);
+      e.target.value = callbacks.sanitizeInput(truncatedText);
+      if (pastedText.length > 500) {
+        this.showToast(
+          "Token description cannot exceed 500 characters",
+          "error"
+        );
+      }
+      this.validateFTMintButton();
+    });
+
+    // Initial validation
+    this.validateFTMintButton();
+  }
+
+  /**
+   * Validate FT mint button state
+   */
+  validateFTMintButton() {
+    if (this.#disableUi) {
+      return;
+    }
+
+    const mintBtn = document.getElementById("algox-mintx-ft-mint-btn");
+    const ftName = document.getElementById("algox-mintx-ft-name");
+    const ftDescription = document.getElementById("algox-mintx-ft-description");
+    const ftDecimals = document.getElementById("algox-mintx-ft-decimals");
+    const ftSupply = document.getElementById("algox-mintx-ft-supply");
+
+    const isNameValid = ftName.value.trim().length > 0;
+    const isDescriptionValid = ftDescription.value.trim().length > 0;
+    const decimalsNum = Number(ftDecimals.value);
+    const isDecimalsValid =
+      ftDecimals.value !== "" &&
+      Number.isInteger(decimalsNum) &&
+      decimalsNum >= 0 &&
+      decimalsNum <= 19;
+    const supplyNum = Number(ftSupply.value);
+    const isSupplyValid =
+      ftSupply.value !== "" && Number.isInteger(supplyNum) && supplyNum >= 1;
+
+    mintBtn.disabled = !(
+      isNameValid &&
+      isDescriptionValid &&
+      isDecimalsValid &&
+      isSupplyValid
+    );
+  }
+
+  /**
+   * Reset FT form details
+   */
+  resetFTDetails() {
+    if (this.#disableUi) {
+      return;
+    }
+
+    const ftName = document.getElementById("algox-mintx-ft-name");
+    const ftDescription = document.getElementById("algox-mintx-ft-description");
+    const ftDecimals = document.getElementById("algox-mintx-ft-decimals");
+    const ftSupply = document.getElementById("algox-mintx-ft-supply");
+    const ftFile = document.getElementById("algox-mintx-ft-file");
+    const mintBtn = document.getElementById("algox-mintx-ft-mint-btn");
+    const resetBtn = document.getElementById("algox-mintx-ft-reset-btn");
+
+    ftName.value = "";
+    ftDescription.value = "";
+    ftDecimals.value = "";
+    ftSupply.value = "";
+    ftFile.value = "";
+    mintBtn.style.display = "block";
+    resetBtn.style.display = "none";
+    mintBtn.disabled = true;
+    this.clearFTMessage();
+
+    this.validateFTMintButton();
+  }
+
+  /**
+   * Clear FT message element
+   */
+  clearFTMessage() {
+    if (this.#disableUi) {
+      return;
+    }
+
+    if (this.#ftMessageElement) {
+      this.#ftMessageElement.innerText = "";
+      this.#ftMessageElement.style.display = "none";
+      this.#ftMessageElement.style.cursor = "pointer";
+    }
+  }
+
+  /**
+   * Update FT message element (for mint success)
+   */
+  updateFTMessage(message, cursor = "pointer") {
+    if (this.#disableUi) {
+      return;
+    }
+
+    if (this.#ftMessageElement) {
+      this.#ftMessageElement.innerText = message;
+      this.#ftMessageElement.style.display = "block";
+      this.#ftMessageElement.style.cursor = cursor;
+    }
+  }
+
+  /**
+   * Disable FT mint button
+   */
+  disableFTMintButton() {
+    if (this.#disableUi) {
+      return;
+    }
+
+    const mintBtn = document.getElementById("algox-mintx-ft-mint-btn");
+    const logoutBtn = document.getElementById("algox-logout-btn");
+    if (mintBtn) mintBtn.disabled = true;
+    if (logoutBtn) logoutBtn.disabled = true;
+  }
+
+  /**
+   * Enable FT mint button
+   */
+  enableFTMintButton() {
+    if (this.#disableUi) {
+      return;
+    }
+
+    const mintBtn = document.getElementById("algox-mintx-ft-mint-btn");
+    const logoutBtn = document.getElementById("algox-logout-btn");
+    if (mintBtn) mintBtn.disabled = false;
+    if (logoutBtn) logoutBtn.disabled = false;
+  }
+
+  /**
+   * Show FT reset button
+   */
+  showFTResetButton() {
+    if (this.#disableUi) {
+      return;
+    }
+
+    const mintBtn = document.getElementById("algox-mintx-ft-mint-btn");
+    const resetBtn = document.getElementById("algox-mintx-ft-reset-btn");
     if (mintBtn) mintBtn.style.display = "none";
     if (resetBtn) resetBtn.style.display = "block";
   }

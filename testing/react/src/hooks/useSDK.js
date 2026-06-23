@@ -30,6 +30,20 @@ export function useSDK() {
         });
 
         setAlgoMintXClient(sdkInstance);
+
+        // Marketplace discovery smoke test (console)
+        sdkInstance
+          .getMarketplaces()
+          .then((marketplaces) => console.log("getMarketplaces:", marketplaces))
+          .catch((err) =>
+            console.warn("getMarketplaces smoke test:", err.message),
+          );
+        sdkInstance
+          .listingStatus(0)
+          .then((status) => console.log("listingStatus:", status))
+          .catch((err) =>
+            console.warn("listingStatus smoke test:", err.message),
+          );
       } catch (error) {
         console.error("SDK initialization error:", error);
       }

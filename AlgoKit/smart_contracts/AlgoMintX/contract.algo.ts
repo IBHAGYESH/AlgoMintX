@@ -11,6 +11,7 @@ import {
   assert,
   arc4,
   clone,
+  op,
 } from "@algorandfoundation/algorand-typescript";
 
 // Global constants
@@ -24,8 +25,15 @@ class Listing extends arc4.Struct<{
 }> {}
 
 export class AlgoMintX extends Contract {
-  // BoxMap with key as assetId and value as Listing type
-  private listings = BoxMap<uint64, Listing>({ keyPrefix: "listing_" });
+  // BoxMap key: listing_{marketplace}_{assetId} (mirrors AlgoStakeX stake_{poolId}_{address})
+  private listings = BoxMap<bytes, Listing>({ keyPrefix: "listing_" });
+
+  private buildListingKey(marketplace: string, assetId: uint64): bytes {
+    const marketplaceBytes = new arc4.Str(marketplace).bytes;
+    const separator = new arc4.Str("_").bytes;
+    const assetIdBytes = new arc4.Uint64(assetId).bytes;
+    return op.concat(op.concat(marketplaceBytes, separator), assetIdBytes);
+  }
 
   /**
    *
@@ -38,47 +46,46 @@ export class AlgoMintX extends Contract {
     nftPrice: string,
     marketplace: string
   ): bytes {
-    // Check if the listing already exists
+    const listingKey = this.buildListingKey(marketplace, assetId);
+
     assert(
-      !this.listings(assetId).exists,
+      !this.listings(listingKey).exists,
       "A listing already exists for this NFT"
     );
 
-    // If it doesn't exist, create a new listing
     const value = new Listing({
       seller: new arc4.Str(senderWalletAddress),
       nftPrice: new arc4.Str(nftPrice),
       marketplace: new arc4.Str(marketplace),
     });
 
-    // Store the listing in the box
-    this.listings(assetId).value = clone(value);
+    this.listings(listingKey).value = clone(value);
 
     return Txn.txId;
   }
 
-  @abimethod()
-  public getNFTListing(assetId: uint64): Listing {
-    // Check if the listing exists
+  @abimethod({ readonly: true })
+  public getNFTListing(marketplace: string, assetId: uint64): Listing {
+    const listingKey = this.buildListingKey(marketplace, assetId);
+
     assert(
-      this.listings(assetId).exists,
+      this.listings(listingKey).exists,
       "No active listing found for this NFT"
     );
 
-    // Get the listing details from the box
-    return clone(this.listings(assetId).value);
+    return clone(this.listings(listingKey).value);
   }
 
   @abimethod()
-  public removeNFTListing(assetId: uint64): bytes {
-    // Check if the listing exists
+  public removeNFTListing(marketplace: string, assetId: uint64): bytes {
+    const listingKey = this.buildListingKey(marketplace, assetId);
+
     assert(
-      this.listings(assetId).exists,
+      this.listings(listingKey).exists,
       "No active listing found for this NFT"
     );
 
-    // Remove the listing
-    this.listings(assetId).delete();
+    this.listings(listingKey).delete();
 
     return Txn.txId;
   }
@@ -89,14 +96,77 @@ export class AlgoMintX extends Contract {
    */
 
   @abimethod()
-  public contractOptInToNFT(assetId: uint64): bytes {
-    // Check if the listing already exists
+  public contractOptInToNFT(marketplace: string, assetId: uint64): bytes {
+    const listingKey = this.buildListingKey(marketplace, assetId);
+
     assert(
-      !this.listings(assetId).exists,
+      !this.listings(listingKey).exists,
       "A listing already exists for this NFT"
     );
 
-    // Opt-in the contract to the NFT asset
+    itxn
+      .assetTransfer({
+        assetReceiver: Global.currentApplicationAddress,
+        xferAsset: assetId,
+        assetAmount: 0,
+        fee: 0,
+      })
+      .submit();
+
+    return Txn.txId;
+  }
+
+  /**
+   * Records a listing and opt-ins the contract to the asset.
+   * Escrow is completed by a user-signed asset transfer in the same atomic group
+   * (mirrors AlgoStakeX stake: app call + outer asset transfer).
+   */
+  @abimethod()
+  public transferNFTToContractAndAddListing(
+    assetId: uint64,
+    senderWalletAddress: string,
+    nftPrice: string,
+    marketplace: string
+  ): bytes {
+    const listingKey = this.buildListingKey(marketplace, assetId);
+
+    assert(
+      !this.listings(listingKey).exists,
+      "A listing already exists for this NFT"
+    );
+
+    itxn
+      .assetTransfer({
+        assetReceiver: Global.currentApplicationAddress,
+        xferAsset: assetId,
+        assetAmount: 0,
+        fee: 0,
+      })
+      .submit();
+
+    const value = new Listing({
+      seller: new arc4.Str(senderWalletAddress),
+      nftPrice: new arc4.Str(nftPrice),
+      marketplace: new arc4.Str(marketplace),
+    });
+
+    this.listings(listingKey).value = clone(value);
+
+    return Txn.txId;
+  }
+
+  /**
+   * Opt-in only. Pair with a user-signed asset transfer in the same atomic group.
+   */
+  @abimethod()
+  public transferNFTToContract(marketplace: string, assetId: uint64): bytes {
+    const listingKey = this.buildListingKey(marketplace, assetId);
+
+    assert(
+      !this.listings(listingKey).exists,
+      "A listing already exists for this NFT"
+    );
+
     itxn
       .assetTransfer({
         assetReceiver: Global.currentApplicationAddress,
@@ -110,52 +180,28 @@ export class AlgoMintX extends Contract {
   }
 
   @abimethod()
-  public transferNFTToContract(assetId: uint64): bytes {
-    // Check if the listing already exists
-    assert(
-      !this.listings(assetId).exists,
-      "A listing already exists for this NFT"
-    );
-
-    // Transfer NFT to the contract
-    itxn
-      .assetTransfer({
-        assetReceiver: Global.currentApplicationAddress,
-        assetSender: Txn.sender,
-        xferAsset: assetId,
-        assetAmount: 1,
-        fee: 0,
-      })
-      .submit();
-
-    return Txn.txId;
-  }
-
-  @abimethod()
   public transferNFTToReceiver(
+    marketplace: string,
     assetId: uint64,
     sellerWalletAddress: string
   ): bytes {
-    // Check if the listing exists
+    const listingKey = this.buildListingKey(marketplace, assetId);
+
     assert(
-      this.listings(assetId).exists,
+      this.listings(listingKey).exists,
       "No active listing found for this NFT"
     );
 
-    // Get the listing details from the box
-    const listing = clone(this.listings(assetId).value);
+    const listing = clone(this.listings(listingKey).value);
 
-    // Verify the NFT seller data matches with the listing data
     assert(
       listing.seller === new arc4.Str(sellerWalletAddress),
       "Seller wallet address does not match"
     );
 
-    // Transfer NFT to the receiver
     itxn
       .assetTransfer({
         assetReceiver: Txn.sender,
-        assetSender: Global.currentApplicationAddress,
         xferAsset: assetId,
         assetAmount: 1,
         fee: 0,
@@ -167,29 +213,27 @@ export class AlgoMintX extends Contract {
 
   @abimethod()
   public transferNFTToSeller(
+    marketplace: string,
     assetId: uint64,
     sellerWalletAddress: string
   ): bytes {
-    // Check if the listing exists
+    const listingKey = this.buildListingKey(marketplace, assetId);
+
     assert(
-      this.listings(assetId).exists,
+      this.listings(listingKey).exists,
       "No active listing found for this NFT"
     );
 
-    // Get the listing details from the box
-    const listing = clone(this.listings(assetId).value);
+    const listing = clone(this.listings(listingKey).value);
 
-    // Verify the NFT seller data matches with the listing data
     assert(
       listing.seller === new arc4.Str(sellerWalletAddress),
       "Seller wallet address does not match"
     );
 
-    // Transfer NFT to the seller
     itxn
       .assetTransfer({
         assetReceiver: Txn.sender,
-        assetSender: Global.currentApplicationAddress,
         xferAsset: assetId,
         assetAmount: 1,
         fee: 0,
@@ -204,92 +248,40 @@ export class AlgoMintX extends Contract {
    * NFT + Box methods
    */
   @abimethod()
-  public transferNFTToContractAndAddListing(
-    assetId: uint64,
-    senderWalletAddress: string,
-    nftPrice: string,
-    marketplace: string
-  ): bytes {
-    // Check if the listing already exists
-    assert(
-      !this.listings(assetId).exists,
-      "A listing already exists for this NFT"
-    );
-
-    // Opt-in the contract to the NFT asset
-    itxn
-      .assetTransfer({
-        assetReceiver: Global.currentApplicationAddress,
-        xferAsset: assetId,
-        assetAmount: 0,
-        fee: 0,
-      })
-      .submit();
-
-    // Transfer NFT to the contract
-    itxn
-      .assetTransfer({
-        assetReceiver: Global.currentApplicationAddress,
-        assetSender: Txn.sender,
-        xferAsset: assetId,
-        assetAmount: 1,
-        fee: 0,
-      })
-      .submit();
-
-    // If it doesn't exist, create a new listing
-    const value = new Listing({
-      seller: new arc4.Str(senderWalletAddress),
-      nftPrice: new arc4.Str(nftPrice),
-      marketplace: new arc4.Str(marketplace),
-    });
-
-    // Store the listing in the box
-    this.listings(assetId).value = clone(value);
-
-    return Txn.txId;
-  }
-
-  @abimethod()
   public transferNFTToReceiverAndRemoveListing(
     assetId: uint64,
     sellerWalletAddress: string,
     marketplace: string
   ): bytes {
-    // Check if the listing exists
+    const listingKey = this.buildListingKey(marketplace, assetId);
+
     assert(
-      this.listings(assetId).exists,
+      this.listings(listingKey).exists,
       "No active listing found for this NFT"
     );
 
-    // Get the listing details from the box
-    const listing = clone(this.listings(assetId).value);
+    const listing = clone(this.listings(listingKey).value);
 
-    // Verify the NFT seller data matches with the listing data
     assert(
       listing.seller === new arc4.Str(sellerWalletAddress),
       "Seller wallet address does not match"
     );
 
-    // Verify the marketplace matches with the listing data
     assert(
       listing.marketplace === new arc4.Str(marketplace),
       "Marketplace does not match"
     );
 
-    // Transfer NFT to the receiver
     itxn
       .assetTransfer({
         assetReceiver: Txn.sender,
-        assetSender: Global.currentApplicationAddress,
         xferAsset: assetId,
         assetAmount: 1,
         fee: 0,
       })
       .submit();
 
-    // Remove the listing
-    this.listings(assetId).delete();
+    this.listings(listingKey).delete();
 
     return Txn.txId;
   }
@@ -300,40 +292,35 @@ export class AlgoMintX extends Contract {
     sellerWalletAddress: string,
     marketplace: string
   ): bytes {
-    // Check if the listing exists
+    const listingKey = this.buildListingKey(marketplace, assetId);
+
     assert(
-      this.listings(assetId).exists,
+      this.listings(listingKey).exists,
       "No active listing found for this NFT"
     );
 
-    // Get the listing details from the box
-    const listing = clone(this.listings(assetId).value);
+    const listing = clone(this.listings(listingKey).value);
 
-    // Verify the NFT seller data matches with the listing data
     assert(
       listing.seller === new arc4.Str(sellerWalletAddress),
       "Seller wallet address does not match"
     );
 
-    // Verify the marketplace matches with the listing data
     assert(
       listing.marketplace === new arc4.Str(marketplace),
       "Marketplace does not match"
     );
 
-    // Transfer NFT to the seller
     itxn
       .assetTransfer({
         assetReceiver: Txn.sender,
-        assetSender: Global.currentApplicationAddress,
         xferAsset: assetId,
         assetAmount: 1,
         fee: 0,
       })
       .submit();
 
-    // Remove the listing
-    this.listings(assetId).delete();
+    this.listings(listingKey).delete();
 
     return Txn.txId;
   }
@@ -345,7 +332,6 @@ export class AlgoMintX extends Contract {
 
   @abimethod()
   public fundContract(amount: uint64): void {
-    // Only allow the contract creator to fund the contract
     assert(
       Txn.sender === Global.creatorAddress,
       "Only contract creator can fund the contract"
@@ -362,21 +348,17 @@ export class AlgoMintX extends Contract {
 
   @abimethod()
   public withdrawExcessFunds(): void {
-    // Only allow the contract creator to withdraw funds
     assert(
       Txn.sender === Global.creatorAddress,
       "Only contract creator can withdraw funds"
     );
 
-    // Calculate the amount to withdraw
     const amountToWithdraw = Uint64(
       Global.currentApplicationAddress.balance - MIN_BALANCE
     );
 
-    // Ensure we're not withdrawing below minimum balance
     assert(amountToWithdraw >= 0, "Cannot withdraw below minimum balance");
 
-    // Withdraw the funds
     itxn
       .payment({
         amount: amountToWithdraw,

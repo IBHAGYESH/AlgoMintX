@@ -18,6 +18,8 @@ window.algoMintXClient = new window.AlgoMintX({
   minimizeUILocation: "right", // left | right
   logo: "./logo.png", // your website logo (URL / path to image)
   supportedMediaFormats: ["IMAGE", "VIDEO", "AUDIO"], // ["IMAGE", "VIDEO", "AUDIO"]
+  marketplaceType: "NFT", // "NFT" (default) or "FT" — only this asset type can be listed/discovered/bought
+  disableUi: false,
 });
 
 /**
@@ -29,7 +31,19 @@ algoMintXClient.events.on(
   async ({ address }) => {
     console.log("Wallet connected:", address);
     updateProfileSection(address);
-  }
+
+    // Marketplace discovery smoke test
+    try {
+      const marketplaces = await algoMintXClient.getMarketplaces();
+      console.log("getMarketplaces:", marketplaces);
+      const count = await algoMintXClient.getMarketplaceCount();
+      console.log("getMarketplaceCount:", count);
+      const data = await algoMintXClient.getMarketplaceData("AMXDEMOY");
+      console.log("getMarketplaceData:", data);
+    } catch (error) {
+      console.warn("Marketplace discovery smoke test:", error.message);
+    }
+  },
 );
 
 algoMintXClient.events.on(
@@ -37,7 +51,7 @@ algoMintXClient.events.on(
   async ({ address }) => {
     console.log("wallet:connection:disconnected:", address);
     updateProfileSection(null);
-  }
+  },
 );
 
 algoMintXClient.events.on("wallet:connection:failed", async ({ error }) => {
@@ -60,7 +74,7 @@ algoMintXClient.events.on(
   "nft:mint:success",
   async ({ transactionId, nft }) => {
     console.log("nft:mint:success:", transactionId, nft);
-  }
+  },
 );
 
 algoMintXClient.events.on("nft:mint:failed", async ({ error }) => {
@@ -71,7 +85,7 @@ algoMintXClient.events.on(
   "nft:list:success",
   async ({ transactionId, nft }) => {
     console.log("nft:list:success:", transactionId, nft);
-  }
+  },
 );
 
 algoMintXClient.events.on("nft:list:failed", async ({ error }) => {
@@ -82,7 +96,7 @@ algoMintXClient.events.on(
   "nft:unlist:success",
   async ({ transactionId, nft }) => {
     console.log("nft:unlist:success:", transactionId, nft);
-  }
+  },
 );
 
 algoMintXClient.events.on("nft:unlist:failed", async ({ error }) => {
@@ -101,15 +115,18 @@ algoMintXClient.events.on("nft:buy:failed", async ({ error }) => {
  * ui code
  */
 
-// Function to render NFT cards
+// Function to render NFT/FT asset cards
 window.renderNFTCards = function (nfts, isViewingOtherWallet = false) {
   const nftGrid = document.getElementById("nft-grid");
   nftGrid.innerHTML = "";
 
   if (!nfts || nfts.length === 0) {
-    nftGrid.innerHTML = '<p class="no-nfts">No NFTs found</p>';
+    nftGrid.innerHTML = '<p class="no-nfts">No assets found</p>';
     return;
   }
+
+  const placeholderImage =
+    "https://img.icons8.com/ios-filled/100/808080/picture.png";
 
   // Function to truncate text
   const truncateText = (text, maxLength) => {
@@ -121,29 +138,22 @@ window.renderNFTCards = function (nfts, isViewingOtherWallet = false) {
     const card = document.createElement("div");
     card.className = "nft-card";
 
+    const canListOnMarketplace = !isViewingOtherWallet;
+    const listLabel = nft.assetType === "FT" ? "List FT" : "List NFT";
+
     let buttonHtml = "";
     if (isViewingOtherWallet) {
-      // When viewing another wallet's NFTs
       if (nft.listing) {
-        // Show buy button for listed NFTs
         buttonHtml = `<button class="btn btn-primary buy-nft-btn" onclick="window.algoMintXClient.buyNFT({ assetId: ${nft.assetId} })">Buy Now</button>`;
-      } else if (nft.currentHolder === window.algoMintXClient.account) {
-        // If the NFT belongs to the connected wallet, show list button
-        buttonHtml = `<button class="btn btn-secondary list-nft-btn" onclick="openListNFTModal(${nft.assetId})">List NFT</button>`;
       }
-    } else {
-      // When viewing own NFTs, show all buttons
-      if (nft.listing) {
-        if (nft.listing.seller === window.algoMintXClient.account) {
-          // Show unlist button if seller is the current user
-          buttonHtml = `<button class="btn btn-warning unlist-nft-btn" onclick="window.algoMintXClient.unlistNFT({ assetId: ${nft.assetId} })">Unlist NFT</button>`;
-        } else {
-          // Show buy button if seller is not the current user
-          buttonHtml = `<button class="btn btn-primary buy-nft-btn" onclick="window.algoMintXClient.buyNFT({ assetId: ${nft.assetId} })">Buy Now</button>`;
-        }
+    } else if (nft.listing) {
+      if (nft.listing.seller === window.algoMintXClient.account) {
+        buttonHtml = `<button class="btn btn-warning unlist-nft-btn" onclick="window.algoMintXClient.unlistNFT({ assetId: ${nft.assetId} })">Unlist</button>`;
       } else {
-        buttonHtml = `<button class="btn btn-secondary list-nft-btn" onclick="openListNFTModal(${nft.assetId})">List NFT</button>`;
+        buttonHtml = `<button class="btn btn-primary buy-nft-btn" onclick="window.algoMintXClient.buyNFT({ assetId: ${nft.assetId} })">Buy Now</button>`;
       }
+    } else if (canListOnMarketplace) {
+      buttonHtml = `<button class="btn btn-secondary list-nft-btn" onclick="openListNFTModal(${nft.assetId})">${listLabel}</button>`;
     }
 
     // Format wallet address to show first 6 and last 4 characters
@@ -176,21 +186,31 @@ window.renderNFTCards = function (nfts, isViewingOtherWallet = false) {
         </audio>
       </div>`;
     } else {
-      mediaElement = `<img src="${nft.metadata?.image}" alt="${nft.name}" class="nft-image">`;
+      mediaElement = `<img src="${nft.metadata?.image || placeholderImage}" alt="${nft.name || "Asset"}" class="nft-image">`;
     }
+
+    const assetTypeBadge =
+      nft.assetType === "FT"
+        ? `<span class="asset-type-badge">FT</span>`
+        : `<span class="asset-type-badge">NFT</span>`;
 
     card.innerHTML = `
       ${mediaElement}
       <div class="nft-content">
         <h3 class="nft-title" title="${
-          nft.name || "Unnamed NFT"
-        }">${truncateText(nft.name || "Unnamed NFT", 20)}</h3>
+          nft.name || nft.unitName || "Unnamed Asset"
+        }">${truncateText(nft.name || nft.unitName || "Unnamed Asset", 20)} ${assetTypeBadge}</h3>
         <p class="nft-description" title="${
           nft.metadata?.description || "No description available"
         }">${truncateText(
-      nft.metadata?.description || "No description available",
-      100
-    )}</p>
+          nft.metadata?.description || "No description available",
+          100,
+        )}</p>
+        ${
+          nft.assetType === "FT"
+            ? `<p class="nft-balance">Balance: ${nft.balance}</p>`
+            : ""
+        }
         ${
           nft.listing
             ? `<p class="nft-price">${nft.listing.price} ALGO</p>`
@@ -330,8 +350,8 @@ window.renderNFTDetailsPage = async (assetId) => {
     <p><strong>Transaction:</strong> ${nft.transactionId}</p>
     <p><strong>Creator:</strong> ${nft.creator}</p>
     <p><strong>${nft?.listing ? "Seller" : "Owner"}:</strong> ${
-    nft?.listing ? nft.listing.seller : nft.currentHolder
-  }</p>
+      nft?.listing ? nft.listing.seller : nft.currentHolder
+    }</p>
     <p><strong>Name:</strong> ${nft.name}</p>
     <p><strong>Description:</strong> ${nft.metadata.description}</p>
   `);

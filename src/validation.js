@@ -123,6 +123,13 @@ export class Validator {
     return Validator.validateEnum(env, "Environment", ["testnet", "mainnet"]);
   }
 
+  static validateMarketplaceType(marketplaceType) {
+    return Validator.validateEnum(marketplaceType, "marketplaceType", [
+      "FT",
+      "NFT",
+    ]);
+  }
+
   static validateNamespace(namespace) {
     const validatedNamespace = Validator.validateString(namespace, "Namespace");
     if (validatedNamespace.length !== 5) {
@@ -260,7 +267,8 @@ export class Validator {
       []
     );
 
-    if (!allowedMimeTypes.includes(file.type)) {
+    const mimeType = file.type || file.mimetype;
+    if (!mimeType || !allowedMimeTypes.includes(mimeType)) {
       const formatNames = supportedMediaFormats
         .map((format) => format.toLowerCase())
         .join(", ");
@@ -272,7 +280,12 @@ export class Validator {
 
     // Check file size (max 100MB)
     const maxSize = 100 * 1024 * 1024; // 100MB in bytes
-    if (file.size > maxSize) {
+    const fileSize =
+      file.size ??
+      (file.data instanceof Uint8Array
+        ? file.data.byteLength
+        : file.data?.length);
+    if (fileSize != null && fileSize > maxSize) {
       return {
         valid: false,
         message: "File size must be less than 100MB",
@@ -317,6 +330,68 @@ export class Validator {
       return {
         valid: false,
         message: "NFT description must be between 1 and 500 characters",
+      };
+    }
+    return { valid: true };
+  }
+
+  static validateFTName(name) {
+    // Check length (between 1 and 50 characters)
+    if (name.length < 1 || name.length > 50) {
+      return {
+        valid: false,
+        message: "FT name must be between 1 and 50 characters",
+      };
+    }
+    return { valid: true };
+  }
+
+  static validateFTDescription(description) {
+    // Check length (between 1 and 500 characters)
+    if (description.length < 1 || description.length > 500) {
+      return {
+        valid: false,
+        message: "FT description must be between 1 and 500 characters",
+      };
+    }
+    return { valid: true };
+  }
+
+  static validateFTDecimals(decimals) {
+    // Algorand ASA decimals must be an integer between 0 and 19
+    if (decimals === undefined || decimals === null || decimals === "") {
+      return { valid: false, message: "Decimals is required" };
+    }
+    const num = Number(decimals);
+    if (!Number.isInteger(num)) {
+      return { valid: false, message: "Decimals must be a whole number" };
+    }
+    if (num < 0 || num > 19) {
+      return { valid: false, message: "Decimals must be between 0 and 19" };
+    }
+    return { valid: true };
+  }
+
+  static validateFTTotalSupply(totalSupply) {
+    // Algorand ASA total must be a positive integer (1 .. 2^64 - 1)
+    if (
+      totalSupply === undefined ||
+      totalSupply === null ||
+      totalSupply === ""
+    ) {
+      return { valid: false, message: "Total supply is required" };
+    }
+    const num = Number(totalSupply);
+    if (!Number.isInteger(num)) {
+      return { valid: false, message: "Total supply must be a whole number" };
+    }
+    if (num < 1) {
+      return { valid: false, message: "Total supply must be at least 1" };
+    }
+    if (num > Number.MAX_SAFE_INTEGER) {
+      return {
+        valid: false,
+        message: "Total supply is too large",
       };
     }
     return { valid: true };

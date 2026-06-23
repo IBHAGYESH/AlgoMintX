@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -47,7 +47,7 @@
 
     <main>
       <div class="container">
-        <h2 class="page-title" id="page-title">Your NFTs</h2>
+        <h2 class="page-title" id="page-title">Your Assets</h2>
         <div id="login-message" class="login-message" style="display: none">
           <h3>Connect Your Wallet</h3>
           <p>Please connect your wallet to view your NFTs</p>
@@ -57,7 +57,7 @@
         </div>
         <div id="loading" class="loading-container" style="display: none">
           <div class="loading-spinner"></div>
-          <p class="loading-text">Loading NFTs...</p>
+          <p class="loading-text">Loading assets...</p>
         </div>
         <div id="nft-grid" class="nft-grid" style="display: none"></div>
       </div>
@@ -98,19 +98,21 @@
 
             // If viewing another wallet's NFTs
             if (walletAddressParam) {
-              pageTitle.textContent = `Wallet NFTs`;
-              const nfts = await window.algoMintXClient.getWalletNFTs({
+              pageTitle.textContent = `Wallet Assets`;
+              const nfts = await window.algoMintXClient.getWalletAssets({
                 accountId: walletAddressParam,
               });
               // Only show buy button for listed NFTs
               window.renderNFTCards(nfts, true);
             } else {
               // Viewing own NFTs
-              pageTitle.textContent = `Your NFTs`;
+              pageTitle.textContent = `Your Assets`;
               if (!window.algoMintXClient.account) {
                 throw new Error("Wallet not connected");
               }
-              const nfts = await window.algoMintXClient.getWalletNFTs({});
+              const nfts = await window.algoMintXClient.getWalletAssets({
+                marketplaceOnly: true,
+              });
               window.renderNFTCards(nfts, false);
             }
 
@@ -181,7 +183,7 @@
             updateProfileSection(address);
             // Load and show NFTs
             await showNFTGrid();
-          }
+          },
         );
 
         window.algoMintXClient.events.on(
@@ -190,7 +192,7 @@
             if (!walletAddressParam) {
               showLoginMessage();
             }
-          }
+          },
         );
 
         // Listen for NFT listing success
@@ -203,7 +205,9 @@
               loadingContainer.style.display = "block";
 
               // Fetch and display NFTs
-              const nfts = await window.algoMintXClient.getWalletNFTs({});
+              const nfts = await window.algoMintXClient.getWalletAssets({
+                marketplaceOnly: true,
+              });
               window.renderNFTCards(nfts, false);
 
               // Hide loading and show NFT grid
@@ -227,7 +231,9 @@
               loadingContainer.style.display = "block";
 
               // Fetch and display NFTs
-              const nfts = await window.algoMintXClient.getWalletNFTs({});
+              const nfts = await window.algoMintXClient.getWalletAssets({
+                marketplaceOnly: true,
+              });
               window.renderNFTCards(nfts, false);
 
               // Hide loading and show NFT grid

@@ -1,63 +1,84 @@
 const path = require("path");
+const webpack = require("webpack");
 
-module.exports = {
-  mode: "production", // Change to 'development' for debugging and 'production' for deployment
-  entry: "./src/algomintx.js", // Entry point
-  output: {
-    path: path.resolve(__dirname, "dist"),
-    filename: "algomintx.js",
-    library: "AlgoMintX",
-    libraryTarget: "window",
-    libraryExport: "default",
-    globalObject: "this",
-    chunkFormat: false,
-  },
-  module: {
-    rules: [
-      {
-        test: /\.js$/,
-        exclude: /node_modules/,
-        use: {
-          loader: "babel-loader",
-          options: {
-            presets: ["@babel/preset-env"],
-          },
-        },
+const sharedRules = [
+  {
+    test: /\.js$/,
+    exclude: /node_modules/,
+    use: {
+      loader: "babel-loader",
+      options: {
+        presets: ["@babel/preset-env"],
       },
-      {
-        test: /\.ts$/,
-        exclude: /node_modules/,
-        use: [
-          {
-            loader: "babel-loader",
-            options: {
-              presets: ["@babel/preset-env"],
-            },
-          },
-          {
-            loader: "ts-loader",
-            options: {
-              transpileOnly: true,
-              compilerOptions: {
-                module: "esnext",
-              },
-            },
-          },
-        ],
-      },
-      {
-        test: /\.css$/i,
-        use: ["style-loader", "css-loader"],
-      },
-    ],
-  },
-  resolve: {
-    extensions: [".js", ".ts", ".json"],
-    alias: {
-      "@algorandfoundation/algokit-utils": path.resolve(
-        __dirname,
-        "node_modules/@algorandfoundation/algokit-utils"
-      ),
     },
   },
+];
+
+const sharedResolve = {
+  extensions: [".js", ".json"],
+  alias: {
+    "@algorandfoundation/algokit-utils": path.resolve(
+      __dirname,
+      "node_modules/@algorandfoundation/algokit-utils",
+    ),
+  },
 };
+
+module.exports = [
+  {
+    name: "browser",
+    mode: "production",
+    entry: "./src/algomintx.js",
+    output: {
+      path: path.resolve(__dirname, "dist"),
+      filename: "algomintx.js",
+      library: {
+        name: "AlgoMintX",
+        type: "window",
+        export: "default",
+      },
+      globalObject: "this",
+      chunkFormat: false,
+    },
+    module: {
+      rules: [
+        ...sharedRules,
+        {
+          test: /\.css$/i,
+          use: ["style-loader", "css-loader"],
+        },
+      ],
+    },
+    resolve: sharedResolve,
+  },
+  {
+    name: "node",
+    target: "node",
+    mode: "production",
+    entry: "./src/algomintx.js",
+    output: {
+      path: path.resolve(__dirname, "dist/node"),
+      filename: "index.cjs",
+      library: {
+        type: "commonjs2",
+        export: "default",
+      },
+    },
+    externals: {
+      algosdk: "commonjs algosdk",
+    },
+    plugins: [
+      new webpack.NormalModuleReplacementPlugin(
+        /\.css$/,
+        path.resolve(__dirname, "src/empty-module.js"),
+      ),
+      new webpack.IgnorePlugin({
+        resourceRegExp: /^@perawallet\/connect$|^@blockshake\/defly-connect$/,
+      }),
+    ],
+    module: {
+      rules: sharedRules,
+    },
+    resolve: sharedResolve,
+  },
+];

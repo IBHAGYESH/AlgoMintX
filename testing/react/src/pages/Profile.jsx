@@ -22,14 +22,16 @@ function Profile() {
 
       // If viewing another wallet's NFTs
       if (walletAddressParam) {
-        const data = await algoMintXClient.getWalletNFTs({
+        const data = await algoMintXClient.getWalletAssets({
           accountId: walletAddressParam,
         });
         setNfts(data);
       }
       // If viewing own NFTs
       else if (algoMintXClient?.account) {
-        const data = await algoMintXClient.getWalletNFTs({});
+        const data = await algoMintXClient.getWalletAssets({
+          marketplaceOnly: true,
+        });
         setNfts(data);
       }
     } catch (err) {
@@ -93,8 +95,8 @@ function Profile() {
       <div className="no-nfts-container">
         <p className="no-nfts-text">
           {walletAddressParam
-            ? "This wallet has no NFTs"
-            : "You don't have any NFTs yet"}
+            ? "This wallet has no assets"
+            : "You don't have any assets yet"}
         </p>
       </div>
     );
@@ -103,7 +105,7 @@ function Profile() {
   return (
     <>
       <h2 className="page-title">
-        {walletAddressParam ? "Wallet NFTs" : "Your NFTs"}
+        {walletAddressParam ? "Wallet Assets" : "Your Assets"}
       </h2>
       <div className="nft-grid">
         {nfts.map((nft) => (
