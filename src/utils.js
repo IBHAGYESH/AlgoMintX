@@ -7,26 +7,35 @@ import algosdk from "algosdk";
 import { bytesToBase64, isBrowser } from "./env.js";
 
 /**
- * Normalize file input for browser File/Blob or Node { data, name, type }.
+ * Normalize file input for browser File/Blob, Node { data, name, type }, or Node file path string.
  */
 export function normalizeUploadFile(file) {
   if (!file) {
     throw new Error("File is required.");
   }
 
+  // Browser: File/Blob
   if (typeof Blob !== "undefined" && file instanceof Blob) {
     return file;
   }
 
+  // Node.js: File path string
+  if (typeof file === "string" && !isBrowser()) {
+    const { handleFilePath } = require("./node-file-handler.js");
+    return handleFilePath(file);
+  }
+
+  // Node.js: { data, name, type } object
   if (file.data != null && file.name) {
-    const data = file.data instanceof Uint8Array ? file.data : Buffer.from(file.data);
+    const data =
+      file.data instanceof Uint8Array ? file.data : Buffer.from(file.data);
     return new Blob([data], {
       type: file.type || file.mimetype || "application/octet-stream",
     });
   }
 
   throw new Error(
-    "Invalid file input. Provide a File/Blob in the browser or { data, name, type } in Node.js.",
+    "Invalid file input. Provide a File/Blob in the browser, a file path string in Node.js, or { data, name, type } in Node.js.",
   );
 }
 
@@ -69,7 +78,10 @@ export async function uploadFileToIPFS(file, apiKey) {
     data.append("file", file);
   } else {
     const fileName =
-      file.name || (normalized.type ? `upload.${normalized.type.split("/")[1] || "bin"}` : "upload.bin");
+      file.name ||
+      (normalized.type
+        ? `upload.${normalized.type.split("/")[1] || "bin"}`
+        : "upload.bin");
     data.append("file", normalized, fileName);
   }
 
@@ -83,7 +95,7 @@ export async function uploadFileToIPFS(file, apiKey) {
 
   if (!response.ok) {
     throw new Error(
-      `Failed to upload file to IPFS: ${response.status} ${response.statusText}`
+      `Failed to upload file to IPFS: ${response.status} ${response.statusText}`,
     );
   }
 
@@ -109,7 +121,7 @@ export async function uploadJSONToIPFS(jsonData, apiKey) {
 
   if (!response.ok) {
     throw new Error(
-      `Failed to upload JSON to IPFS: ${response.status} ${response.statusText}`
+      `Failed to upload JSON to IPFS: ${response.status} ${response.statusText}`,
     );
   }
 
@@ -130,7 +142,7 @@ export async function deleteFromIPFS(ipfsHash, apiKey) {
         headers: {
           Authorization: `Bearer ${apiKey}`,
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -210,7 +222,7 @@ export function buildListingBoxName(marketplace, assetId) {
 
 export function getBoxNameB64(marketplace, assetId) {
   return Buffer.from(buildListingBoxName(marketplace, assetId)).toString(
-    "base64"
+    "base64",
   );
 }
 
@@ -233,30 +245,26 @@ export function decodeListingBoxName(boxName) {
     if (prefix !== "listing_") return null;
     offset += 8;
 
-    const view = new DataView(
-      bytes.buffer,
-      bytes.byteOffset,
-      bytes.byteLength
-    );
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 
     const marketplaceLen = view.getUint16(offset, false);
     offset += 2;
     const marketplace = new TextDecoder().decode(
-      bytes.slice(offset, offset + marketplaceLen)
+      bytes.slice(offset, offset + marketplaceLen),
     );
     offset += marketplaceLen;
 
     const separatorLen = view.getUint16(offset, false);
     offset += 2;
     const separator = new TextDecoder().decode(
-      bytes.slice(offset, offset + separatorLen)
+      bytes.slice(offset, offset + separatorLen),
     );
     offset += separatorLen;
 
     if (separator !== "_") return null;
 
     const assetId = Number(
-      algosdk.decodeUint64(bytes.slice(offset, offset + 8), "safe")
+      algosdk.decodeUint64(bytes.slice(offset, offset + 8), "safe"),
     );
 
     return { marketplace, assetId: String(assetId) };
@@ -273,24 +281,28 @@ export function decodeListingBoxValue(rawBytes) {
   const view = new DataView(
     rawBytes.buffer,
     rawBytes.byteOffset,
-    rawBytes.byteLength
+    rawBytes.byteLength,
   );
 
   const sellerStart = 8;
   const sellerEnd = sellerStart + 58;
-  const seller = new TextDecoder().decode(rawBytes.slice(sellerStart, sellerEnd));
+  const seller = new TextDecoder().decode(
+    rawBytes.slice(sellerStart, sellerEnd),
+  );
 
   const priceLen = view.getUint16(sellerEnd, false);
   const priceStart = sellerEnd + 2;
   const priceEnd = priceStart + priceLen;
-  const priceStr = new TextDecoder().decode(rawBytes.slice(priceStart, priceEnd));
+  const priceStr = new TextDecoder().decode(
+    rawBytes.slice(priceStart, priceEnd),
+  );
   const price = microAlgosToAlgos(Number(priceStr));
 
   const marketplaceLen = view.getUint16(priceEnd, false);
   const marketplaceStart = priceEnd + 2;
   const marketplaceEnd = marketplaceStart + marketplaceLen;
   const marketplace = new TextDecoder().decode(
-    rawBytes.slice(marketplaceStart, marketplaceEnd)
+    rawBytes.slice(marketplaceStart, marketplaceEnd),
   );
 
   return { seller, price, marketplace };

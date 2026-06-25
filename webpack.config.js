@@ -48,6 +48,13 @@ module.exports = [
       new LimitChunkCountPlugin({
         maxChunks: 1,
       }),
+      new webpack.DefinePlugin({
+        "process.env.IS_BROWSER": JSON.stringify(true),
+      }),
+      new webpack.NormalModuleReplacementPlugin(
+        /node-file-handler/,
+        path.resolve(__dirname, "src/empty-module.js"),
+      ),
     ],
     module: {
       rules: [

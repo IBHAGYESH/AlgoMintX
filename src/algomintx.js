@@ -1486,8 +1486,12 @@ class AlgoMintX {
       throw new Error("Media file is required.");
     }
 
+    // Normalize file input (handles browser File/Blob, Node file path, or Node { data, name, type })
+    const { normalizeUploadFile } = await import("./utils.js");
+    const normalizedFile = normalizeUploadFile(file);
+
     const fileValidation = Validator.validateFileType(
-      file,
+      normalizedFile,
       this.#supportedMediaFormats,
     );
     if (!fileValidation.valid) {
@@ -1502,7 +1506,7 @@ class AlgoMintX {
       const result = await this.#mintNFT({
         name: sanitizedName,
         description: sanitizedDescription,
-        file,
+        file: normalizedFile,
       });
       eventBus.emit("nft:mint:success", result);
       return result;
@@ -1550,8 +1554,15 @@ class AlgoMintX {
       throw new Error(supplyValidation.message);
     }
 
+    let normalizedFile = null;
     if (file) {
-      const fileValidation = Validator.validateFileType(file, ["IMAGE"]);
+      // Normalize file input (handles browser File/Blob, Node file path, or Node { data, name, type })
+      const { normalizeUploadFile } = await import("./utils.js");
+      normalizedFile = normalizeUploadFile(file);
+
+      const fileValidation = Validator.validateFileType(normalizedFile, [
+        "IMAGE",
+      ]);
       if (!fileValidation.valid) {
         throw new Error(fileValidation.message);
       }
@@ -1567,7 +1578,7 @@ class AlgoMintX {
         description: sanitizedDescription,
         decimals: Number(decimals),
         totalSupply: Number(totalSupply),
-        file,
+        file: normalizedFile,
       });
       eventBus.emit("ft:mint:success", result);
       return result;
