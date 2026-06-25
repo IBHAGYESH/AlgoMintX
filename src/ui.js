@@ -173,7 +173,7 @@ export class UIManager {
 
     // Create minimized circle button
     const existingSdkMinimizeBtn = document.getElementById(
-      "algox-minimized-btn"
+      "algox-minimized-btn",
     );
     if (existingSdkMinimizeBtn) existingSdkMinimizeBtn.remove();
 
@@ -206,44 +206,53 @@ export class UIManager {
    */
   #setupEventListeners(callbacks) {
     // Choose wallet button
-    document
-      .getElementById("algox-wallet-choice")
-      .addEventListener("click", async (event) => {
+    const walletChoice = document.getElementById("algox-wallet-choice");
+    if (walletChoice) {
+      walletChoice.addEventListener("click", async (event) => {
         const btn = event.target.closest?.(".algox-wallet-btn");
         if (btn) {
           const walletType = btn.getAttribute("data-wallet");
           await callbacks.onWalletConnect(walletType);
         }
       });
+    }
 
     // Maximized button
-    document
-      .getElementById("algox-minimized-btn")
-      .addEventListener("click", () => callbacks.onMaximize());
+    const minimizedBtn = document.getElementById("algox-minimized-btn");
+    if (minimizedBtn) {
+      minimizedBtn.addEventListener("click", () => callbacks.onMaximize());
+    }
 
     // Minimize button
-    document
-      .getElementById("algox-minimize-btn")
-      .addEventListener("click", () => callbacks.onMinimize());
+    const minimizeBtn = document.getElementById("algox-minimize-btn");
+    if (minimizeBtn) {
+      minimizeBtn.addEventListener("click", () => callbacks.onMinimize());
+    }
 
     // Logout button
-    document
-      .getElementById("algox-logout-btn")
-      .addEventListener("click", () => callbacks.onLogout());
+    const logoutBtn = document.getElementById("algox-logout-btn");
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", () => callbacks.onLogout());
+    }
 
     // Theme toggle
-    document.getElementById("algox-theme-btn").addEventListener("click", () => {
-      callbacks.onThemeToggle();
-    });
+    const themeBtn = document.getElementById("algox-theme-btn");
+    if (themeBtn) {
+      themeBtn.addEventListener("click", () => {
+        callbacks.onThemeToggle();
+      });
+    }
 
     // Copy to clipboard for wallet address bar
     const walletAddressBar = document.getElementById("algox-wallet-address");
-    walletAddressBar.addEventListener("click", () => {
-      if (this.#sdk.account) {
-        navigator.clipboard.writeText(this.#sdk.account);
-        this.showToast("Wallet address copied to clipboard", "success");
-      }
-    });
+    if (walletAddressBar) {
+      walletAddressBar.addEventListener("click", () => {
+        if (this.#sdk.account) {
+          navigator.clipboard.writeText(this.#sdk.account);
+          this.showToast("Wallet address copied to clipboard", "success");
+        }
+      });
+    }
   }
 
   /**
@@ -376,10 +385,10 @@ export class UIManager {
       type === "error"
         ? "error"
         : type === "success"
-        ? "success"
-        : type === "warning"
-        ? "warning"
-        : "info"
+          ? "success"
+          : type === "warning"
+            ? "warning"
+            : "info",
     );
     toast.classList.add(this.#toastLocation.toLowerCase().replace("_", "-"));
     document.body.appendChild(toast);
@@ -402,7 +411,7 @@ export class UIManager {
     const overlay = document.getElementById("algox-loading-overlay");
     const minimizedBtn = document.getElementById("algox-minimized-btn");
     const processingMessage = document.getElementById(
-      "algox-processing-message"
+      "algox-processing-message",
     );
 
     if (!overlay || !processingMessage) {
@@ -455,7 +464,7 @@ export class UIManager {
     }
 
     const processingMessage = document.getElementById(
-      "algox-processing-message"
+      "algox-processing-message",
     );
     if (processingMessage) {
       processingMessage.textContent = message;
@@ -537,7 +546,7 @@ export class UIManager {
       JSON.stringify({
         minimized: this.#sdk.isMinimized,
         theme: this.#sdk.theme,
-      })
+      }),
     );
   }
 
@@ -712,28 +721,32 @@ export class UIManager {
     this.#initTabSystem(callbacks);
 
     // Mint NFT button
-    document
-      .getElementById("algox-mintx-mint-btn")
-      .addEventListener("click", async () => {
+    const mintNftBtn = document.getElementById("algox-mintx-mint-btn");
+    if (mintNftBtn) {
+      mintNftBtn.addEventListener("click", async () => {
         await callbacks.onMintNFT();
       });
+    }
 
     // Reset NFT button
-    document
-      .getElementById("algox-mintx-reset-btn")
-      .addEventListener("click", () => callbacks.onResetNFT());
+    const resetNftBtn = document.getElementById("algox-mintx-reset-btn");
+    if (resetNftBtn) {
+      resetNftBtn.addEventListener("click", () => callbacks.onResetNFT());
+    }
 
     // Mint FT button
-    document
-      .getElementById("algox-mintx-ft-mint-btn")
-      .addEventListener("click", async () => {
+    const mintFtBtn = document.getElementById("algox-mintx-ft-mint-btn");
+    if (mintFtBtn) {
+      mintFtBtn.addEventListener("click", async () => {
         await callbacks.onMintFT();
       });
+    }
 
     // Reset FT button
-    document
-      .getElementById("algox-mintx-ft-reset-btn")
-      .addEventListener("click", () => callbacks.onResetFT());
+    const resetFtBtn = document.getElementById("algox-mintx-ft-reset-btn");
+    if (resetFtBtn) {
+      resetFtBtn.addEventListener("click", () => callbacks.onResetFT());
+    }
 
     // Copy to clipboard for sdkMessages (tx id)
     this.#messageElement = document.getElementById("algox-mintx-messages");
@@ -745,7 +758,7 @@ export class UIManager {
         ) {
           const txId = this.#messageElement.innerText.replace(
             "NFT Minted! Transaction ID: ",
-            ""
+            "",
           );
 
           // Copy to clipboard
@@ -771,7 +784,7 @@ export class UIManager {
         ) {
           const txId = this.#ftMessageElement.innerText.replace(
             "FT Minted! Transaction ID: ",
-            ""
+            "",
           );
 
           // Copy to clipboard
@@ -798,7 +811,7 @@ export class UIManager {
 
     const nftName = document.getElementById("algox-mintx-nft-name");
     const nftDescription = document.getElementById(
-      "algox-mintx-nft-description"
+      "algox-mintx-nft-description",
     );
     const nftFile = document.getElementById("algox-mintx-nft-file");
 
@@ -876,7 +889,7 @@ export class UIManager {
     nftName.addEventListener("paste", (e) => {
       e.preventDefault();
       const pastedText = (e.clipboardData || window.clipboardData).getData(
-        "text"
+        "text",
       );
       // Truncate pasted text if it exceeds 50 characters
       const truncatedText = pastedText.slice(0, 50);
@@ -891,7 +904,7 @@ export class UIManager {
     nftDescription.addEventListener("paste", (e) => {
       e.preventDefault();
       const pastedText = (e.clipboardData || window.clipboardData).getData(
-        "text"
+        "text",
       );
       // Truncate pasted text if it exceeds 500 characters
       const truncatedText = pastedText.slice(0, 500);
@@ -918,7 +931,7 @@ export class UIManager {
     const mintBtn = document.getElementById("algox-mintx-mint-btn");
     const nftName = document.getElementById("algox-mintx-nft-name");
     const nftDescription = document.getElementById(
-      "algox-mintx-nft-description"
+      "algox-mintx-nft-description",
     );
     const nftFile = document.getElementById("algox-mintx-nft-file");
 
@@ -953,7 +966,7 @@ export class UIManager {
 
     const nftName = document.getElementById("algox-mintx-nft-name");
     const nftDescription = document.getElementById(
-      "algox-mintx-nft-description"
+      "algox-mintx-nft-description",
     );
     const nftFile = document.getElementById("algox-mintx-nft-file");
     const mintBtn = document.getElementById("algox-mintx-mint-btn");
@@ -1068,7 +1081,7 @@ export class UIManager {
         e.target.value = e.target.value.slice(0, 500);
         this.showToast(
           "Token description cannot exceed 500 characters",
-          "error"
+          "error",
         );
         return;
       }
@@ -1116,7 +1129,7 @@ export class UIManager {
     ftName.addEventListener("paste", (e) => {
       e.preventDefault();
       const pastedText = (e.clipboardData || window.clipboardData).getData(
-        "text"
+        "text",
       );
       const truncatedText = pastedText.slice(0, 50);
       e.target.value = callbacks.sanitizeInput(truncatedText);
@@ -1129,14 +1142,14 @@ export class UIManager {
     ftDescription.addEventListener("paste", (e) => {
       e.preventDefault();
       const pastedText = (e.clipboardData || window.clipboardData).getData(
-        "text"
+        "text",
       );
       const truncatedText = pastedText.slice(0, 500);
       e.target.value = callbacks.sanitizeInput(truncatedText);
       if (pastedText.length > 500) {
         this.showToast(
           "Token description cannot exceed 500 characters",
-          "error"
+          "error",
         );
       }
       this.validateFTMintButton();

@@ -1,15 +1,19 @@
 {
   "name": "algomintx",
-  "version": "1.2.0",
+  "version": "2.0.6",
   "description": "White-label Algorand NFT/FT marketplace SDK for browser and Node.js",
   "main": "./dist/node/index.cjs",
   "browser": "./dist/algomintx.js",
   "exports": {
     ".": {
+      "browser": {
+        "import": "./dist/algomintx.js",
+        "require": "./dist/algomintx.js",
+        "default": "./dist/algomintx.js"
+      },
       "import": "./dist/node/index.cjs",
       "require": "./dist/node/index.cjs",
-      "browser": "./dist/algomintx.js",
-      "default": "./dist/node/index.cjs"
+      "default": "./dist/algomintx.js"
     }
   },
   "files": [
@@ -25,9 +29,12 @@
   "keywords": [
     "algorand",
     "nft",
+    "ft",
+    "token",
     "marketplace",
     "asa",
     "algomintx",
+    "plug-and-play",
     "white-label"
   ],
   "author": "Bhagyesh Jahangirpuria",

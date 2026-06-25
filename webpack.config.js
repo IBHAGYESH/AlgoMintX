@@ -1,5 +1,6 @@
 const path = require("path");
 const webpack = require("webpack");
+const LimitChunkCountPlugin = require("webpack/lib/optimize/LimitChunkCountPlugin");
 
 const sharedRules = [
   {
@@ -34,12 +35,20 @@ module.exports = [
       filename: "algomintx.js",
       library: {
         name: "AlgoMintX",
-        type: "window",
+        type: "umd",
         export: "default",
       },
       globalObject: "this",
-      chunkFormat: false,
     },
+    optimization: {
+      minimize: true,
+      splitChunks: false,
+    },
+    plugins: [
+      new LimitChunkCountPlugin({
+        maxChunks: 1,
+      }),
+    ],
     module: {
       rules: [
         ...sharedRules,
