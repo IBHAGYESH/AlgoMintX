@@ -10,11 +10,13 @@ This is a simple Node.js demo that uses the AlgoMintX SDK to mint NFTs and FTs w
 ## Setup
 
 1. Navigate to the node demo directory:
+
 ```bash
 cd testing/node
 ```
 
 2. Install dependencies:
+
 ```bash
 npm install
 ```
@@ -30,7 +32,7 @@ const HARDCODED_WALLET_MNEMONIC = "YOUR_WALLET_MNEMONIC_HERE";
 const PINATA_API_KEY = "YOUR_PINATA_API_KEY_HERE";
 const PINATA_GATEWAY_URL = "xxx.mypinata.cloud"; // or your custom gateway
 
-const NAMESPACE = "ABCDE"; // Your unique 5-letter namespace
+const NAMESPACE = "550e8400-e29b-41d4-a716-446655440000"; // Your unique UUID v4
 const REVENUE_WALLET_ADDRESS = "YOUR_REVENUE_WALLET_ADDRESS_HERE";
 ```
 
@@ -52,7 +54,7 @@ Uncomment the NFT minting section in the `main()` function:
 await mintNFT(
   "My Awesome NFT",
   "This is a test NFT minted from Node.js",
-  "nft-image.png" // Optional: path to image file
+  "nft-image.png", // Optional: path to image file
 );
 ```
 
@@ -66,7 +68,7 @@ await mintFT(
   "This is a test fungible token minted from Node.js",
   6, // decimals
   1000000, // total supply
-  "ft-image.png" // Optional: path to image file
+  "ft-image.png", // Optional: path to image file
 );
 ```
 
@@ -77,6 +79,7 @@ npm start
 ```
 
 The script will:
+
 1. Connect to the wallet using hardcoded credentials
 2. Mint the NFT or FT (depending on which function is uncommented)
 3. Print the transaction ID and asset ID to the console

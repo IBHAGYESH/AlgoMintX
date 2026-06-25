@@ -17,7 +17,7 @@ const HARDCODED_WALLET_MNEMONIC = "YOUR_WALLET_MNEMONIC";
 
 const PINATA_API_KEY = "YOUR_PINATA_API_KEY";
 
-const NAMESPACE = "ABCDE"; // Your unique 5-letter namespace
+const NAMESPACE = "550e8400-e29b-41d4-a716-446655440000"; // Your unique UUID v4
 const REVENUE_WALLET_ADDRESS = "YOUR_REVENUE_WALLET_ADDRESS";
 
 // ==========================================

@@ -4,10 +4,9 @@
 window.algoMintXClient = new window.AlgoMintX({
   // Required
   pinata_ipfs_server_key: "", // your pinata api key
-  pinata_ipfs_gateway_url: "xxx.mypinata.cloud", // your pinata gateway url
   env: "testnet", // testnet | mainnet
-  namespace: "", // unique 5 letter string
-  revenueWalletAddress: "", // where fees go
+  namespace: "550e8400-e29b-41d4-a716-446655440000", // unique UUID v4
+  revenueWalletAddress: "YOUR_REVENUE_WALLET_ADDRESS", // where fees go
   // Optional
   mintFee: 0.1, // in Algos
   listingFee: 0.1, // in Algos
@@ -22,7 +21,7 @@ window.algoMintXClient = new window.AlgoMintX({
   disableUi: false,
 });
 
-/**
+/*
  * sdk events
  */
 

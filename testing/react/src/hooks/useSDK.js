@@ -15,7 +15,7 @@ export function useSDK() {
           // Required
           pinata_ipfs_server_key: "YOUR_PINATA_API_KEY", // your pinata api key
           env: "testnet", // testnet | mainnet
-          namespace: "ABCDE", // unique 5 letter string
+          namespace: "550e8400-e29b-41d4-a716-446655440000", // unique UUID v4
           revenueWalletAddress: "YOUR_REVENUE_WALLET_ADDRESS", // where fees go
           // Optional
           mintFee: 0.1, // in Algos

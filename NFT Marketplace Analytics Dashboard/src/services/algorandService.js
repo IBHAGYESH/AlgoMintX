@@ -7,16 +7,16 @@ import {
 // Network configurations (AlgoMintX shared marketplace contract)
 const NETWORK_CONFIG = {
   mainnet: {
-    contractApplicationId: 3127816536,
+    contractApplicationId: 3616719545,
     contractWalletAddress:
-      "57U43PN2WYSYFQZAJ2WBGSHT2RG3GJF2B4JJZYBOGUZ5ZDR6K7WCFLQNHU",
+      "OUQOV3ACDGD7VH4XLL6WTLEZWQFYHY3WBGNGS3N3PY3ICZFNJLHH3CFQR4",
     indexerUrl: "https://mainnet-idx.algonode.cloud",
     algodUrl: "https://mainnet-api.algonode.cloud",
   },
   testnet: {
-    contractApplicationId: 764970022,
+    contractApplicationId: 765070434,
     contractWalletAddress:
-      "YUS4ATNZYFNBOSN4MYP5BYPJKQNYSYRGU6PFP65ZLWXPWWBLUZYSHWJGUA",
+      "SO62WJDOCN7Z6DYFTHBE4RSKS2TBTQFMBUQ6ONQASARTCLZISMGUIGXSK4",
     indexerUrl: "https://testnet-idx.algonode.cloud",
     algodUrl: "https://testnet-api.algonode.cloud",
   },
