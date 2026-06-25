@@ -61,7 +61,9 @@ function About() {
           NFT marketplace to your platform:
         </p>
         <pre>
-          <code>{`window.algoMintXClient = new window.AlgoMintX({
+          <code>{`import AlgoMintX from "algomintx";
+
+const algoMintXClient = new AlgoMintX({
   pinata_ipfs_server_key: "YOUR_PINATA_KEY",
   pinata_ipfs_gateway_url: "YOUR_PINATA_GATEWAY",
   env: "testnet",

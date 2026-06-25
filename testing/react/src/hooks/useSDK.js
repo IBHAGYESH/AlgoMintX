@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import AlgoMintX from "algomintx";
 
 // Create a singleton instance outside the hook
 let sdkInstance = null;
@@ -7,16 +8,15 @@ export function useSDK() {
   const [algoMintXClient, setAlgoMintXClient] = useState(null);
 
   const initializeSDK = useCallback(() => {
-    if (window.AlgoMintX && !sdkInstance) {
+    if (!sdkInstance) {
       try {
         // Initialize SDK with required parameters
-        sdkInstance = new window.AlgoMintX({
+        sdkInstance = new AlgoMintX({
           // Required
-          pinata_ipfs_server_key: "", // your pinata api key
-          pinata_ipfs_gateway_url: "xxx.mypinata.cloud", // your pinata gateway url
+          pinata_ipfs_server_key: "YOUR_PINATA_API_KEY", // your pinata api key
           env: "testnet", // testnet | mainnet
-          namespace: "", // unique 5 letter string
-          revenueWalletAddress: "", // where fees go
+          namespace: "ABCDE", // unique 5 letter string
+          revenueWalletAddress: "YOUR_REVENUE_WALLET_ADDRESS", // where fees go
           // Optional
           mintFee: 0.1, // in Algos
           listingFee: 0.1, // in Algos
@@ -27,6 +27,7 @@ export function useSDK() {
           minimizeUILocation: "right", // left | right
           logo: "./logo.png", // your website logo (URL / path to image)
           supportedMediaFormats: ["IMAGE", "VIDEO", "AUDIO"], // ["IMAGE", "VIDEO", "AUDIO"]
+          marketplaceType: "NFT", // NFT | FT
         });
 
         setAlgoMintXClient(sdkInstance);
@@ -47,31 +48,15 @@ export function useSDK() {
       } catch (error) {
         console.error("SDK initialization error:", error);
       }
-    } else if (sdkInstance) {
+    } else {
       // If SDK is already initialized, use the existing instance
       setAlgoMintXClient(sdkInstance);
     }
   }, []);
 
   useEffect(() => {
-    let intervalId;
-
-    const checkAndInitializeSDK = () => {
-      if (window.AlgoMintX) {
-        initializeSDK();
-        clearInterval(intervalId);
-      }
-    };
-
-    // Start checking every 100ms
-    intervalId = setInterval(checkAndInitializeSDK, 100);
-
-    // Cleanup interval on component unmount
-    return () => {
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
+    // Initialize SDK once on mount
+    initializeSDK();
   }, [initializeSDK]);
 
   return { algoMintXClient };

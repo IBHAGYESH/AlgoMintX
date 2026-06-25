@@ -10,7 +10,7 @@ function ListNFTModal({ assetId, onClose }) {
     try {
       onClose();
       await algoMintXClient.listNFT({
-        assetId: assetId,
+        assetId: Number(assetId),
         nftPrice: parseInt(price),
       });
     } catch (error) {

@@ -6,7 +6,7 @@ import MainLayout from './layouts/MainLayout';
 import Home from './pages/Home';
 import Profile from './pages/Profile';
 import About from './pages/About';
-import NFTDetails from './pages/NFTDetails';
+import AssetDetails from './pages/AssetDetails';
 import { useSDK } from './hooks/useSDK';
 
 function App() {  
@@ -28,7 +28,7 @@ function App() {
           <Route index element={<Home />} />
           <Route path="profile" element={<Profile />} />
           <Route path="about" element={<About />} />
-          <Route path="nft/:assetId" element={<NFTDetails />} />
+          <Route path="asset/:assetId" element={<AssetDetails />} />
         </Route>
       </Routes>
     </Router>

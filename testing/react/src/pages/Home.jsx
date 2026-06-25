@@ -2,47 +2,47 @@ import { useState, useEffect, useCallback } from "react";
 import { useSDK } from "../hooks/useSDK";
 import { useSDKEvents } from "../hooks/useSDKEvents";
 import { toast } from "react-toastify";
-import NFTCard from "../components/NFTCard";
+import AssetCard from "../components/AssetCard";
 
 function Home() {
-  const [nfts, setNfts] = useState([]);
+  const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const { algoMintXClient } = useSDK();
 
-  const fetchNFTs = useCallback(async () => {
+  const fetchAssets = useCallback(async () => {
     if (!algoMintXClient) return;
 
     try {
       setLoading(true);
       const data = await algoMintXClient.getListedNFTs();
-      setNfts(data);
+      setAssets(data);
       setError(null);
     } catch (err) {
-      console.error("Error fetching NFTs:", err);
-      setError("Failed to load NFTs. Please try again later.");
-      toast.error("Failed to load NFTs");
+      console.error("Error fetching assets:", err);
+      setError("Failed to load assets. Please try again later.");
+      toast.error("Failed to load assets");
     } finally {
       setLoading(false);
     }
   }, [algoMintXClient]);
 
   useEffect(() => {
-    fetchNFTs();
-  }, [fetchNFTs]);
+    fetchAssets();
+  }, [fetchAssets]);
 
   useSDKEvents({
-    onWalletConnect: fetchNFTs,
-    onWalletDisconnect: fetchNFTs,
-    onNFTBuy: fetchNFTs,
-    onNFTUnlist: fetchNFTs,
+    onWalletConnect: fetchAssets,
+    onWalletDisconnect: fetchAssets,
+    onNFTBuy: fetchAssets,
+    onNFTUnlist: fetchAssets,
   });
 
   if (loading) {
     return (
       <div className="loading-container">
         <div className="loading-spinner"></div>
-        <p className="loading-text">Loading NFTs...</p>
+        <p className="loading-text">Loading assets...</p>
       </div>
     );
   }
@@ -55,20 +55,20 @@ function Home() {
     );
   }
 
-  if (!nfts || nfts.length === 0) {
+  if (!assets || assets.length === 0) {
     return (
       <div className="no-nfts-container">
-        <p className="no-nfts-text">No NFTs found</p>
+        <p className="no-nfts-text">No assets found</p>
       </div>
     );
   }
 
   return (
     <>
-      <h2 className="page-title">Featured NFTs</h2>
+      <h2 className="page-title">Featured Assets</h2>
       <div className="nft-grid">
-        {nfts.map((nft) => (
-          <NFTCard key={nft.assetId} nft={nft} />
+        {assets.map((asset) => (
+          <AssetCard key={asset.assetId} asset={asset} />
         ))}
       </div>
     </>
