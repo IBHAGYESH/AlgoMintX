@@ -177,11 +177,11 @@ class AlgoMintX {
 
       // Initialize SDK contract details (SDK specific)
       this.#contractApplicationId =
-        this.network === "mainnet" ? 764970022 : 764970022;
+        this.network === "mainnet" ? 3616719545 : 765070434;
       this.#contractWalletAddress =
         this.network === "mainnet"
-          ? "YUS4ATNZYFNBOSN4MYP5BYPJKQNYSYRGU6PFP65ZLWXPWWBLUZYSHWJGUA"
-          : "YUS4ATNZYFNBOSN4MYP5BYPJKQNYSYRGU6PFP65ZLWXPWWBLUZYSHWJGUA";
+          ? "OUQOV3ACDGD7VH4XLL6WTLEZWQFYHY3WBGNGS3N3PY3ICZFNJLHH3CFQR4"
+          : "SO62WJDOCN7Z6DYFTHBE4RSKS2TBTQFMBUQ6ONQASARTCLZISMGUIGXSK4";
 
       // Load saved UI state (browser + UI enabled only)
       if (!this.#disableUi && isBrowser()) {

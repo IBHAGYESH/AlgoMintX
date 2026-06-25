@@ -1,6 +1,6 @@
 {
   "name": "algomintx",
-  "version": "2.0.7",
+  "version": "3.0.0",
   "description": "White-label Algorand NFT/FT marketplace SDK for browser and Node.js",
   "main": "./dist/node/index.cjs",
   "browser": "./dist/algomintx.js",

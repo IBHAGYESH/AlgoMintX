@@ -46,12 +46,12 @@ export class Validator {
     }
     if (options.min !== undefined && value < options.min) {
       throw new Error(
-        `${paramName} must be greater than or equal to ${options.min}`
+        `${paramName} must be greater than or equal to ${options.min}`,
       );
     }
     if (options.max !== undefined && value > options.max) {
       throw new Error(
-        `${paramName} must be less than or equal to ${options.max}`
+        `${paramName} must be less than or equal to ${options.max}`,
       );
     }
     return value;
@@ -91,7 +91,10 @@ export class Validator {
       return null;
     }
 
-    const validatedUrl = Validator.validateString(url, "Pinata IPFS gateway URL");
+    const validatedUrl = Validator.validateString(
+      url,
+      "Pinata IPFS gateway URL",
+    );
 
     // Check for https:// or http://
     if (
@@ -99,14 +102,14 @@ export class Validator {
       validatedUrl.startsWith("https://")
     ) {
       throw new Error(
-        "Pinata IPFS gateway URL must not include http:// or https://"
+        "Pinata IPFS gateway URL must not include http:// or https://",
       );
     }
 
     // Check for any forward slashes
     if (validatedUrl.includes("/")) {
       throw new Error(
-        "Pinata IPFS gateway URL must not contain any forward slashes"
+        "Pinata IPFS gateway URL must not contain any forward slashes",
       );
     }
 
@@ -132,11 +135,13 @@ export class Validator {
 
   static validateNamespace(namespace) {
     const validatedNamespace = Validator.validateString(namespace, "Namespace");
-    if (validatedNamespace.length !== 5) {
-      throw new Error("Namespace must be exactly 5 characters long");
-    }
-    if (!/^[A-Z]+$/.test(validatedNamespace)) {
-      throw new Error("Namespace must contain only uppercase letters");
+    // UUID v4 format: xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(validatedNamespace)) {
+      throw new Error(
+        "Namespace must be a valid UUID v4 format (e.g., 550e8400-e29b-41d4-a716-446655440000)",
+      );
     }
     return validatedNamespace;
   }
@@ -144,7 +149,7 @@ export class Validator {
   static validateRevenueWalletAddress(address) {
     const validatedAddress = Validator.validateString(
       address,
-      "Revenue wallet address"
+      "Revenue wallet address",
     );
     if (validatedAddress.length !== 58) {
       throw new Error("Revenue wallet address must be 58 characters long");
@@ -169,8 +174,10 @@ export class Validator {
 
   static validateMinimizeUILocation(location) {
     return (
-      Validator.validateEnum(location, "minimizeUILocation", ["left", "right"]) ||
-      "right"
+      Validator.validateEnum(location, "minimizeUILocation", [
+        "left",
+        "right",
+      ]) || "right"
     );
   }
 
@@ -197,18 +204,18 @@ export class Validator {
     ) {
       if (
         !/^[./\\a-zA-Z0-9_-]+\.(png|jpg|jpeg|gif|svg|webp)$/i.test(
-          validatedLogo
+          validatedLogo,
         )
       ) {
         throw new Error(
-          "Invalid logo file path. Must be a valid image file path"
+          "Invalid logo file path. Must be a valid image file path",
         );
       }
       return validatedLogo;
     }
 
     throw new Error(
-      "Logo must be either a valid URL or a valid local file path"
+      "Logo must be either a valid URL or a valid local file path",
     );
   }
 
@@ -226,14 +233,14 @@ export class Validator {
 
     const validFormats = ["IMAGE", "VIDEO", "AUDIO"];
     const invalidFormats = formats.filter(
-      (format) => !validFormats.includes(format)
+      (format) => !validFormats.includes(format),
     );
 
     if (invalidFormats.length > 0) {
       throw new Error(
         `Invalid media formats: ${invalidFormats.join(
-          ", "
-        )}. Valid formats are: ${validFormats.join(", ")}`
+          ", ",
+        )}. Valid formats are: ${validFormats.join(", ")}`,
       );
     }
 
@@ -260,12 +267,9 @@ export class Validator {
     };
 
     // Get all allowed types based on supported formats
-    const allowedMimeTypes = supportedMediaFormats.reduce(
-      (types, format) => {
-        return [...types, ...allowedTypes[format]];
-      },
-      []
-    );
+    const allowedMimeTypes = supportedMediaFormats.reduce((types, format) => {
+      return [...types, ...allowedTypes[format]];
+    }, []);
 
     const mimeType = file.type || file.mimetype;
     if (!mimeType || !allowedMimeTypes.includes(mimeType)) {
@@ -301,12 +305,12 @@ export class Validator {
     // Remove any script tags and their content
     input = input.replace(
       /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
-      ""
+      "",
     );
     // Remove any special characters except basic punctuation, spaces, and alphanumeric
     input = input.replace(
       /[^a-zA-Z0-9\s.,!?@#$%^&*()_+\-=\[\]{};':"\\|<>\/]/g,
-      ""
+      "",
     );
     // Remove multiple spaces but keep single spaces
     input = input.replace(/\s+/g, " ");
