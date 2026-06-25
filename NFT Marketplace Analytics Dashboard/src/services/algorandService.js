@@ -1,8 +1,4 @@
 import algosdk from "algosdk";
-import {
-  decodeListingBoxName,
-  decodeListingBoxValue,
-} from "../../../src/utils.js";
 
 // Network configurations (AlgoMintX shared marketplace contract)
 const NETWORK_CONFIG = {
@@ -23,6 +19,85 @@ const NETWORK_CONFIG = {
 };
 
 const DEFAULT_IPFS_GATEWAY = "ipfs.io";
+
+// Convert microAlgos to Algos
+function microAlgosToAlgos(microAlgos) {
+  return microAlgos / 1_000_000;
+}
+
+// Decode listing box name into { marketplace, assetId } (bytes or base64 string)
+function decodeListingBoxName(boxName) {
+  try {
+    const bytes =
+      typeof boxName === "string"
+        ? Uint8Array.from(atob(boxName), (c) => c.charCodeAt(0))
+        : boxName;
+
+    let offset = 0;
+    const prefix = new TextDecoder().decode(bytes.slice(0, 8));
+    if (prefix !== "listing_") return null;
+    offset += 8;
+
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+
+    const marketplaceLen = view.getUint16(offset, false);
+    offset += 2;
+    const marketplace = new TextDecoder().decode(
+      bytes.slice(offset, offset + marketplaceLen),
+    );
+    offset += marketplaceLen;
+
+    const separatorLen = view.getUint16(offset, false);
+    offset += 2;
+    const separator = new TextDecoder().decode(
+      bytes.slice(offset, offset + separatorLen),
+    );
+    offset += separatorLen;
+
+    if (separator !== "_") return null;
+
+    const assetId = Number(
+      algosdk.decodeUint64(bytes.slice(offset, offset + 8), "safe"),
+    );
+
+    return { marketplace, assetId: String(assetId) };
+  } catch (e) {
+    console.warn("Failed to decode listing box name", e);
+    return null;
+  }
+}
+
+// Decode ARC-4 Listing struct bytes into { seller, price (ALGO), marketplace }
+function decodeListingBoxValue(rawBytes) {
+  const view = new DataView(
+    rawBytes.buffer,
+    rawBytes.byteOffset,
+    rawBytes.byteLength,
+  );
+
+  const sellerStart = 8;
+  const sellerEnd = sellerStart + 58;
+  const seller = new TextDecoder().decode(
+    rawBytes.slice(sellerStart, sellerEnd),
+  );
+
+  const priceLen = view.getUint16(sellerEnd, false);
+  const priceStart = sellerEnd + 2;
+  const priceEnd = priceStart + priceLen;
+  const priceStr = new TextDecoder().decode(
+    rawBytes.slice(priceStart, priceEnd),
+  );
+  const price = microAlgosToAlgos(Number(priceStr));
+
+  const marketplaceLen = view.getUint16(priceEnd, false);
+  const marketplaceStart = priceEnd + 2;
+  const marketplaceEnd = marketplaceStart + marketplaceLen;
+  const marketplace = new TextDecoder().decode(
+    rawBytes.slice(marketplaceStart, marketplaceEnd),
+  );
+
+  return { seller, price, marketplace };
+}
 
 // Convert a base64 string into a byte array
 function b64ToBytes(b64) {
@@ -107,7 +182,7 @@ class AlgorandService {
           assetId: Number(assetId),
           seller: decoded.seller,
           price: decoded.price,
-          marketplace,
+          marketplace: marketplace.toUpperCase(),
         });
       } catch (e) {
         console.warn("Failed to decode listing box", e);
@@ -125,6 +200,7 @@ class AlgorandService {
 
     listings.forEach(({ assetId, seller, price, marketplace }) => {
       if (!grouped[marketplace]) {
+        // SDK always adds AMX prefix, so remove it for display namespace
         grouped[marketplace] = {
           marketplace,
           namespace: marketplace.startsWith("AMX")
@@ -241,9 +317,27 @@ class AlgorandService {
   // Full analytics for a single marketplace: listings (with metadata) + metrics
   async getMarketplaceData(marketplace) {
     const allListings = await this.getAllListings();
-    const marketplaceListings = allListings.filter(
-      (l) => l.marketplace === marketplace,
+    const searchUpper = marketplace.toUpperCase();
+
+    let marketplaceListings = allListings.filter(
+      (l) => l.marketplace === searchUpper,
     );
+
+    // If no results, try with AMX prefix (for backward compatibility with old SDK listings)
+    if (marketplaceListings.length === 0 && !searchUpper.startsWith("AMX")) {
+      const withPrefix = `AMX${searchUpper}`;
+      marketplaceListings = allListings.filter(
+        (l) => l.marketplace === withPrefix,
+      );
+    }
+
+    // If still no results, try without AMX prefix (for new SDK listings)
+    if (marketplaceListings.length === 0 && searchUpper.startsWith("AMX")) {
+      const withoutPrefix = searchUpper.slice(3);
+      marketplaceListings = allListings.filter(
+        (l) => l.marketplace === withoutPrefix,
+      );
+    }
 
     if (marketplaceListings.length === 0) {
       throw new Error(`Marketplace ${marketplace} not found`);
@@ -290,6 +384,7 @@ class AlgorandService {
     const assetType =
       sample && sample.total === 1 && sample.decimals === 0 ? "NFT" : "FT";
 
+    // SDK always adds AMX prefix, so remove it for display namespace
     return {
       marketplace,
       namespace: marketplace.startsWith("AMX")

@@ -24,12 +24,14 @@ function App() {
   const [priceDistribution, setPriceDistribution] = useState([]);
   const [topSellers, setTopSellers] = useState([]);
 
-  // Normalize a user query into a full marketplace unit name (AMX + 5 letters)
+  // Normalize a user query into a full marketplace unit name
+  // SDK always adds AMX prefix to namespace, so we need to add it for search
   const normalizeMarketplace = (query) => {
-    const trimmed = query.trim().toUpperCase();
+    const trimmed = query.trim();
     if (!trimmed) return '';
-    if (trimmed.startsWith('AMX')) return trimmed;
-    return `AMX${trimmed}`;
+    const upper = trimmed.toUpperCase();
+    if (upper.startsWith('AMX')) return upper;
+    return `AMX${upper}`;
   };
 
   const handleNetworkChange = (newNetwork) => {
