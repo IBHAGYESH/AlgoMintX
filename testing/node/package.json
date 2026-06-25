@@ -1,0 +1,22 @@
+{
+  "name": "algomintx-node-demo",
+  "version": "1.0.0",
+  "description": "Node.js headless demo for AlgoMintX SDK",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [
+    "algorand",
+    "nft",
+    "ft",
+    "marketplace",
+    "algomintx"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "algomintx": "^2.0.7"
+  }
+}
