@@ -1073,3 +1073,252 @@ p, span, div {
     align-items: center;
   }
 }
+
+/* ==========================================
+   LANDING PAGE STYLES
+   ========================================== */
+
+.landing-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--accent-primary);
+  color: #ffffff;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.landing-link {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.landing-hero {
+  padding: var(--spacing-2xl) 0;
+  text-align: center;
+}
+
+.landing-hero-content {
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.landing-kicker {
+  display: inline-block;
+  padding: 6px 14px;
+  margin-bottom: var(--spacing-md);
+  border-radius: 999px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+
+.landing-title {
+  font-size: 2.4rem;
+  line-height: 1.15;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.landing-subtitle {
+  font-size: var(--font-size-lg);
+  line-height: 1.6;
+  color: var(--text-muted);
+  margin-bottom: var(--spacing-lg);
+}
+
+.landing-cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--spacing-md);
+  margin-top: var(--spacing-lg);
+}
+
+.landing-cta-row-center {
+  justify-content: center;
+}
+
+.landing-cta-primary,
+.landing-cta-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 26px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.landing-cta-primary {
+  background: var(--accent-primary);
+  color: #ffffff;
+  box-shadow: var(--shadow-lg);
+}
+
+.landing-cta-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-xl);
+  background: var(--accent-secondary);
+}
+
+.landing-cta-secondary {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+}
+
+.landing-cta-secondary:hover {
+  border-color: var(--accent-primary);
+  color: var(--accent-primary);
+  transform: translateY(-2px);
+}
+
+.landing-section {
+  padding: var(--spacing-xl) 0;
+}
+
+.landing-section-title {
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-md);
+}
+
+.landing-section-text {
+  font-size: var(--font-size-lg);
+  line-height: 1.7;
+  color: var(--text-muted);
+  max-width: 860px;
+}
+
+.landing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-lg);
+}
+
+.landing-feature {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  transition: all 0.3s ease;
+}
+
+.landing-feature:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--accent-primary);
+}
+
+.landing-feature-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: var(--radius-md);
+  background: var(--bg-tertiary);
+  color: var(--accent-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.landing-feature h4 {
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-xs);
+}
+
+.landing-feature p {
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.landing-code {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-lg);
+  overflow-x: auto;
+  margin-top: var(--spacing-md);
+}
+
+.landing-code pre {
+  margin: 0;
+}
+
+.landing-code code {
+  color: #93c5fd;
+  font-size: var(--font-size-sm);
+  line-height: 1.6;
+}
+
+@media (max-width: 768px) {
+  .landing-title {
+    font-size: 1.8rem;
+  }
+
+  .landing-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .landing-cta-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .landing-cta-primary,
+  .landing-cta-secondary {
+    justify-content: center;
+  }
+}
+
+/* ==========================================
+   LANDING PAGE FIXES & NAV BUTTON
+   ========================================== */
+
+/* The dashboard styles all <section> elements as bordered cards. Neutralize
+   that on the landing page so the landing flows as clean full-width sections. */
+.landing-hero,
+.landing-section {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  margin-bottom: 0;
+}
+
+/* Soft accent wash behind the hero for a polished, intentional look */
+.landing-hero {
+  background: linear-gradient(180deg, rgba(52, 152, 219, 0.08), rgba(52, 152, 219, 0));
+}
+
+.app.dark .landing-hero {
+  background: linear-gradient(180deg, rgba(96, 165, 250, 0.12), rgba(96, 165, 250, 0));
+}
+
+/* Brand logo in the header doubles as the link back to the landing page */
+.logo {
+  text-decoration: none;
+  color: inherit;
+}
+
+.logo:hover h1 {
+  color: var(--accent-primary);
+}
